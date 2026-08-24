@@ -1,0 +1,6 @@
+venv/
+plotly.min.js
+output.txt
+test_imports.py
+*.pyc
+__pycache__/
