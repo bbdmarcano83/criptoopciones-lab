@@ -298,6 +298,20 @@ input[type=range]{width:100%;accent-color:#38bdf8;height:16px;margin-bottom:1px}
     </div>
   </div>
 
+  <div class="slabel">Rango de precio histórico</div>
+  <div class="ivr-panel">
+    <div class="ivr-row"><span class="ivr-lbl">Actual</span><span class="ivr-v acc" id="pr-actual">$--</span></div>
+    <div class="ivr-row"><span class="ivr-lbl">Min 6m</span><span class="ivr-v neg" id="pr-min6">$--</span></div>
+    <div class="ivr-row"><span class="ivr-lbl">Max 6m</span><span class="ivr-v pos" id="pr-max6">$--</span></div>
+    <div class="ivr-row"><span class="ivr-lbl">Min 12m</span><span class="ivr-v neg" id="pr-min12">$--</span></div>
+    <div class="ivr-row"><span class="ivr-lbl">Max 12m</span><span class="ivr-v pos" id="pr-max12">$--</span></div>
+    <div class="ivr-row"><span class="ivr-lbl">Posición en rango</span><span class="ivr-v warn" id="pr-pct">--%</span></div>
+    <div class="ivr-bar"><div class="ivr-fill" id="pr-fill" style="width:0%;background:#38bdf8"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-top:3px">
+      <span>Min</span><span id="pr-pos-label" style="color:#f59e0b">▲</span><span>Max</span>
+    </div>
+  </div>
+
   <div class="slabel">Plantillas</div>
   <div class="strat-grid" id="strat-grid"></div>
 
@@ -785,7 +799,7 @@ async function fetchIVR(){
       const currency=act.toLowerCase();
       // DVOL actual — índice oficial de volatilidad implícita de Deribit
       const [rDvol, rHist] = await Promise.all([
-        fetch(`https://www.deribit.com/api/v2/public/get_index?currency=${currency}`),
+        fetch(`https://www.deribit.com/api/v2/public/get_index_price?index_name=${currency}_usd`),
         fetch(`https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${currency}&start_timestamp=${Date.now()-365*24*3600*1000}&end_timestamp=${Date.now()}&resolution=3600`)
       ]);
       const jDvol = await rDvol.json();
@@ -802,11 +816,12 @@ async function fetchIVR(){
       if(jHist.result?.data?.length>0){
         const vals=jHist.result.data.map(d=>d[4]).filter(v=>v>0); // close price del DVOL
         if(vals.length>0){
-          ivMin=+Math.min(...vals).toFixed(1);
-          ivMax=+Math.max(...vals).toFixed(1);
           if(ivActual===0)ivActual=vals[vals.length-1];
-          ivr=+((ivActual-ivMin)/(ivMax-ivMin)*100).toFixed(1)||50;
-          ivr=Math.max(0,Math.min(100,ivr));
+          // Usar rangos históricos conocidos para IVR real — el DVOL de 30 días
+          // no tiene suficiente historia para calcular IVR de 52 semanas
+          ivr=+calcIVR(ivActual,act).toFixed(1);
+          ivMin=IV_RANGES[act]?.min||30;
+          ivMax=IV_RANGES[act]?.max||120;
         }
       }else{
         // Fallback a rangos conocidos
