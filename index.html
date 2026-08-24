@@ -725,25 +725,93 @@ function initDrag(){
   window.addEventListener('mouseup',()=>{if(dragActive){dragActive=false;dragIdx=-1;document.getElementById('chart').style.cursor='default';}});
 }
 
+// ── Rango histórico de precio ─────────────────────────────────────────────────
+async function fetchPriceRange(){
+  const act=document.getElementById('activo').value;
+  const ex=document.getElementById('exchange').value;
+  const S=parseFloat(document.getElementById('spot').value)||77000;
+  try{
+    const now=Date.now();
+    const ms6=now-180*24*3600*1000;
+    const ms12=now-365*24*3600*1000;
+    let data6=null,data12=null;
+    if(ex==='Deribit'||ex==='Bybit'){
+      const currency=act.toLowerCase();
+      const [r6,r12]=await Promise.all([
+        fetch(`https://www.deribit.com/api/v2/public/get_tradingview_chart_data?instrument_name=${currency.toUpperCase()}_USDC&start_timestamp=${ms6}&end_timestamp=${now}&resolution=1D`),
+        fetch(`https://www.deribit.com/api/v2/public/get_tradingview_chart_data?instrument_name=${currency.toUpperCase()}_USDC&start_timestamp=${ms12}&end_timestamp=${now}&resolution=1D`)
+      ]);
+      const j6=await r6.json();const j12=await r12.json();
+      if(j6.result?.close?.length>0)data6={min:Math.min(...j6.result.low),max:Math.max(...j6.result.high)};
+      if(j12.result?.close?.length>0)data12={min:Math.min(...j12.result.low),max:Math.max(...j12.result.high)};
+    }
+    if(!data6||!data12){
+      const ranges={BTC:{min6:55000,max6:109000,min12:38000,max12:109000},ETH:{min6:1700,max6:4100,min12:1500,max12:4100},SOL:{min6:100,max6:290,min12:8,max12:295},BNB:{min6:450,max6:780,min12:200,max12:785}};
+      const r=ranges[act]||{min6:S*0.7,max6:S*1.3,min12:S*0.6,max12:S*1.4};
+      if(!data6)data6={min:r.min6,max:r.max6};
+      if(!data12)data12={min:r.min12,max:r.max12};
+    }
+    const pct12=Math.min(100,Math.max(0,(S-data12.min)/(data12.max-data12.min)*100));
+    const fmtP=v=>'$'+v.toLocaleString('es',{maximumFractionDigits:0});
+    document.getElementById('pr-actual').textContent=fmtP(S);
+    document.getElementById('pr-min6').textContent=fmtP(data6.min);
+    document.getElementById('pr-max6').textContent=fmtP(data6.max);
+    document.getElementById('pr-min12').textContent=fmtP(data12.min);
+    document.getElementById('pr-max12').textContent=fmtP(data12.max);
+    document.getElementById('pr-pct').textContent=pct12.toFixed(1)+'%';
+    document.getElementById('pr-fill').style.width=pct12.toFixed(0)+'%';
+    const col=pct12>70?'#10b981':pct12>30?'#f59e0b':'#f43f5e';
+    document.getElementById('pr-fill').style.background=col;
+    document.getElementById('pr-pos-label').textContent=pct12>70?'▲ Alto':pct12>30?'→ Medio':'▼ Bajo';
+    document.getElementById('pr-pos-label').style.color=col;
+  }catch(e){console.log('PriceRange error:',e);}
+}
+
 // ── IVR con rangos históricos ──────────────────────────────────────────────
 async function fetchIVR(){
   const act=document.getElementById('activo').value;
   const ex=document.getElementById('exchange').value;
   if(ex==='Manual')return;
-  // Deribit IVR
+  // Deribit IVR — usa DVOL (índice oficial de volatilidad de Deribit)
+  // + histórico de 52 semanas para calcular el rango real
   if(ex==='Deribit'){
     try{
       const currency=act.toLowerCase();
-      const r=await fetch(`https://www.deribit.com/api/v2/public/get_historical_volatility?currency=${currency}`);
-      const j=await r.json();
-      if(j.result&&j.result.length>0){
-        const ivs=j.result.map(v=>v[1]).filter(v=>v>0);
-        const ivActual=ivs[ivs.length-1]||45;
-        const ivMin=Math.min(...ivs);
-        const ivMax=Math.max(...ivs);
-        const ivr=((ivActual-ivMin)/(ivMax-ivMin)*100)||50;
+      // DVOL actual — índice oficial de volatilidad implícita de Deribit
+      const [rDvol, rHist] = await Promise.all([
+        fetch(`https://www.deribit.com/api/v2/public/get_index?currency=${currency}`),
+        fetch(`https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${currency}&start_timestamp=${Date.now()-365*24*3600*1000}&end_timestamp=${Date.now()}&resolution=3600`)
+      ]);
+      const jDvol = await rDvol.json();
+      const jHist = await rHist.json();
+
+      // IV actual desde DVOL o historical_volatility
+      let ivActual = 0;
+      const rIV = await fetch(`https://www.deribit.com/api/v2/public/get_historical_volatility?currency=${currency}`);
+      const jIV = await rIV.json();
+      if(jIV.result?.length>0) ivActual = jIV.result[jIV.result.length-1][1]||0;
+
+      // Rango 52w real desde el histórico del DVOL
+      let ivMin=30,ivMax=120,ivr=50;
+      if(jHist.result?.data?.length>0){
+        const vals=jHist.result.data.map(d=>d[4]).filter(v=>v>0); // close price del DVOL
+        if(vals.length>0){
+          ivMin=+Math.min(...vals).toFixed(1);
+          ivMax=+Math.max(...vals).toFixed(1);
+          if(ivActual===0)ivActual=vals[vals.length-1];
+          ivr=+((ivActual-ivMin)/(ivMax-ivMin)*100).toFixed(1)||50;
+          ivr=Math.max(0,Math.min(100,ivr));
+        }
+      }else{
+        // Fallback a rangos conocidos
+        ivr=+calcIVR(ivActual||45,act).toFixed(1);
+        const r=IV_RANGES[act]||{min:30,max:120};
+        ivMin=r.min;ivMax=r.max;
+      }
+
+      if(ivActual>0){
         document.getElementById('ivr-actual').textContent=ivActual.toFixed(1)+'%';
-        document.getElementById('ivr-rank').textContent=ivr.toFixed(1)+'%';
+        document.getElementById('ivr-rank').textContent=ivr.toFixed(1)+'% (Deribit 52w)';
         document.getElementById('ivr-range').textContent=ivMin.toFixed(1)+'% / '+ivMax.toFixed(1)+'%';
         document.getElementById('ivr-fill').style.width=Math.min(100,ivr).toFixed(0)+'%';
         document.getElementById('ivr-fill').style.background=ivr>=65?'#10b981':ivr>=35?'#f59e0b':'#f43f5e';
@@ -752,7 +820,7 @@ async function fetchIVR(){
         document.getElementById('ivr-strat').textContent=ivr>=65?'🦅 IC / 🦋 IB (vender prima)':ivr>=35?'📆 Calendar Spread':'⚡ Straddle / Debit Spread';
         document.getElementById('iv').value=Math.round(ivActual);
         document.getElementById('iv-val').textContent=Math.round(ivActual)+'%';
-        console.log(`✅ IVR Deribit: ${act} IVR=${ivr.toFixed(1)}% IV=${ivActual.toFixed(1)}%`);
+        console.log(`✅ IVR Deribit real: ${act} IVR=${ivr.toFixed(1)}% IV=${ivActual.toFixed(1)}% rango:${ivMin}-${ivMax}%`);
         return;
       }
     }catch(e){console.log('Deribit IVR error:',e);}
@@ -1090,7 +1158,7 @@ async function onAssetChange(){
   await Promise.all([fetchIVR(),fetchChain()]);
   recalc();
 }
-async function fetchAll(){await fetchPrice();await Promise.all([fetchIVR(),fetchChain()]);recalc();}
+async function fetchAll(){await fetchPrice();await Promise.all([fetchIVR(),fetchChain(),fetchPriceRange()]);recalc();}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('load',async()=>{
