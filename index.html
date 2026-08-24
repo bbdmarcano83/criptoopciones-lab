@@ -735,15 +735,21 @@ async function fetchPriceRange(){
     const ms6=now-180*24*3600*1000;
     const ms12=now-365*24*3600*1000;
     let data6=null,data12=null;
-    if(ex==='Deribit'||ex==='Bybit'){
-      const currency=act.toLowerCase();
-      const [r6,r12]=await Promise.all([
-        fetch(`https://www.deribit.com/api/v2/public/get_tradingview_chart_data?instrument_name=${currency.toUpperCase()}_USDC&start_timestamp=${ms6}&end_timestamp=${now}&resolution=1D`),
-        fetch(`https://www.deribit.com/api/v2/public/get_tradingview_chart_data?instrument_name=${currency.toUpperCase()}_USDC&start_timestamp=${ms12}&end_timestamp=${now}&resolution=1D`)
-      ]);
-      const j6=await r6.json();const j12=await r12.json();
-      if(j6.result?.close?.length>0)data6={min:Math.min(...j6.result.low),max:Math.max(...j6.result.high)};
-      if(j12.result?.close?.length>0)data12={min:Math.min(...j12.result.low),max:Math.max(...j12.result.high)};
+    // CoinGecko API — permite CORS desde browser, datos reales de mercado
+    const cgIds={BTC:'bitcoin',ETH:'ethereum',SOL:'solana',BNB:'binancecoin'};
+    const cgId=cgIds[act]||'bitcoin';
+    const [r6,r12]=await Promise.all([
+      fetch(`https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=180&interval=daily`),
+      fetch(`https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=365&interval=daily`)
+    ]);
+    const j6=await r6.json();const j12=await r12.json();
+    if(j6.prices?.length>0){
+      const prices6=j6.prices.map(p=>p[1]);
+      data6={min:Math.min(...prices6),max:Math.max(...prices6)};
+    }
+    if(j12.prices?.length>0){
+      const prices12=j12.prices.map(p=>p[1]);
+      data12={min:Math.min(...prices12),max:Math.max(...prices12)};
     }
     if(!data6||!data12){
       const ranges={BTC:{min6:55000,max6:109000,min12:38000,max12:109000},ETH:{min6:1700,max6:4100,min12:1500,max12:4100},SOL:{min6:100,max6:290,min12:8,max12:295},BNB:{min6:450,max6:780,min12:200,max12:785}};
