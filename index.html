@@ -245,7 +245,7 @@ input[type=range]{width:100%;accent-color:#38bdf8;height:16px;margin-bottom:1px}
 
   <div class="slabel">Exchange</div>
   <select id="exchange" onchange="onExchangeChange()">
-    <option>Bybit</option><option>Binance</option><option>Manual</option>
+    <option>Bybit</option><option>Binance</option><option>Deribit</option><option>Manual</option>
   </select>
 
   <div class="slabel">Activo</div>
@@ -730,16 +730,52 @@ async function fetchIVR(){
   const act=document.getElementById('activo').value;
   const ex=document.getElementById('exchange').value;
   if(ex==='Manual')return;
+  // Deribit IVR
+  if(ex==='Deribit'){
+    try{
+      const currency=act.toLowerCase();
+      const r=await fetch(`https://www.deribit.com/api/v2/public/get_historical_volatility?currency=${currency}`);
+      const j=await r.json();
+      if(j.result&&j.result.length>0){
+        const ivs=j.result.map(v=>v[1]).filter(v=>v>0);
+        const ivActual=ivs[ivs.length-1]||45;
+        const ivMin=Math.min(...ivs);
+        const ivMax=Math.max(...ivs);
+        const ivr=((ivActual-ivMin)/(ivMax-ivMin)*100)||50;
+        document.getElementById('ivr-actual').textContent=ivActual.toFixed(1)+'%';
+        document.getElementById('ivr-rank').textContent=ivr.toFixed(1)+'%';
+        document.getElementById('ivr-range').textContent=ivMin.toFixed(1)+'% / '+ivMax.toFixed(1)+'%';
+        document.getElementById('ivr-fill').style.width=Math.min(100,ivr).toFixed(0)+'%';
+        document.getElementById('ivr-fill').style.background=ivr>=65?'#10b981':ivr>=35?'#f59e0b':'#f43f5e';
+        document.getElementById('nav-ivr').textContent=`IVR ${ivr.toFixed(0)}%`;
+        document.getElementById('nav-ivr').className='nav-ivr '+(ivr>=65?'high':ivr<35?'low':'med');
+        document.getElementById('ivr-strat').textContent=ivr>=65?'🦅 IC / 🦋 IB (vender prima)':ivr>=35?'📆 Calendar Spread':'⚡ Straddle / Debit Spread';
+        document.getElementById('iv').value=Math.round(ivActual);
+        document.getElementById('iv-val').textContent=Math.round(ivActual)+'%';
+        console.log(`✅ IVR Deribit: ${act} IVR=${ivr.toFixed(1)}% IV=${ivActual.toFixed(1)}%`);
+        return;
+      }
+    }catch(e){console.log('Deribit IVR error:',e);}
+  }
+
+  // Binance bloquea CORS desde browser — usar solo Bybit
+  if(ex==='Binance'){
+    const ivActual=parseFloat(document.getElementById('iv').value)||45;
+    const ivr=+calcIVR(ivActual,act).toFixed(1);
+    document.getElementById('ivr-actual').textContent=ivActual+'%';
+    document.getElementById('ivr-rank').textContent=ivr.toFixed(1)+'% (est.)';
+    document.getElementById('ivr-fill').style.width=Math.min(100,ivr).toFixed(0)+'%';
+    document.getElementById('ivr-fill').style.background=ivr>=65?'#10b981':ivr>=35?'#f59e0b':'#f43f5e';
+    document.getElementById('nav-ivr').textContent=`IVR ${ivr.toFixed(0)}%`;
+    document.getElementById('ivr-strat').textContent=ivr>=65?'🦅 IC / 🦋 IB':ivr>=35?'📆 Calendar':'⚡ Straddle';
+    return;
+  }
   try{
-    const url=ex==='Bybit'
-      ?`https://api.bybit.com/v5/market/tickers?category=option&baseCoin=${act}`
-      :`https://eapi.binance.com/eapi/v1/ticker`;
+    const url=`https://api.bybit.com/v5/market/tickers?category=option&baseCoin=${act}`;
     const r=await fetch(url);const j=await r.json();
     let ivs=[];
-    if(ex==='Bybit'&&j.result&&j.result.list)
+    if(j.result&&j.result.list)
       ivs=j.result.list.map(o=>parseFloat(o.markIv||0)*100).filter(v=>v>5&&v<300);
-    else if(Array.isArray(j))
-      ivs=j.filter(o=>o.symbol?.startsWith(act)).map(o=>parseFloat(o.impliedVolatility||0)*100).filter(v=>v>5&&v<300);
     if(ivs.length>0){
       const ivActual=+(ivs.reduce((a,b)=>a+b,0)/ivs.length).toFixed(1);
       const ivMin=+Math.min(...ivs).toFixed(1),ivMax=+Math.max(...ivs).toFixed(1);
@@ -770,7 +806,8 @@ async function fetchPrice(){
   try{
     let price;
     if(ex==='Bybit'){const r=await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${act}USDT`);price=parseFloat((await r.json()).result.list[0].lastPrice);}
-    else{const r=await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${act}USDT`);price=parseFloat((await r.json()).price);}
+    else if(ex==='Deribit'){const r=await fetch(`https://www.deribit.com/api/v2/public/get_index_price?index_name=${act.toLowerCase()}_usd`);const j=await r.json();price=parseFloat(j.result?.index_price||0);}
+    else if(ex==='Binance'){const r=await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${act}USDT`);price=parseFloat((await r.json()).price);}
     if(price){
       document.getElementById('spot').value=price.toFixed(2);
       document.getElementById('nav-price').textContent='$'+price.toLocaleString('es',{minimumFractionDigits:2});
@@ -802,18 +839,33 @@ async function fetchChain(){
             volume:parseFloat(o.volume24h||0),oi:parseFloat(o.openInterest||0)};
         });
       }
+    }else if(ex==='Deribit'){
+      try{
+        const currency=act.toUpperCase();
+        const r=await fetch(`https://www.deribit.com/api/v2/public/get_instruments?currency=${currency}&kind=option&expired=false`);
+        const j=await r.json();
+        if(j.result){
+          // Obtener tickers para los instrumentos
+          const instruments=j.result.slice(0,100);
+          for(const inst of instruments){
+            const parts=inst.instrument_name.split('-');
+            if(parts.length<4)continue;
+            const expiry=parts[1];
+            const strike=parseInt(parts[2]);
+            const tipo=parts[3]==='C'?'call':'put';
+            if(!chainData[expiry])chainData[expiry]={};
+            if(!chainData[expiry][strike])chainData[expiry][strike]={call:null,put:null};
+            chainData[expiry][strike][tipo]={
+              symbol:inst.instrument_name,
+              strike,tipo,expiry,
+              delta:0,iv:0,bid:0,ask:0,volume:0,oi:0
+            };
+          }
+        }
+      }catch(e){console.log('Deribit chain error:',e);}
     }else if(ex==='Binance'){
-      const r=await fetch(`https://eapi.binance.com/eapi/v1/ticker`);
-      const j=await r.json();
-      if(Array.isArray(j)){
-        allOptions=j.filter(o=>o.symbol?.startsWith(act)).map(o=>{
-          const parts=o.symbol.split('-');
-          return{symbol:o.symbol,strike:parseInt(parts[2]||parts[1]),tipo:o.symbol.endsWith('-C')?'call':'put',
-            expiry:parts[1]||'',delta:parseFloat(o.delta||0),iv:parseFloat(o.impliedVolatility||0)*100,
-            bid:parseFloat(o.bidPrice||0),ask:parseFloat(o.askPrice||0),
-            volume:parseFloat(o.volume||0),oi:parseFloat(o.openInterest||0)};
-        });
-      }
+      // Binance bloquea CORS — cadena sintética con BS
+      console.log('Binance: cadena sintética (CORS)');
     }
     if(allOptions.length){
       allOptions.forEach(o=>{
