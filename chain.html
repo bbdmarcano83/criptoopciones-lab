@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>CriptoOpciones Lab — Cadena</title>
+<script src="plotly.min.js"></script>
+<script src="co_shared.js"></script>
+<style id="shared-css"></style>
+<style>
+.chain-toolbar{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid #1e2035;align-items:center;flex-wrap:wrap;background:#111120}
+.chain-toolbar select{height:28px;font-size:11px}
+.chain-toolbar button{height:28px}
+.exp-tabs{display:flex;gap:3px;padding:6px 16px;border-bottom:1px solid #1e2035;overflow-x:auto;background:#0d0d14}
+.exp-tab{background:#13131f;border:1px solid #1e2035;border-radius:4px;padding:3px 10px;font-size:10px;cursor:pointer;color:#475569;white-space:nowrap}
+.exp-tab:hover{border-color:#38bdf8;color:#38bdf8}
+.exp-tab.active{background:#0c1a2e;border-color:#38bdf8;color:#38bdf8;font-weight:600}
+.chain-main{flex:1;overflow:auto;padding:0}
+.chain-table{width:100%;border-collapse:collapse;font-size:11px}
+.chain-table thead{position:sticky;top:0;z-index:10}
+.chain-table th{background:#0a0a14;padding:5px 8px;text-align:right;color:#334155;font-weight:500;white-space:nowrap;border-bottom:1px solid #1e2035}
+.chain-table th.s{text-align:center;background:#0d0d14}
+.chain-table td{padding:3px 8px;text-align:right;border-bottom:1px solid #0d0d14;cursor:pointer;white-space:nowrap}
+.chain-table td.s{text-align:center;font-weight:700;background:#13131f;color:#c8cfe0;position:sticky;left:0}
+.chain-table tr:hover td{background:#0c1422!important}
+.chain-table tr.atm td{background:#0c1a0c}
+.chain-table tr.atm td.s{color:#22c55e;background:#0f2010}
+.chain-table tr.spot-row td{background:#1c1200;color:#f59e0b;text-align:center;font-size:10px;font-weight:600;padding:3px}
+.chain-table tr.itm-c td:not(.s){background:rgba(56,189,248,0.04)}
+.chain-table tr.itm-p td:not(.s){background:rgba(251,146,60,0.04)}
+.call-h{color:#38bdf8}.put-h{color:#fb923c}
+.call-v{color:#7dd3fc}.put-v{color:#fdba74}
+.em-band{position:absolute;pointer-events:none;background:rgba(34,197,94,0.05);border-left:1px dashed #22c55e;border-right:1px dashed #22c55e}
+.pnl-bar{height:3px;border-radius:2px;margin-top:2px}
+.ticker-strip{background:#0a0a14;border-bottom:1px solid #1e2035;padding:4px 16px;display:flex;gap:16px;overflow:hidden;white-space:nowrap;font-size:10px;color:#475569}
+.ticker-item{display:flex;gap:4px}
+.ticker-item .sym{color:#64748b}
+.side-panel{width:280px;background:#111120;border-left:1px solid #1e2035;padding:12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex-shrink:0}
+.content-row{display:flex;flex:1;overflow:hidden}
+.metric-mini{background:#0d0d14;border:1px solid #1e2035;border-radius:6px;padding:8px;text-align:center}
+.metric-mini .ml{font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.5px}
+.metric-mini .mv{font-size:16px;font-weight:600;margin-top:2px}
+.leg-item{background:#0d0d14;border:1px solid #1e2035;border-radius:5px;padding:6px 8px;font-size:10px;display:flex;justify-content:space-between;align-items:center}
+.leg-sym{color:#f59e0b;font-size:9px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+
+<!-- Ticker strip -->
+<div class="ticker-strip" id="ticker-strip">
+  <span class="ticker-item"><span class="live-dot"></span> <span style="color:#22c55e;margin-left:4px">EN VIVO</span></span>
+  <span class="ticker-item"><span class="sym">BTC/USDT</span> <span id="t-btc">--</span></span>
+  <span class="ticker-item"><span class="sym">ETH/USDT</span> <span id="t-eth">--</span></span>
+  <span class="ticker-item"><span class="sym">IV Rank</span> <span id="t-ivr" class="warn">--%</span></span>
+  <span class="ticker-item"><span class="sym">Mov. Esperado</span> <span id="t-em" class="acc">±--</span></span>
+  <span class="ticker-item"><span class="sym">Actualizado</span> <span id="t-time" class="neu">--</span></span>
+</div>
+
+<!-- Toolbar -->
+<div class="chain-toolbar">
+  <select id="ex" onchange="COState.exchange=this.value;loadAll()">
+    <option value="Bybit" ${COState.exchange==='Bybit'?'selected':''}>Bybit</option>
+    <option value="Binance" ${COState.exchange==='Binance'?'selected':''}>Binance</option>
+  </select>
+  <select id="act" onchange="COState.activo=this.value;loadAll()">
+    <option value="BTC">BTC</option>
+    <option value="ETH">ETH</option>
+    <option value="SOL">SOL</option>
+  </select>
+  <span class="badge blue" id="spot-badge">$--</span>
+  <span style="font-size:11px;color:#334155">DTE:</span>
+  <input type="number" id="dte-filter" value="7" min="1" max="90" style="width:55px;height:28px" onchange="renderChain()">
+  <span style="font-size:11px;color:#334155">IV%:</span>
+  <input type="number" id="iv-inp" value="45" min="5" max="250" style="width:55px;height:28px" onchange="COState.iv=+this.value;renderChain()">
+  <button class="btn primary" onclick="loadAll()">⟳ Actualizar</button>
+  <button class="btn" onclick="clearLegs()">🗑 Limpiar patas</button>
+  <button class="btn success" onclick="goAnalyzer()">📈 Analizar estrategia →</button>
+  <div style="flex:1"></div>
+  <span id="patas-count" class="badge">0 patas</span>
+</div>
+
+<!-- Exp tabs -->
+<div class="exp-tabs" id="exp-tabs">
+  <span style="font-size:10px;color:#334155;padding:3px 6px">Cargando vencimientos...</span>
+</div>
+
+<div class="content-row">
+  <!-- Cadena -->
+  <div class="chain-main">
+    <table class="chain-table">
+      <thead>
+        <tr>
+          <!-- CALL side -->
+          <th class="call-h">Vol</th>
+          <th class="call-h">OI</th>
+          <th class="call-h">IV%</th>
+          <th class="call-h">Theta</th>
+          <th class="call-h">Vega</th>
+          <th class="call-h">Bid</th>
+          <th class="call-h">Ask</th>
+          <th class="call-h">Mark</th>
+          <th class="call-h">Δ Call</th>
+          <!-- STRIKE -->
+          <th class="s">Strike</th>
+          <!-- PUT side -->
+          <th class="put-h">Δ Put</th>
+          <th class="put-h">Mark</th>
+          <th class="put-h">Bid</th>
+          <th class="put-h">Ask</th>
+          <th class="put-h">Vega</th>
+          <th class="put-h">Theta</th>
+          <th class="put-h">IV%</th>
+          <th class="put-h">OI</th>
+          <th class="put-h">Vol</th>
+        </tr>
+      </thead>
+      <tbody id="chain-body">
+        <tr><td colspan="19" style="text-align:center;padding:20px;color:#334155">Haz click en "Actualizar" para cargar la cadena</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Panel lateral -->
+  <div class="side-panel">
+    <div class="section-title">Expected Move ±</div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:11px;color:#334155;margin-bottom:4px">Movimiento esperado (1σ)</div>
+      <div style="font-size:20px;font-weight:700;color:#22c55e" id="em-val">±$--</div>
+      <div style="font-size:10px;color:#475569;margin-top:4px" id="em-range">-- / --</div>
+      <div style="font-size:9px;color:#334155;margin-top:6px">68% de probabilidad que el precio esté dentro de este rango al vencimiento</div>
+    </div>
+
+    <div class="section-title">Métricas de mercado</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div class="metric-mini"><div class="ml">IV Actual</div><div class="mv acc" id="sp-iv">--%</div></div>
+      <div class="metric-mini"><div class="ml">IVR 52w</div><div class="mv warn" id="sp-ivr">--%</div></div>
+      <div class="metric-mini"><div class="ml">PoP ATM</div><div class="mv pos" id="sp-pop">--%</div></div>
+      <div class="metric-mini"><div class="ml">Prob Touch</div><div class="mv neg" id="sp-pt">--%</div></div>
+    </div>
+
+    <div class="section-title">Patas seleccionadas <span id="patas-n">(0)</span></div>
+    <div id="legs-list" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">
+      <div style="font-size:10px;color:#334155;text-align:center;padding:8px">Click en la cadena para agregar patas</div>
+    </div>
+
+    <div class="section-title">PnL de la estrategia actual</div>
+    <div id="mini-chart" style="height:120px"></div>
+
+    <button class="btn success" style="width:100%" onclick="goAnalyzer()">📈 Analizar en detalle →</button>
+    <button class="btn" style="width:100%" onclick="clearLegs()">🗑 Limpiar todo</button>
+  </div>
+</div>
+
+<script>
+document.getElementById('shared-css').textContent=CO_CSS;
+document.getElementById('nav-placeholder').innerHTML=navHTML('chain.html');
+document.getElementById('act').value=COState.activo;
+document.getElementById('iv-inp').value=COState.iv;
+
+let allOptions=[];
+let currentExp='';
+let legs=COState.legs||[];
+
+async function loadAll(){
+  COState.exchange=document.getElementById('ex').value;
+  COState.activo=document.getElementById('act').value;
+  
+  // Precio spot
+  const spot=await fetchSpot(COState.exchange,COState.activo);
+  if(spot){COState.spot=spot;document.getElementById('spot-badge').textContent='$'+spot.toLocaleString('es',{minimumFractionDigits:2});}
+  
+  // Ticker rápido
+  fetchSpot('Bybit','BTC').then(p=>{if(p){const el=document.getElementById('t-btc');el.textContent='$'+p.toLocaleString();el.className='';}});
+  fetchSpot('Bybit','ETH').then(p=>{if(p){const el=document.getElementById('t-eth');el.textContent='$'+p.toLocaleString();el.className='';}});
+  
+  // Opciones
+  allOptions=await fetchOptions(COState.exchange,COState.activo);
+  
+  // IVR aproximado
+  if(allOptions.length){
+    const ivs=allOptions.map(o=>o.iv).filter(v=>v>5&&v<300);
+    if(ivs.length){
+      const ivActual=+(ivs.reduce((a,b)=>a+b,0)/ivs.length).toFixed(1);
+      const ivMin=+Math.min(...ivs).toFixed(1),ivMax=+Math.max(...ivs).toFixed(1);
+      const ivr=+((ivActual-ivMin)/(ivMax-ivMin)*100).toFixed(1);
+      COState.iv=ivActual;
+      document.getElementById('iv-inp').value=Math.round(ivActual);
+      document.getElementById('sp-iv').textContent=ivActual+'%';
+      document.getElementById('sp-ivr').textContent=ivr+'%';
+      document.getElementById('t-ivr').textContent=ivr+'%';
+      document.getElementById('nav-ivr').textContent='IVR '+ivr+'%';
+    }
+  }
+  
+  // Expected Move
+  updateEM();
+  
+  // Vencimientos
+  const expiries=[...new Set(allOptions.map(o=>o.expiry))].sort();
+  const tabsEl=document.getElementById('exp-tabs');
+  tabsEl.innerHTML=expiries.map(e=>`<button class="exp-tab${e===currentExp?' active':''}" onclick="selectExp('${e}')">${e}</button>`).join('');
+  
+  // Seleccionar más cercano al DTE
+  const dte=+document.getElementById('dte-filter').value||7;
+  const now=Date.now();
+  let bestExp=expiries[0];
+  let minDiff=Infinity;
+  expiries.forEach(e=>{
+    const d=parseExpiry(e);
+    if(d){const diff=Math.abs((d-now)/86400000-dte);if(diff<minDiff){minDiff=diff;bestExp=e;}}
+  });
+  selectExp(bestExp||expiries[0]||'');
+  
+  document.getElementById('t-time').textContent=new Date().toLocaleTimeString('es');
+  document.getElementById('nav-price').textContent='$'+COState.spot.toLocaleString();
+  document.getElementById('nav-exchange').textContent=COState.exchange;
+}
+
+function parseExpiry(str){
+  try{
+    const months={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+    const d=+str.substring(0,2),m=months[str.substring(2,5)],y=2000+(+str.substring(5,7));
+    return new Date(y,m,d).getTime();
+  }catch{return null;}
+}
+
+function selectExp(exp){
+  currentExp=exp;
+  document.querySelectorAll('.exp-tab').forEach(t=>{
+    t.classList.toggle('active',t.textContent===exp);
+  });
+  
+  // Calcular DTE real
+  const expTs=parseExpiry(exp);
+  if(expTs){
+    const dte=Math.max(0,Math.round((expTs-Date.now())/86400000));
+    document.getElementById('dte-filter').value=dte;
+    COState.dte=dte;
+  }
+  
+  renderChain();
+  updateEM();
+}
+
+function updateEM(){
+  const S=COState.spot;
+  const iv=parseFloat(document.getElementById('iv-inp').value)/100||0.45;
+  const dte=parseFloat(document.getElementById('dte-filter').value)||7;
+  const T=dte/365;
+  const em=expectedMove(S,iv*100,T);
+  document.getElementById('em-val').textContent='±$'+em.toLocaleString('es',{minimumFractionDigits:0,maximumFractionDigits:0});
+  document.getElementById('em-range').textContent=
+    '$'+(S-em).toLocaleString('es',{maximumFractionDigits:0})+' — $'+(S+em).toLocaleString('es',{maximumFractionDigits:0});
+  document.getElementById('t-em').textContent='±$'+em.toLocaleString('es',{maximumFractionDigits:0});
+  
+  // PoP ATM aproximado
+  const rfr=COState.rfr;
+  const dATM=normCDF((Math.log(S/S)+(rfr+0.5*iv*iv)*T)/(iv*Math.sqrt(T)));
+  document.getElementById('sp-pop').textContent=((1-dATM)*100).toFixed(1)+'%';
+  document.getElementById('sp-pt').textContent=probTouch(S,S*1.05,rfr,iv,T).toFixed(1)+'%';
+}
+
+function renderChain(){
+  const S=COState.spot;
+  const iv=parseFloat(document.getElementById('iv-inp').value)/100||0.45;
+  const dte=parseFloat(document.getElementById('dte-filter').value)||7;
+  const T=dte/365,rfr=COState.rfr;
+  const tb=document.getElementById('chain-body');
+
+  // Filtrar opciones del vencimiento seleccionado
+  const opts=allOptions.filter(o=>o.expiry===currentExp);
+  
+  // Agrupar por strike
+  const byStrike={};
+  opts.forEach(o=>{
+    if(!byStrike[o.strike])byStrike[o.strike]={};
+    byStrike[o.strike][o.tipo]=o;
+  });
+
+  // Strikes: reales o sintéticos
+  let strikes=Object.keys(byStrike).map(Number).sort((a,b)=>a-b);
+  const hasReal=strikes.length>0;
+  if(!hasReal){
+    const step=S>10000?1000:(S>1000?50:10);
+    strikes=Array.from({length:15},(_,i)=>(Math.round(S/step)-7+i)*step);
+  }
+
+  tb.innerHTML='';
+  let spotInserted=false;
+
+  strikes.forEach(k=>{
+    // Insertar fila de spot
+    if(!spotInserted&&k>=S){
+      const sr=document.createElement('tr');sr.className='spot-row';
+      sr.innerHTML=`<td colspan="19">📍 SPOT ${COState.activo}: $${S.toLocaleString('es',{minimumFractionDigits:2})}&nbsp;&nbsp;|&nbsp;&nbsp;EM ±$${expectedMove(S,iv*100,T).toLocaleString('es',{maximumFractionDigits:0})}</td>`;
+      tb.appendChild(sr);spotInserted=true;
+    }
+
+    const row=byStrike[k]||{};
+    const c=row.call,p=row.put;
+    const itmc=k<S,itmp=k>S,isATM=Math.abs(k-S)/S<0.015;
+
+    // Calcular con BS si no hay datos reales
+    const gcBS=bs(S,k,T,rfr,iv,'call');
+    const gpBS=bs(S,k,T,rfr,iv,'put');
+
+    const cD=(c?c.delta:gcBS.delta).toFixed(3);
+    const pD=(p?p.delta:gpBS.delta).toFixed(3);
+    const cIV=c?c.iv.toFixed(1)+'%':(iv*100).toFixed(1)+'%';
+    const pIV=p?p.iv.toFixed(1)+'%':(iv*100).toFixed(1)+'%';
+    const cBid=c?fmt(c.bid):fmt(gcBS.precio*0.98);
+    const cAsk=c?fmt(c.ask):fmt(gcBS.precio*1.02);
+    const pBid=p?fmt(p.bid):fmt(gpBS.precio*0.98);
+    const pAsk=p?fmt(p.ask):fmt(gpBS.precio*1.02);
+    const cMark=c?fmt(c.mark):fmt(gcBS.precio);
+    const pMark=p?fmt(p.mark):fmt(gpBS.precio);
+    const cTh=c?c.theta.toFixed(3):gcBS.theta.toFixed(3);
+    const pTh=p?p.theta.toFixed(3):gpBS.theta.toFixed(3);
+    const cVg=c?c.vega.toFixed(3):gcBS.vega.toFixed(3);
+    const pVg=p?p.vega.toFixed(3):gpBS.vega.toFixed(3);
+    const cOI=c&&c.oi>0?c.oi.toLocaleString():'--';
+    const pOI=p&&p.oi>0?p.oi.toLocaleString():'--';
+    const cVol=c&&c.volume>0?c.volume.toLocaleString():'--';
+    const pVol=p&&p.volume>0?p.volume.toLocaleString():'--';
+
+    const cSym=c?c.symbol:`${COState.activo}-${currentExp}-${k}-C-USDT`;
+    const pSym=p?p.symbol:`${COState.activo}-${currentExp}-${k}-P-USDT`;
+    const cPrima=c?c.ask:gcBS.precio;
+    const pPrima=p?p.ask:gpBS.precio;
+
+    const tr=document.createElement('tr');
+    if(isATM)tr.className='atm';
+    else if(itmc)tr.className='itm-c';
+    else if(itmp)tr.className='itm-p';
+
+    tr.innerHTML=`
+      <td class="call-v">${cVol}</td>
+      <td class="call-v">${cOI}</td>
+      <td class="call-v">${cIV}</td>
+      <td class="call-v">${cTh}</td>
+      <td class="call-v">${cVg}</td>
+      <td class="call-v">${cBid}</td>
+      <td class="call-v">${cAsk}</td>
+      <td class="call-v">${cMark}</td>
+      <td class="call-v" style="font-weight:600">${cD}</td>
+      <td class="s">$${k.toLocaleString()}</td>
+      <td class="put-v" style="font-weight:600">${pD}</td>
+      <td class="put-v">${pMark}</td>
+      <td class="put-v">${pBid}</td>
+      <td class="put-v">${pAsk}</td>
+      <td class="put-v">${pVg}</td>
+      <td class="put-v">${pTh}</td>
+      <td class="put-v">${pIV}</td>
+      <td class="put-v">${pOI}</td>
+      <td class="put-v">${pVol}</td>`;
+
+    // Click CALL (mitad izquierda) o PUT (mitad derecha)
+    tr.addEventListener('click',e=>{
+      const td=e.target.closest('td');if(!td)return;
+      const idx=Array.from(tr.children).indexOf(td);
+      if(idx<9){
+        // Click en CALL
+        const accion=e.shiftKey?'sell':'buy';
+        legs.push({tipo:'call',accion,strike:k,prima:+(cPrima.toFixed(2)),qty:0.1,iv:c?c.iv:(iv*100),contrato:cSym});
+      }else if(idx>9){
+        // Click en PUT
+        const accion=e.shiftKey?'sell':'buy';
+        legs.push({tipo:'put',accion,strike:k,prima:+(pPrima.toFixed(2)),qty:0.1,iv:p?p.iv:(iv*100),contrato:pSym});
+      }
+      COState.legs=legs;
+      renderSideLegs();
+      renderMiniChart();
+    });
+    tb.appendChild(tr);
+  });
+
+  if(!spotInserted){
+    const sr=document.createElement('tr');sr.className='spot-row';
+    sr.innerHTML=`<td colspan="19">📍 SPOT: $${S.toLocaleString()}</td>`;
+    tb.appendChild(sr);
+  }
+}
+
+function renderSideLegs(){
+  const el=document.getElementById('legs-list');
+  document.getElementById('patas-count').textContent=legs.length+' patas';
+  document.getElementById('patas-n').textContent='('+legs.length+')';
+  if(!legs.length){
+    el.innerHTML='<div style="font-size:10px;color:#334155;text-align:center;padding:8px">Click = BUY &nbsp;|&nbsp; Shift+Click = SELL</div>';
+    return;
+  }
+  el.innerHTML=legs.map((l,i)=>`
+    <div class="leg-item">
+      <div>
+        <div class="leg-sym">${l.contrato||l.tipo.toUpperCase()+' $'+l.strike.toLocaleString()}</div>
+        <div style="color:${l.accion==='buy'?'#38bdf8':'#ef4444'};font-size:11px;font-weight:600">${l.accion.toUpperCase()} ${l.tipo.toUpperCase()} — $${l.prima.toFixed(2)}</div>
+      </div>
+      <button onclick="legs.splice(${i},1);COState.legs=legs;renderSideLegs();renderMiniChart()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px">✕</button>
+    </div>`).join('');
+}
+
+function renderMiniChart(){
+  if(!legs.length){Plotly.purge('mini-chart');return;}
+  const S=COState.spot,T=(COState.dte||7)/365,rfr=COState.rfr;
+  const N=100,lo=S*0.8,hi=S*1.2;
+  const xs=Array.from({length:N},(_,i)=>lo+(hi-lo)*i/(N-1));
+  const ys=xs.map(p=>legs.reduce((s,l)=>{
+    const ev=l.tipo==='call'?Math.max(0,p-l.strike):Math.max(0,l.strike-p);
+    return s+(l.accion==='buy'?(ev-l.prima):(l.prima-ev))*l.qty;
+  },0));
+  Plotly.react('mini-chart',[{x:xs,y:ys,mode:'lines',line:{color:'#38bdf8',width:1.5},fill:'tozeroy',fillcolor:'rgba(56,189,248,0.06)'}],
+    {paper_bgcolor:'transparent',plot_bgcolor:'transparent',margin:{l:35,r:5,t:5,b:25},
+     xaxis:{tickformat:'$,.0f',gridcolor:'#1e2035',tickfont:{size:8}},
+     yaxis:{tickformat:'$,.1f',gridcolor:'#1e2035',tickfont:{size:8}},
+     shapes:[{type:'line',x0:xs[0],x1:xs[N-1],y0:0,y1:0,line:{color:'#1e2035',width:1}},{type:'line',x0:S,x1:S,y0:0,y1:1,yref:'paper',line:{color:'#38bdf8',width:1,dash:'dot'}}],
+     showlegend:false},{responsive:true,displayModeBar:false});
+}
+
+function clearLegs(){legs=[];COState.legs=[];renderSideLegs();Plotly.purge('mini-chart');}
+function goAnalyzer(){window.location.href='index.html';}
+
+async function navRefresh(){await loadAll();}
+
+// Auto-refresh cada 15s
+window.addEventListener('load',()=>{loadAll();setInterval(loadAll,15000);});
+</script>
+</body>
+</html>

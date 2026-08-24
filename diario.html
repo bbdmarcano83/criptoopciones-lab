@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>CriptoOpciones Lab — Diario</title>
+<script src="plotly.min.js"></script>
+<script src="co_shared.js"></script>
+<style id="shared-css"></style>
+<style>
+.diario-grid{display:grid;grid-template-columns:320px 1fr;gap:0;flex:1;overflow:hidden}
+.diario-form{background:#111120;border-right:1px solid #1e2035;padding:14px;overflow-y:auto}
+.diario-main{display:flex;flex-direction:column;overflow:hidden}
+.metrics-row{display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid #1e2035;flex-wrap:wrap;flex-shrink:0}
+.metric-d{background:#13131f;border:1px solid #1e2035;border-radius:6px;padding:8px 12px;flex:1;min-width:90px;text-align:center}
+.metric-d .ml{font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.5px}
+.metric-d .mv{font-size:16px;font-weight:600;margin-top:2px}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 16px;flex-shrink:0}
+.trades-table-wrap{flex:1;overflow:auto;padding:0 16px 12px}
+.trades-table{width:100%;border-collapse:collapse;font-size:11px}
+.trades-table th{background:#0a0a14;padding:5px 8px;text-align:left;color:#334155;font-weight:500;position:sticky;top:0;z-index:1;border-bottom:1px solid #1e2035;white-space:nowrap}
+.trades-table td{padding:4px 8px;border-bottom:1px solid #0d0d14;vertical-align:middle}
+.trades-table tr:hover td{background:#0c1422}
+.win-badge{background:#052e16;border:1px solid #166534;color:#22c55e;border-radius:3px;padding:1px 6px;font-size:9px}
+.loss-badge{background:#1f0a0a;border:1px solid #7f1d1d;color:#ef4444;border-radius:3px;padding:1px 6px;font-size:9px}
+.field{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.field label{font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.8px}
+.field input,.field select{height:28px;font-size:11px}
+.field textarea{background:#13131f;color:#c8cfe0;border:1px solid #1e2035;border-radius:4px;padding:6px;font-size:11px;resize:vertical;min-height:50px}
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+
+<div class="diario-grid">
+
+<div class="diario-form">
+  <div class="section-title">Registrar trade</div>
+
+  <div class="field"><label>Fecha</label><input type="date" id="t-fecha" value=""></div>
+  <div class="field"><label>Activo</label>
+    <select id="t-activo"><option>BTC</option><option>ETH</option><option>SOL</option></select>
+  </div>
+  <div class="field"><label>Contrato</label>
+    <input type="text" id="t-contrato" placeholder="BTC-28AUG26-77000-C-USDT">
+  </div>
+  <div class="field"><label>Estrategia</label>
+    <select id="t-estrategia">
+      <option>Iron Condor</option><option>Iron Butterfly</option><option>Bull Call Spread</option>
+      <option>Bear Put Spread</option><option>Debit Spread</option><option>Straddle</option>
+      <option>Strangle</option><option>Naked Call</option><option>Naked Put</option><option>Otro</option>
+    </select>
+  </div>
+  <div class="field"><label>Dirección</label>
+    <select id="t-dir"><option value="CALL">CALL</option><option value="PUT">PUT</option><option value="NEUTRAL">NEUTRAL</option></select>
+  </div>
+  <div class="field"><label>Prima entrada ($)</label><input type="number" id="t-prima-in" step="0.1" value="0"></div>
+  <div class="field"><label>Prima salida ($)</label><input type="number" id="t-prima-out" step="0.1" value="0"></div>
+  <div class="field"><label>Cantidad</label><input type="number" id="t-qty" step="0.01" value="0.1"></div>
+  <div class="field"><label>DTE entrada</label><input type="number" id="t-dte" value="7" min="0"></div>
+  <div class="field"><label>IVR al entrar (%)</label><input type="number" id="t-ivr" value="50" min="0" max="100"></div>
+  <div class="field"><label>Motivo cierre</label>
+    <select id="t-motivo">
+      <option>Take Profit</option><option>Stop Loss</option><option>Trailing Stop</option>
+      <option>Vencimiento</option><option>Ajuste / Roll</option><option>Manual</option>
+    </select>
+  </div>
+  <div class="field"><label>Duración (minutos)</label><input type="number" id="t-dur" value="0" min="0"></div>
+  <div class="field"><label>Notas</label><textarea id="t-notas" placeholder="Observaciones del trade..."></textarea></div>
+
+  <button class="btn success" style="width:100%;height:32px;margin-bottom:6px" onclick="addTrade()">+ Registrar trade</button>
+  <button class="btn danger" style="width:100%;height:32px" onclick="clearAll()">🗑 Limpiar diario</button>
+</div>
+
+<div class="diario-main">
+  <div class="metrics-row">
+    <div class="metric-d"><div class="ml">Total trades</div><div class="mv neu" id="d-total">0</div></div>
+    <div class="metric-d"><div class="ml">Win Rate</div><div class="mv pos" id="d-wr">--%</div></div>
+    <div class="metric-d"><div class="ml">PnL neto</div><div class="mv" id="d-pnl">$0.00</div></div>
+    <div class="metric-d"><div class="ml">Profit Factor</div><div class="mv acc" id="d-pf">--</div></div>
+    <div class="metric-d"><div class="ml">Gan. promedio</div><div class="mv pos" id="d-avg-w">$--</div></div>
+    <div class="metric-d"><div class="ml">Pérd. promedio</div><div class="mv neg" id="d-avg-l">$--</div></div>
+    <div class="metric-d"><div class="ml">Max Drawdown</div><div class="mv neg" id="d-dd">$--</div></div>
+    <div class="metric-d"><div class="ml">Sharpe</div><div class="mv acc" id="d-sharpe">--</div></div>
+  </div>
+
+  <div class="charts-row">
+    <div><div class="section-title">Curva de capital</div><div id="chart-equity" style="height:140px"></div></div>
+    <div><div class="section-title">PnL por estrategia</div><div id="chart-strat" style="height:140px"></div></div>
+  </div>
+
+  <div class="trades-table-wrap">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span class="section-title" style="margin:0">Historial de trades</span>
+      <button class="btn" onclick="exportCSV()">⬇ Exportar CSV</button>
+    </div>
+    <table class="trades-table">
+      <thead><tr>
+        <th>#</th><th>Fecha</th><th>Activo</th><th>Estrategia</th><th>Dir</th>
+        <th>Prima In</th><th>Prima Out</th><th>Qty</th><th>PnL $</th><th>PnL %</th>
+        <th>DTE</th><th>IVR%</th><th>Motivo</th><th>Duración</th><th>W/L</th><th></th>
+      </tr></thead>
+      <tbody id="trades-body"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<script>
+document.getElementById('shared-css').textContent=CO_CSS;
+document.getElementById('nav-placeholder').innerHTML=navHTML('diario.html');
+
+// Fecha de hoy por defecto
+document.getElementById('t-fecha').value=new Date().toISOString().split('T')[0];
+document.getElementById('t-activo').value=COState.activo;
+
+let trades=JSON.parse(localStorage.getItem('co_diario')||'[]');
+
+const DARK={template:'plotly_dark',paper_bgcolor:'transparent',plot_bgcolor:'transparent',margin:{l:45,r:10,t:5,b:35},font:{family:'Segoe UI,system-ui',size:10}};
+
+function calcPnL(primaIn,primaOut,qty,dir){
+  // PnL = (prima_out - prima_in) * qty * 100 para COMPRA
+  // Para opciones vendidas: (prima_in - prima_out) * qty * 100
+  return (primaOut - primaIn) * qty * 100;
+}
+
+function addTrade(){
+  const primaIn=+document.getElementById('t-prima-in').value||0;
+  const primaOut=+document.getElementById('t-prima-out').value||0;
+  const qty=+document.getElementById('t-qty').value||0.1;
+  const pnl=calcPnL(primaIn,primaOut,qty);
+  const trade={
+    id:Date.now(),
+    fecha:document.getElementById('t-fecha').value,
+    activo:document.getElementById('t-activo').value,
+    contrato:document.getElementById('t-contrato').value,
+    estrategia:document.getElementById('t-estrategia').value,
+    dir:document.getElementById('t-dir').value,
+    primaIn,primaOut,qty,pnl:+pnl.toFixed(2),
+    dte:+document.getElementById('t-dte').value,
+    ivr:+document.getElementById('t-ivr').value,
+    motivo:document.getElementById('t-motivo').value,
+    duracion:+document.getElementById('t-dur').value,
+    notas:document.getElementById('t-notas').value,
+    wl:pnl>0?'WIN':pnl<0?'LOSS':'FLAT'
+  };
+  trades.unshift(trade);
+  localStorage.setItem('co_diario',JSON.stringify(trades));
+  // Limpiar campos
+  document.getElementById('t-contrato').value='';
+  document.getElementById('t-prima-in').value='0';
+  document.getElementById('t-prima-out').value='0';
+  document.getElementById('t-notas').value='';
+  renderAll();
+}
+
+function deleteTrade(id){
+  trades=trades.filter(t=>t.id!==id);
+  localStorage.setItem('co_diario',JSON.stringify(trades));
+  renderAll();
+}
+
+function clearAll(){if(confirm('¿Eliminar todo el diario?')){trades=[];localStorage.removeItem('co_diario');renderAll();}}
+
+function renderMetrics(){
+  if(!trades.length){return;}
+  const pnls=trades.map(t=>t.pnl);
+  const wins=pnls.filter(p=>p>0),losses=pnls.filter(p=>p<0);
+  const total=pnls.length;
+  const wr=wins.length/total*100;
+  const pnlNeto=pnls.reduce((a,b)=>a+b,0);
+  const sumWins=wins.reduce((a,b)=>a+b,0);
+  const sumLoss=Math.abs(losses.reduce((a,b)=>a+b,0));
+  const pf=sumLoss>0?sumWins/sumLoss:sumWins>0?Infinity:0;
+  const avgW=wins.length>0?sumWins/wins.length:0;
+  const avgL=losses.length>0?sumLoss/losses.length:0;
+
+  // Max Drawdown
+  let peak=0,dd=0,equity=0;
+  [...pnls].reverse().forEach(p=>{equity+=p;if(equity>peak)peak=equity;if(peak-equity>dd)dd=peak-equity;});
+
+  // Sharpe
+  const mean=pnls.reduce((a,b)=>a+b,0)/pnls.length;
+  const variance=pnls.reduce((s,p)=>s+(p-mean)**2,0)/pnls.length;
+  const sharpe=variance>0?mean/Math.sqrt(variance)*Math.sqrt(144):0;
+
+  document.getElementById('d-total').textContent=total;
+  document.getElementById('d-wr').textContent=wr.toFixed(1)+'%';
+  const pnlEl=document.getElementById('d-pnl');pnlEl.textContent=fmt(pnlNeto);pnlEl.className='mv '+(pnlNeto>=0?'pos':'neg');
+  document.getElementById('d-pf').textContent=pf===Infinity?'∞':pf.toFixed(2);
+  document.getElementById('d-avg-w').textContent=fmt(avgW);
+  document.getElementById('d-avg-l').textContent=fmt(avgL);
+  document.getElementById('d-dd').textContent=fmt(dd);
+  document.getElementById('d-sharpe').textContent=sharpe.toFixed(2);
+}
+
+function renderCharts(){
+  if(!trades.length)return;
+  // Curva de capital
+  const sorted=[...trades].reverse();
+  let equity=0;
+  const eqX=sorted.map(t=>t.fecha);
+  const eqY=sorted.map(t=>{equity+=t.pnl;return +equity.toFixed(2);});
+  Plotly.react('chart-equity',[{x:eqX,y:eqY,mode:'lines',line:{color:'#38bdf8',width:2},fill:'tozeroy',fillcolor:'rgba(56,189,248,0.06)'}],
+    {...DARK,xaxis:{gridcolor:'#1e2035'},yaxis:{tickformat:'$,.2f',gridcolor:'#1e2035'},shapes:[{type:'line',x0:eqX[0],x1:eqX[eqX.length-1],y0:0,y1:0,line:{color:'#1e2035',width:1}}]},{responsive:true,displayModeBar:false});
+
+  // PnL por estrategia
+  const byStrat={};
+  trades.forEach(t=>{if(!byStrat[t.estrategia])byStrat[t.estrategia]={pnl:0,n:0};byStrat[t.estrategia].pnl+=t.pnl;byStrat[t.estrategia].n++;});
+  const strats=Object.entries(byStrat).sort((a,b)=>b[1].pnl-a[1].pnl);
+  Plotly.react('chart-strat',[{x:strats.map(s=>s[0]),y:strats.map(s=>+s[1].pnl.toFixed(2)),type:'bar',marker:{color:strats.map(s=>s[1].pnl>=0?'#22c55e':'#ef4444'),opacity:0.8},text:strats.map(s=>fmt(s[1].pnl)),textposition:'outside',textfont:{size:9}}],
+    {...DARK,xaxis:{gridcolor:'#1e2035',tickangle:-30},yaxis:{tickformat:'$,.2f',gridcolor:'#1e2035'}},{responsive:true,displayModeBar:false});
+}
+
+function renderTable(){
+  const tb=document.getElementById('trades-body');
+  if(!trades.length){tb.innerHTML='<tr><td colspan="16" style="text-align:center;padding:20px;color:#334155">Sin trades registrados. Agrega tu primer trade.</td></tr>';return;}
+  tb.innerHTML=trades.map((t,i)=>`
+    <tr>
+      <td style="color:#334155">${trades.length-i}</td>
+      <td>${t.fecha}</td>
+      <td style="color:#38bdf8;font-weight:600">${t.activo}</td>
+      <td>${t.estrategia}</td>
+      <td style="color:${t.dir==='CALL'?'#38bdf8':t.dir==='PUT'?'#fb923c':'#94a3b8'}">${t.dir}</td>
+      <td>$${t.primaIn}</td>
+      <td>$${t.primaOut}</td>
+      <td>${t.qty}</td>
+      <td style="color:${t.pnl>=0?'#22c55e':'#ef4444'};font-weight:600">${fmt(t.pnl)}</td>
+      <td style="color:${t.pnl>=0?'#22c55e':'#ef4444'}">${t.primaIn>0?((t.pnl/(t.primaIn*t.qty*100))*100).toFixed(1)+'%':'--'}</td>
+      <td>${t.dte}</td>
+      <td>${t.ivr}%</td>
+      <td style="color:#94a3b8">${t.motivo}</td>
+      <td>${t.duracion<60?t.duracion+'min':(t.duracion/60).toFixed(1)+'h'}</td>
+      <td><span class="${t.wl==='WIN'?'win-badge':'loss-badge'}">${t.wl}</span></td>
+      <td><button onclick="deleteTrade(${t.id})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px">✕</button></td>
+    </tr>`).join('');
+}
+
+function renderAll(){renderMetrics();renderCharts();renderTable();}
+
+function exportCSV(){
+  const headers=['Fecha','Activo','Estrategia','Dir','Prima In','Prima Out','Qty','PnL','DTE','IVR%','Motivo','Duración','W/L','Notas'];
+  const rows=trades.map(t=>[t.fecha,t.activo,t.estrategia,t.dir,t.primaIn,t.primaOut,t.qty,t.pnl,t.dte,t.ivr,t.motivo,t.duracion,t.wl,`"${t.notas||''}"`]);
+  const csv=[headers,...rows].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='criptoopciones_diario.csv';a.click();
+}
+
+async function navRefresh(){}
+window.addEventListener('load',()=>renderAll());
+</script>
+</body>
+</html>

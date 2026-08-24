@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>CriptoOpciones Lab — IV & Mercado</title>
+<script src="plotly.min.js"></script>
+<script src="co_shared.js"></script>
+<style id="shared-css"></style>
+<style>
+.iv-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:16px;flex:1;overflow:auto}
+.iv-card{background:#13131f;border:1px solid #1e2035;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.iv-card h3{font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:1px}
+.big-metric{text-align:center;padding:8px 0}
+.big-metric .val{font-size:36px;font-weight:700}
+.big-metric .sub{font-size:11px;color:#475569;margin-top:4px}
+.ivr-gauge{position:relative;height:8px;background:#1e2035;border-radius:4px;margin:8px 0;overflow:hidden}
+.ivr-gauge-fill{height:100%;border-radius:4px;transition:width 0.5s}
+.ivr-labels{display:flex;justify-content:space-between;font-size:9px;color:#334155}
+.strat-rec{background:#0c1422;border:1px solid #1e3a5f;border-radius:6px;padding:10px;text-align:center}
+.strat-rec .sr-label{font-size:9px;color:#334155;margin-bottom:4px}
+.strat-rec .sr-val{font-size:13px;font-weight:600;color:#38bdf8}
+.em-box{background:#052e16;border:1px solid #166534;border-radius:6px;padding:10px;text-align:center}
+.em-box .em-val{font-size:24px;font-weight:700;color:#22c55e}
+.em-box .em-range{font-size:11px;color:#4ade80;margin-top:4px}
+.skew-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #1e2035}
+.skew-row:last-child{border:none}
+.term-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 0;border-bottom:1px solid #1e2035}
+.term-row:last-child{border:none}
+.term-bar{height:4px;border-radius:2px;background:#38bdf8;transition:width 0.3s}
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+
+<div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid #1e2035;background:#111120">
+  <select id="ex" onchange="COState.exchange=this.value;loadIV()">
+    <option value="Bybit">Bybit</option><option value="Binance">Binance</option>
+  </select>
+  <select id="act" onchange="COState.activo=this.value;loadIV()">
+    <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="SOL">SOL</option>
+  </select>
+  <button class="btn primary" onclick="loadIV()">⟳ Actualizar</button>
+  <span style="font-size:11px;color:#334155;margin-left:8px">Última actualización: <span id="last-update" class="acc">--</span></span>
+</div>
+
+<div class="iv-grid">
+
+  <!-- IVR Card -->
+  <div class="iv-card">
+    <h3>IV Rank (IVR) — 52 semanas</h3>
+    <div class="big-metric">
+      <div class="val warn" id="ivr-val">--%</div>
+      <div class="sub">Percentil de volatilidad actual</div>
+    </div>
+    <div class="ivr-gauge"><div class="ivr-gauge-fill" id="ivr-fill" style="width:0%;background:#f59e0b"></div></div>
+    <div class="ivr-labels"><span>0% Baja</span><span>35%</span><span>65%</span><span>Alta 100%</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div class="card" style="text-align:center;padding:6px">
+        <div style="font-size:9px;color:#334155">IV Actual</div>
+        <div style="font-size:16px;font-weight:600;color:#38bdf8" id="iv-actual">--%</div>
+      </div>
+      <div class="card" style="text-align:center;padding:6px">
+        <div style="font-size:9px;color:#334155">Min / Max 52w</div>
+        <div style="font-size:12px;font-weight:600;color:#475569" id="iv-range">-- / --</div>
+      </div>
+    </div>
+    <div class="strat-rec">
+      <div class="sr-label">Estrategia recomendada</div>
+      <div class="sr-val" id="strat-rec">--</div>
+    </div>
+  </div>
+
+  <!-- Expected Move -->
+  <div class="iv-card">
+    <h3>Expected Move (EM)</h3>
+    <div class="em-box">
+      <div style="font-size:11px;color:#4ade80;margin-bottom:6px">Movimiento esperado 1σ (68%)</div>
+      <div class="em-val" id="em-1s">±$--</div>
+      <div class="em-range" id="em-range-1s">-- / --</div>
+    </div>
+    <div style="background:#1c1200;border:1px solid #92400e;border-radius:6px;padding:10px;text-align:center">
+      <div style="font-size:11px;color:#fbbf24;margin-bottom:6px">Movimiento esperado 2σ (95%)</div>
+      <div style="font-size:20px;font-weight:700;color:#f59e0b" id="em-2s">±$--</div>
+      <div style="font-size:11px;color:#fbbf24;margin-top:4px" id="em-range-2s">-- / --</div>
+    </div>
+    <div id="em-chart" style="height:160px"></div>
+  </div>
+
+  <!-- Volatility Skew -->
+  <div class="iv-card">
+    <h3>Skew de volatilidad</h3>
+    <div id="skew-chart" style="height:200px"></div>
+    <div id="skew-rows"></div>
+  </div>
+
+  <!-- Term Structure -->
+  <div class="iv-card">
+    <h3>Estructura temporal de IV</h3>
+    <div id="term-chart" style="height:180px"></div>
+    <div id="term-rows"></div>
+  </div>
+
+  <!-- Probabilidades -->
+  <div class="iv-card">
+    <h3>Mapa de probabilidades</h3>
+    <div id="prob-chart" style="height:200px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+      <div style="text-align:center">
+        <div style="font-size:9px;color:#334155">Prob. Alza (+5%)</div>
+        <div style="font-size:16px;font-weight:600;color:#22c55e" id="p-up">--%</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:9px;color:#334155">Prob. Baja (-5%)</div>
+        <div style="font-size:16px;font-weight:600;color:#ef4444" id="p-down">--%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumen de mercado -->
+  <div class="iv-card">
+    <h3>Resumen de mercado</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="skew-row"><span style="color:#475569">Precio spot</span><span class="acc" id="sum-spot">$--</span></div>
+      <div class="skew-row"><span style="color:#475569">IV actual</span><span class="warn" id="sum-iv">--%</span></div>
+      <div class="skew-row"><span style="color:#475569">IVR (52w)</span><span id="sum-ivr">--%</span></div>
+      <div class="skew-row"><span style="color:#475569">EM ±1σ (DTE 7)</span><span class="pos" id="sum-em7">±$--</span></div>
+      <div class="skew-row"><span style="color:#475569">EM ±1σ (DTE 30)</span><span class="pos" id="sum-em30">±$--</span></div>
+      <div class="skew-row"><span style="color:#475569">Prob. permanecer en rango ±5%</span><span class="acc" id="sum-range">--%</span></div>
+      <div class="skew-row"><span style="color:#475569">Strikes disponibles</span><span id="sum-strikes">--</span></div>
+      <div class="skew-row"><span style="color:#475569">Vencimientos disponibles</span><span id="sum-exp">--</span></div>
+    </div>
+    <div class="strat-rec" style="margin-top:8px">
+      <div class="sr-label">Contexto de mercado</div>
+      <div class="sr-val" id="market-context" style="font-size:11px">--</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('shared-css').textContent=CO_CSS;
+document.getElementById('nav-placeholder').innerHTML=navHTML('iv.html');
+document.getElementById('act').value=COState.activo;
+document.getElementById('ex').value=COState.exchange;
+
+const DARK={template:'plotly_dark',paper_bgcolor:'transparent',plot_bgcolor:'transparent',margin:{l:40,r:10,t:10,b:35},font:{family:'Segoe UI,system-ui',size:10}};
+
+async function loadIV(){
+  const act=document.getElementById('act').value;
+  const ex=document.getElementById('ex').value;
+  COState.activo=act;COState.exchange=ex;
+
+  const [spot,opts]=await Promise.all([fetchSpot(ex,act),fetchOptions(ex,act)]);
+  if(spot)COState.spot=spot;
+  const S=COState.spot;
+
+  document.getElementById('sum-spot').textContent='$'+S.toLocaleString('es',{minimumFractionDigits:2});
+  document.getElementById('nav-price').textContent='$'+S.toLocaleString();
+
+  if(!opts.length){document.getElementById('last-update').textContent='Sin datos';return;}
+
+  // IVR
+  const ivs=opts.map(o=>o.iv).filter(v=>v>5&&v<300);
+  if(ivs.length){
+    const ivActual=+(ivs.reduce((a,b)=>a+b,0)/ivs.length).toFixed(1);
+    const ivMin=+Math.min(...ivs).toFixed(1),ivMax=+Math.max(...ivs).toFixed(1);
+    const ivr=+calcIVR(ivActual, act).toFixed(1);
+    COState.iv=ivActual;
+
+    document.getElementById('ivr-val').textContent=ivr.toFixed(1)+'%';
+    document.getElementById('iv-actual').textContent=ivActual+'%';
+    document.getElementById('iv-range').textContent=ivMin+'% / '+ivMax+'%';
+    document.getElementById('ivr-fill').style.width=Math.min(100,ivr)+'%';
+    document.getElementById('ivr-fill').style.background=ivr>=65?'#22c55e':ivr>=35?'#f59e0b':'#ef4444';
+    document.getElementById('sum-iv').textContent=ivActual+'%';
+    document.getElementById('sum-ivr').textContent=ivr.toFixed(1)+'%';
+    document.getElementById('sum-ivr').className=ivr>=65?'pos':ivr<35?'neg':'warn';
+    document.getElementById('nav-ivr').textContent='IVR '+ivr.toFixed(0)+'%';
+
+    const stratRec=ivr>=65?'🦅 Iron Condor / 🦋 Iron Butterfly — Vender prima':ivr>=35?'📆 Calendar Spread — Posición neutral':'⚡ Straddle / Debit Spread — Comprar opciones';
+    document.getElementById('strat-rec').textContent=stratRec;
+
+    const ctx=ivr>=65?'IV alta → Prima cara → Momento de VENDER opciones':ivr>=35?'IV media → Considerar Calendar Spreads o IC':'IV baja → Prima barata → Momento de COMPRAR opciones (Straddle, DS)';
+    document.getElementById('market-context').textContent=ctx;
+
+    // Expected Move
+    const rfr=COState.rfr;
+    const iv0=ivActual/100;
+    for(const[dte,suffix] of [[7,'7'],[30,'30']]){
+      const T=dte/365;
+      const em=expectedMove(S,ivActual,T);
+      document.getElementById(`sum-em${dte}`).textContent='±$'+em.toLocaleString('es',{maximumFractionDigits:0});
+    }
+    const em1=expectedMove(S,ivActual,7/365);
+    const em2=em1*2;
+    document.getElementById('em-1s').textContent='±$'+em1.toLocaleString('es',{maximumFractionDigits:0});
+    document.getElementById('em-range-1s').textContent='$'+(S-em1).toLocaleString('es',{maximumFractionDigits:0})+' — $'+(S+em1).toLocaleString('es',{maximumFractionDigits:0});
+    document.getElementById('em-2s').textContent='±$'+em2.toLocaleString('es',{maximumFractionDigits:0});
+    document.getElementById('em-range-2s').textContent='$'+(S-em2).toLocaleString('es',{maximumFractionDigits:0})+' — $'+(S+em2).toLocaleString('es',{maximumFractionDigits:0});
+
+    // Probabilidades
+    const T7=7/365;
+    const mu=Math.log(S)+(rfr-0.5*iv0*iv0)*T7;
+    const sig=iv0*Math.sqrt(T7);
+    const pUp=(1-normCDF((Math.log(S*1.05)-mu)/sig))*100;
+    const pDown=normCDF((Math.log(S*0.95)-mu)/sig)*100;
+    const pRange=(normCDF((Math.log(S*1.05)-mu)/sig)-normCDF((Math.log(S*0.95)-mu)/sig))*100;
+    document.getElementById('p-up').textContent=pUp.toFixed(1)+'%';
+    document.getElementById('p-down').textContent=pDown.toFixed(1)+'%';
+    document.getElementById('sum-range').textContent=pRange.toFixed(1)+'%';
+
+    // Gráfica de probabilidad
+    const N=200;
+    const lo=S*0.6,hi=S*1.4;
+    const xs=Array.from({length:N},(_,i)=>lo+(hi-lo)*i/(N-1));
+    const ys=xs.map(x=>{const z=(Math.log(x/S)-mu)/sig;return normPDF(z)/(x*sig);});
+    Plotly.react('prob-chart',[
+      {x:xs,y:ys,mode:'lines',line:{color:'#38bdf8',width:2},fill:'tozeroy',fillcolor:'rgba(56,189,248,0.08)',name:'Distribución'},
+      {x:xs.filter(x=>x>=S*0.95&&x<=S*1.05),y:xs.filter(x=>x>=S*0.95&&x<=S*1.05).map(x=>{const z=(Math.log(x/S)-mu)/sig;return normPDF(z)/(x*sig);}),mode:'lines',line:{color:'#22c55e',width:0},fill:'tozeroy',fillcolor:'rgba(34,197,94,0.2)',name:'Rango ±5%'},
+    ],{...DARK,xaxis:{tickformat:'$,.0f',gridcolor:'#1e2035'},yaxis:{gridcolor:'#1e2035',showticklabels:false},showlegend:false,shapes:[{type:'line',x0:S,x1:S,y0:0,y1:1,yref:'paper',line:{color:'#38bdf8',width:1.5,dash:'dot'}}]},{responsive:true,displayModeBar:false});
+
+    // EM chart
+    const dtes=[1,3,7,14,21,30,45,60];
+    const ems=dtes.map(d=>expectedMove(S,ivActual,d/365));
+    Plotly.react('em-chart',[
+      {x:dtes,y:ems.map(e=>S+e),mode:'lines',line:{color:'#22c55e',width:1.5,dash:'dash'},name:'+1σ'},
+      {x:dtes,y:ems.map(e=>S-e),mode:'lines',line:{color:'#ef4444',width:1.5,dash:'dash'},name:'-1σ'},
+      {x:dtes,y:new Array(dtes.length).fill(S),mode:'lines',line:{color:'#38bdf8',width:1},name:'Spot'},
+    ],{...DARK,xaxis:{title:'DTE',gridcolor:'#1e2035'},yaxis:{tickformat:'$,.0f',gridcolor:'#1e2035'},showlegend:false},{responsive:true,displayModeBar:false});
+  }
+
+  // Skew (IV por strike para el primer vencimiento)
+  const expiries=[...new Set(opts.map(o=>o.expiry))].sort();
+  document.getElementById('sum-exp').textContent=expiries.length;
+  
+  if(expiries.length>0){
+    const firstExp=expiries[0];
+    const expOpts=opts.filter(o=>o.expiry===firstExp&&o.iv>5);
+    const callOpts=expOpts.filter(o=>o.tipo==='call').sort((a,b)=>a.strike-b.strike);
+    const putOpts=expOpts.filter(o=>o.tipo==='put').sort((a,b)=>a.strike-b.strike);
+    document.getElementById('sum-strikes').textContent=[...new Set(expOpts.map(o=>o.strike))].length;
+
+    if(callOpts.length>1||putOpts.length>1){
+      Plotly.react('skew-chart',[
+        {x:callOpts.map(o=>o.strike),y:callOpts.map(o=>o.iv),mode:'lines+markers',line:{color:'#38bdf8',width:2},marker:{size:4},name:'CALL IV'},
+        {x:putOpts.map(o=>o.strike),y:putOpts.map(o=>o.iv),mode:'lines+markers',line:{color:'#fb923c',width:2},marker:{size:4},name:'PUT IV'},
+      ],{...DARK,xaxis:{tickformat:'$,.0f',gridcolor:'#1e2035'},yaxis:{title:'IV %',gridcolor:'#1e2035'},shapes:[{type:'line',x0:COState.spot,x1:COState.spot,y0:0,y1:1,yref:'paper',line:{color:'#38bdf8',width:1,dash:'dot'}}],legend:{font:{size:9}}},{responsive:true,displayModeBar:false});
+
+      // Skew rows
+      const atmStrike=callOpts.reduce((prev,curr)=>Math.abs(curr.strike-S)<Math.abs(prev.strike-S)?curr:prev).strike;
+      const atmCall=callOpts.find(o=>o.strike===atmStrike);
+      const otmCallP10=callOpts.find(o=>o.strike>=S*1.10);
+      const otmPutP10=putOpts.find(o=>o.strike<=S*0.90);
+      document.getElementById('skew-rows').innerHTML=`
+        <div class="skew-row"><span style="color:#475569">ATM IV (${atmStrike})</span><span class="warn">${atmCall?atmCall.iv.toFixed(1):'--'}%</span></div>
+        <div class="skew-row"><span style="color:#475569">OTM Call +10%</span><span class="call-v">${otmCallP10?otmCallP10.iv.toFixed(1):'--'}%</span></div>
+        <div class="skew-row"><span style="color:#475569">OTM Put -10%</span><span class="put-v">${otmPutP10?otmPutP10.iv.toFixed(1):'--'}%</span></div>`;
+    }
+
+    // Term structure
+    const termData=expiries.map(exp=>{
+      const expOpts2=opts.filter(o=>o.expiry===exp&&o.iv>5);
+      if(!expOpts2.length)return null;
+      const avgIV=expOpts2.reduce((s,o)=>s+o.iv,0)/expOpts2.length;
+      return{exp,iv:+avgIV.toFixed(1)};
+    }).filter(Boolean);
+
+    if(termData.length>1){
+      Plotly.react('term-chart',[
+        {x:termData.map(d=>d.exp),y:termData.map(d=>d.iv),mode:'lines+markers',line:{color:'#a78bfa',width:2},marker:{color:'#a78bfa',size:5},name:'IV promedio'},
+      ],{...DARK,xaxis:{gridcolor:'#1e2035'},yaxis:{title:'IV %',gridcolor:'#1e2035'}},{responsive:true,displayModeBar:false});
+
+      const maxIV=Math.max(...termData.map(d=>d.iv));
+      document.getElementById('term-rows').innerHTML=termData.slice(0,4).map(d=>`
+        <div class="term-row">
+          <span style="color:#64748b">${d.exp}</span>
+          <div style="flex:1;margin:0 8px"><div class="term-bar" style="width:${(d.iv/maxIV*100).toFixed(0)}%"></div></div>
+          <span class="warn">${d.iv}%</span>
+        </div>`).join('');
+    }
+  }
+
+  document.getElementById('last-update').textContent=new Date().toLocaleTimeString('es');
+}
+
+async function navRefresh(){await loadIV();}
+window.addEventListener('load',()=>{loadIV();setInterval(loadIV,15000);});
+</script>
+</body>
+</html>

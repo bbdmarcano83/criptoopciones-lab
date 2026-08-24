@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>CriptoOpciones Lab — Ajuste</title>
+<script src="plotly.min.js"></script>
+<script src="co_shared.js"></script>
+<style id="shared-css"></style>
+<style>
+.ajuste-grid{display:grid;grid-template-columns:340px 1fr;gap:0;flex:1;overflow:hidden}
+.ajuste-form{background:#111120;border-right:1px solid #1e2035;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.ajuste-result{padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:10px;color:#334155;text-transform:uppercase;letter-spacing:0.8px}
+.field input,.field select{height:30px;font-size:12px}
+.result-card{background:#13131f;border:1px solid #1e2035;border-radius:8px;padding:12px}
+.result-card h3{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#475569;margin-bottom:10px}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #1e2035;font-size:12px}
+.result-row:last-child{border:none}
+.result-row .rl{color:#64748b}
+.result-row .rv{font-weight:600}
+.roll-option{background:#0d0d14;border:1px solid #1e2035;border-radius:6px;padding:10px;cursor:pointer;transition:all 0.15s}
+.roll-option:hover{border-color:#38bdf8}
+.roll-option.selected{border-color:#38bdf8;background:#0c1422}
+.roll-option .ro-title{font-size:12px;font-weight:600;color:#38bdf8;margin-bottom:4px}
+.roll-option .ro-desc{font-size:10px;color:#475569}
+.roll-option .ro-cost{font-size:14px;font-weight:700;margin-top:6px}
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+
+<div class="ajuste-grid">
+<div class="ajuste-form">
+  <div class="section-title">Posición actual</div>
+
+  <div class="field"><label>Estrategia</label>
+    <select id="strat-type" onchange="calcAjuste()">
+      <option value="call_spread">Call Spread</option>
+      <option value="put_spread">Put Spread</option>
+      <option value="iron_condor">Iron Condor</option>
+      <option value="naked_call">Naked Call</option>
+      <option value="naked_put">Naked Put</option>
+    </select>
+  </div>
+
+  <div class="field"><label>Precio entrada (spot)</label>
+    <input type="number" id="s-entry" value="77000" step="100" oninput="calcAjuste()">
+  </div>
+  <div class="field"><label>Strike corto (principal)</label>
+    <input type="number" id="s-short" value="79000" step="50" oninput="calcAjuste()">
+  </div>
+  <div class="field"><label>Strike largo (protección)</label>
+    <input type="number" id="s-long" value="82000" step="50" oninput="calcAjuste()">
+  </div>
+  <div class="field"><label>Prima cobrada/pagada ($)</label>
+    <input type="number" id="prima-orig" value="500" step="10" oninput="calcAjuste()">
+  </div>
+  <div class="field"><label>DTE restante</label>
+    <input type="number" id="dte-rest" value="4" min="0" max="90" oninput="calcAjuste()">
+  </div>
+  <div class="field"><label>IV actual (%)</label>
+    <input type="number" id="iv-adj" value="45" min="1" max="300" oninput="calcAjuste()">
+  </div>
+  <div class="field"><label>Precio spot actual</label>
+    <input type="number" id="spot-now" value="77000" step="100" oninput="calcAjuste()">
+  </div>
+  <div class="field"><label>Cantidad de contratos</label>
+    <input type="number" id="qty-adj" value="0.7" step="0.1" oninput="calcAjuste()">
+  </div>
+
+  <div class="section-title" style="margin-top:8px">Nuevo vencimiento para roll</div>
+  <div class="field"><label>DTE del nuevo vencimiento</label>
+    <input type="number" id="dte-new" value="14" min="1" max="90" oninput="calcAjuste()">
+  </div>
+  <div class="field"><label>IV esperada en nuevo vencimiento (%)</label>
+    <input type="number" id="iv-new" value="45" min="1" max="300" oninput="calcAjuste()">
+  </div>
+
+  <button class="btn primary" style="width:100%;height:34px" onclick="calcAjuste()">Calcular opciones de ajuste</button>
+  <button class="btn" style="width:100%;height:34px" onclick="loadFromState()">📂 Cargar desde analizador</button>
+</div>
+
+<div class="ajuste-result">
+  <div class="result-card">
+    <h3>Estado actual de la posición</h3>
+    <div class="result-row"><span class="rl">PnL no realizado</span><span class="rv" id="r-pnl">$--</span></div>
+    <div class="result-row"><span class="rl">% del máximo</span><span class="rv" id="r-pct">--%</span></div>
+    <div class="result-row"><span class="rl">Delta actual</span><span class="rv" id="r-delta">--</span></div>
+    <div class="result-row"><span class="rl">Theta diario restante</span><span class="rv" id="r-theta">$--/día</span></div>
+    <div class="result-row"><span class="rl">Prob. de éxito restante</span><span class="rv" id="r-pop">--%</span></div>
+    <div class="result-row"><span class="rl">Break-even</span><span class="rv" id="r-be">$--</span></div>
+  </div>
+
+  <div class="result-card">
+    <h3>Recomendación</h3>
+    <div id="r-rec" style="font-size:12px;color:#38bdf8;padding:6px 0">--</div>
+  </div>
+
+  <div class="result-card">
+    <h3>Opciones de ajuste (Roll)</h3>
+    <div id="roll-options" style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:11px;color:#334155">Calculando...</div>
+    </div>
+  </div>
+
+  <div class="result-card">
+    <h3>Comparativa: mantener vs ajustar</h3>
+    <div id="compare-chart" style="height:200px"></div>
+  </div>
+</div>
+</div>
+
+<script>
+document.getElementById('shared-css').textContent=CO_CSS;
+document.getElementById('nav-placeholder').innerHTML=navHTML('ajuste.html');
+
+const DARK={template:'plotly_dark',paper_bgcolor:'transparent',plot_bgcolor:'transparent',margin:{l:50,r:10,t:10,b:35},font:{family:'Segoe UI,system-ui',size:10}};
+
+function loadFromState(){
+  const legs=COState.legs;
+  if(!legs||!legs.length){alert('No hay patas en el analizador. Ve al Analizador y crea una estrategia primero.');return;}
+  document.getElementById('spot-now').value=COState.spot;
+  document.getElementById('iv-adj').value=COState.iv;
+  document.getElementById('dte-rest').value=COState.dte;
+  const sells=legs.filter(l=>l.accion==='sell');
+  if(sells.length>0){
+    document.getElementById('s-short').value=sells[0].strike;
+    document.getElementById('prima-orig').value=sells.reduce((s,l)=>s+l.prima*l.qty,0).toFixed(2);
+  }
+  calcAjuste();
+}
+
+function calcAjuste(){
+  const S=+document.getElementById('spot-now').value||77000;
+  const Kshort=+document.getElementById('s-short').value||79000;
+  const Klong=+document.getElementById('s-long').value||82000;
+  const primaOrig=+document.getElementById('prima-orig').value||500;
+  const dte=+document.getElementById('dte-rest').value||4;
+  const iv=+document.getElementById('iv-adj').value/100||0.45;
+  const qty=+document.getElementById('qty-adj').value||0.7;
+  const dteNew=+document.getElementById('dte-new').value||14;
+  const ivNew=+document.getElementById('iv-new').value/100||0.45;
+  const rfr=COState.rfr;
+  const T=dte/365,Tnew=dteNew/365;
+  const tipo='call'; // simplificado
+
+  // Valor actual de la posición
+  const gShort=bs(S,Kshort,T,rfr,iv,tipo);
+  const gLong=bs(S,Klong,T,rfr,iv,tipo);
+  const valorActual=gShort.precio-gLong.precio; // crédito neto actual
+  const pnlActual=(primaOrig-valorActual)*qty*100;
+
+  // Delta y theta netos
+  const deltaNeto=(gShort.delta-gLong.delta)*qty*100;
+  const thetaNeto=(gShort.theta-gLong.theta)*qty*100;
+
+  // PoP restante
+  const mu=Math.log(S)+(rfr-0.5*iv*iv)*T;
+  const sig=iv*Math.sqrt(T);
+  const popActual=(1-normCDF((Math.log(Kshort)-mu)/sig))*100;
+
+  // BE aproximado
+  const be=Kshort-primaOrig/qty/100;
+
+  // Actualizar métricas
+  const pnlEl=document.getElementById('r-pnl');
+  pnlEl.textContent=fmt(pnlActual);pnlEl.className='rv '+(pnlActual>=0?'pos':'neg');
+  document.getElementById('r-pct').textContent=((pnlActual/primaOrig)*100).toFixed(1)+'%';
+  document.getElementById('r-delta').textContent=deltaNeto.toFixed(3);
+  document.getElementById('r-theta').textContent=fmt(thetaNeto)+'/día';
+  document.getElementById('r-pop').textContent=popActual.toFixed(1)+'%';
+  document.getElementById('r-be').textContent='$'+be.toLocaleString('es',{maximumFractionDigits:0});
+
+  // Recomendación
+  let rec='';
+  if(pnlActual>=primaOrig*0.5)rec='✅ Considera cerrar la posición. Has capturado más del 50% del crédito máximo.';
+  else if(pnlActual<=-primaOrig*0.5)rec='⚠️ La posición está en pérdida significativa. Evalúa un roll o cierre para limitar daños.';
+  else if(dte<=2)rec='⏰ DTE muy bajo. Considera cerrar para evitar riesgo de vencimiento.';
+  else if(popActual<30)rec='🔴 PoP baja (<30%). El precio está cerca del strike corto. Considera roll defensivo.';
+  else rec='🟡 Posición activa dentro de parámetros normales. Continúa monitoreando.';
+  document.getElementById('r-rec').textContent=rec;
+
+  // Opciones de roll
+  const rollOpts=[];
+
+  // Roll hacia afuera (mismo strike, más DTE)
+  const gShortNew=bs(S,Kshort,Tnew,rfr,ivNew,tipo);
+  const gLongNew=bs(S,Klong,Tnew,rfr,ivNew,tipo);
+  const creditoNuevo=gShortNew.precio-gLongNew.precio;
+  const costoRollOut=(valorActual-creditoNuevo)*qty*100;
+  rollOpts.push({titulo:'Roll hacia afuera (mismo strike)',desc:`Cerrar posición actual y reabrir en DTE ${dteNew}`,costo:costoRollOut,tipo:costoRollOut>0?'neg':'pos'});
+
+  // Roll hacia arriba (strike más alto, mismo DTE)
+  const KshortUp=Math.round((Kshort+S)*0.5/50)*50;
+  const gShortUp=bs(S,KshortUp,T,rfr,iv,tipo);
+  const gLongUp=bs(S,KshortUp+(Klong-Kshort),T,rfr,iv,tipo);
+  const creditoUp=gShortUp.precio-gLongUp.precio;
+  const costoRollUp=(valorActual-creditoUp)*qty*100;
+  rollOpts.push({titulo:'Roll hacia arriba (strike más alto)',desc:`Mover strike corto a $${KshortUp.toLocaleString()} (mismo DTE)`,costo:costoRollUp,tipo:costoRollUp>0?'neg':'pos'});
+
+  // Roll diagonal (strike más alto + más DTE)
+  const gShortDiag=bs(S,KshortUp,Tnew,rfr,ivNew,tipo);
+  const gLongDiag=bs(S,KshortUp+(Klong-Kshort),Tnew,rfr,ivNew,tipo);
+  const creditoDiag=gShortDiag.precio-gLongDiag.precio;
+  const costoRollDiag=(valorActual-creditoDiag)*qty*100;
+  rollOpts.push({titulo:'Roll diagonal (strike alto + más DTE)',desc:`Strike a $${KshortUp.toLocaleString()} en DTE ${dteNew}`,costo:costoRollDiag,tipo:costoRollDiag>0?'neg':'pos'});
+
+  // Cerrar ahora
+  rollOpts.push({titulo:'Cerrar posición ahora',desc:`Capturar ${fmt(pnlActual)} de ganancia/pérdida`,costo:-pnlActual,tipo:pnlActual>=0?'pos':'neg'});
+
+  document.getElementById('roll-options').innerHTML=rollOpts.map((o,i)=>`
+    <div class="roll-option" onclick="this.classList.toggle('selected')">
+      <div class="ro-title">${o.titulo}</div>
+      <div class="ro-desc">${o.desc}</div>
+      <div class="ro-cost ${o.tipo}">${o.costo>0?'Costo: '+fmt(o.costo):'Crédito: '+fmt(-o.costo)}</div>
+    </div>`).join('');
+
+  // Gráfica comparativa
+  const dtes2=Array.from({length:dte+1},(_,i)=>i);
+  const pnlMantener=dtes2.map(d=>{
+    if(d===0)return pnlActual;
+    const Td=d/365;
+    const gS=bs(S,Kshort,Td,rfr,iv,tipo);
+    const gL=bs(S,Klong,Td,rfr,iv,tipo);
+    return(primaOrig-(gS.precio-gL.precio))*qty*100;
+  });
+  const pnlRoll=dtes2.map(d=>{
+    const Td=(dteNew-d)/365;
+    const gS=bs(S,KshortUp,Td,rfr,ivNew,tipo);
+    const gL=bs(S,KshortUp+(Klong-Kshort),Td,rfr,ivNew,tipo);
+    return(creditoNuevo-(gS.precio-gL.precio))*qty*100+pnlActual;
+  });
+
+  Plotly.react('compare-chart',[
+    {x:dtes2,y:pnlMantener,mode:'lines',name:'Mantener',line:{color:'#38bdf8',width:2}},
+    {x:dtes2,y:pnlRoll,mode:'lines',name:'Roll out',line:{color:'#22c55e',width:2,dash:'dot'}},
+  ],{...DARK,xaxis:{title:'Días hasta vencimiento',gridcolor:'#1e2035'},yaxis:{title:'PnL ($)',tickformat:'$,.2f',gridcolor:'#1e2035'},shapes:[{type:'line',x0:0,x1:dte,y0:0,y1:0,line:{color:'#1e2035',width:1}}],legend:{font:{size:9}}},{responsive:true,displayModeBar:false});
+}
+
+async function navRefresh(){}
+window.addEventListener('load',()=>{
+  document.getElementById('spot-now').value=COState.spot||77000;
+  document.getElementById('iv-adj').value=COState.iv||45;
+  calcAjuste();
+});
+</script>
+</body>
+</html>

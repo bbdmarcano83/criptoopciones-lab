@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CriptoOpciones Lab — Posiciones</title>
+<script src="plotly.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b0e14;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column}
+nav{background:#121721;border-bottom:1px solid #1e2638;padding:0;display:flex;align-items:center;flex-shrink:0;height:44px;position:sticky;top:0;z-index:100}
+.nav-logo{padding:0 14px;font-size:14px;font-weight:700;white-space:nowrap;border-right:1px solid #1e2638}
+.nav-logo .c{color:#38bdf8}.nav-logo .o{color:#f8fafc}.nav-logo .l{color:#475569;font-size:11px;font-weight:400}
+.nav-links{display:flex;height:100%}
+.nav-link{display:flex;align-items:center;padding:0 12px;font-size:11px;color:#475569;text-decoration:none;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap;gap:4px}
+.nav-link:hover{color:#94a3b8}
+.nav-link.active{color:#38bdf8;border-bottom-color:#38bdf8;font-weight:600}
+.nav-spacer{flex:1}
+.nav-price{padding:0 10px;font-size:12px;color:#38bdf8;font-weight:600;border-left:1px solid #1e2638}
+.nav-btn{margin:0 6px;background:#18202f;border:1px solid #253146;border-radius:4px;padding:3px 9px;font-size:11px;color:#64748b;cursor:pointer}
+.nav-btn:hover{border-color:#38bdf8;color:#38bdf8}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;animation:pulse 2s infinite;margin-right:4px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* LAYOUT */
+.page{display:flex;flex:1;overflow:hidden;gap:0}
+.main-panel{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.side-panel{width:300px;background:#111120;border-left:1px solid #1e2638;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;flex-shrink:0}
+
+/* CARDS */
+.card{background:#121721;border:1px solid #1e2638;border-radius:8px;padding:12px 14px}
+.card-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#475569;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+
+/* MÉTRICAS RESUMEN */
+.summary-metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.sm{background:#121721;border:1px solid #1e2638;border-radius:6px;padding:10px;text-align:center}
+.sm .sl{font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:0.5px}
+.sm .sv{font-size:17px;font-weight:700;margin-top:3px}
+.pos{color:#10b981}.neg{color:#f43f5e}.acc{color:#38bdf8}.warn{color:#f59e0b}.neu{color:#e2e8f0}
+
+/* TABLA DE POSICIONES */
+.pos-table-wrap{overflow-x:auto}
+.pos-table{width:100%;border-collapse:collapse;font-size:11px}
+.pos-table th{background:#0b0e14;padding:7px 10px;text-align:left;color:#475569;font-weight:500;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #1e2638;white-space:nowrap;cursor:pointer}
+.pos-table th:hover{color:#94a3b8}
+.pos-table td{padding:8px 10px;border-bottom:1px solid #18202f;white-space:nowrap;vertical-align:middle}
+.pos-table tr:hover td{background:#121721}
+.pos-table tr.selected td{background:#0c1a2e}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600}
+.badge-ic{background:#0c1a2e;border:1px solid #38bdf8;color:#38bdf8}
+.badge-ib{background:#1c0c2e;border:1px solid #a78bfa;color:#a78bfa}
+.badge-cal{background:#0c1f0c;border:1px solid #10b981;color:#10b981}
+.badge-cs{background:#1f1c0c;border:1px solid #f59e0b;color:#f59e0b}
+.badge-ds{background:#1f0c0c;border:1px solid #f43f5e;color:#f43f5e}
+.badge-btc{background:#1c1400;border:1px solid #f7931a;color:#f7931a}
+.badge-eth{background:#0c0c1f;border:1px solid #627eea;color:#627eea}
+
+/* PNL BAR */
+.pnl-bar-wrap{width:80px;height:6px;background:#1e2638;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:6px}
+.pnl-bar-fill{height:100%;border-radius:3px;transition:width 0.3s}
+
+/* PROB GAUGE */
+.prob-gauge{width:50px;height:50px;position:relative;display:inline-block}
+.prob-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+
+/* LEGS DETAIL */
+.legs-detail{display:none;background:#0b0e14;border-top:1px solid #1e2638}
+.legs-detail td{padding:5px 10px;font-size:10px;color:#64748b}
+.leg-row{display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #18202f}
+.leg-row:last-child{border:none}
+
+/* PRECIO RANGE */
+.price-range{display:flex;flex-direction:column;gap:3px}
+.range-bar{width:100%;height:8px;background:#1e2638;border-radius:4px;position:relative;overflow:hidden}
+.range-low{position:absolute;left:0;top:0;height:100%;background:#f43f5e;opacity:0.3;border-radius:4px}
+.range-high{position:absolute;right:0;top:0;height:100%;background:#10b981;opacity:0.3;border-radius:4px}
+.range-current{position:absolute;top:-2px;width:4px;height:12px;background:#f59e0b;border-radius:2px;transform:translateX(-50%)}
+.range-labels{display:flex;justify-content:space-between;font-size:9px;color:#475569}
+
+/* BOTONES */
+.btn{background:#18202f;border:1px solid #253146;border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;color:#64748b;transition:all 0.15s}
+.btn:hover{border-color:#38bdf8;color:#38bdf8}
+.btn-danger{background:#1f0a0a;border:1px solid #7f1d1d;color:#f43f5e}
+.btn-danger:hover{background:#2d0a0a;border-color:#f43f5e}
+.btn-primary{background:#0c1a2e;border:1px solid #1e3a5f;color:#38bdf8}
+.btn-primary:hover{background:#0f2040}
+
+/* DETAIL PANEL */
+.detail-section{font-size:11px}
+.detail-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e2638}
+.detail-row:last-child{border:none}
+.detail-row .dl{color:#475569}
+.detail-row .dv{font-weight:600}
+
+/* CHART MINI */
+.chart-mini{height:130px}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:40px;color:#475569}
+.empty-state .ei{font-size:40px;margin-bottom:8px}
+.empty-state .et{font-size:14px;color:#64748b}
+.empty-state .es{font-size:11px;color:#475569;margin-top:4px}
+
+/* HISTORICAL RANGE */
+.hist-range{background:#0b0e14;border:1px solid #1e2638;border-radius:6px;padding:10px}
+.hist-title{font-size:10px;color:#475569;margin-bottom:8px}
+.hist-bar-wrap{position:relative;height:24px;background:#1e2638;border-radius:4px;overflow:hidden}
+.hist-bar-fill{position:absolute;top:0;height:100%;border-radius:4px;background:linear-gradient(90deg,#f43f5e20,#f59e0b40,#10b98140)}
+.hist-spot{position:absolute;top:0;width:3px;height:100%;background:#f59e0b;border-radius:2px}
+.hist-labels{display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-top:4px}
+.hist-be{position:absolute;top:0;width:2px;height:100%;background:#f43f5e;opacity:0.7}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:#0b0e14}
+::-webkit-scrollbar-thumb{background:#1e2638;border-radius:2px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><span class="c">Cripto</span><span class="o">Opciones</span><span class="l"> LAB</span></div>
+  <div class="nav-links">
+    <a href="index.html" class="nav-link">📈 Analizador</a>
+    <a href="positions.html" class="nav-link active">📊 Posiciones</a>
+    <a href="chain.html" class="nav-link">📋 Cadena</a>
+    <a href="iv.html" class="nav-link">🌊 IV & Mercado</a>
+    <a href="ajuste.html" class="nav-link">🔧 Ajuste</a>
+    <a href="diario.html" class="nav-link">📓 Diario</a>
+  </div>
+  <div class="nav-spacer"></div>
+  <span id="nav-price" style="padding:0 10px;font-size:12px;color:#38bdf8;font-weight:600;border-left:1px solid #1e2638">$--</span>
+  <span style="padding:0 10px;font-size:11px;border-left:1px solid #1e2638"><span class="live-dot"></span><span id="last-update" style="color:#475569">--</span></span>
+  <button class="nav-btn" onclick="loadAll()">⟳ Actualizar</button>
+  <button class="nav-btn" onclick="openBotConfig()" style="border-color:#38bdf8;color:#38bdf8">⚙️ Bot</button>
+</nav>
+
+<!-- MODAL CONFIG BOT -->
+<div id="bot-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#121721;border:1px solid #1e2638;border-radius:10px;padding:20px;width:360px;display:flex;flex-direction:column;gap:10px">
+    <div style="font-size:13px;font-weight:700;color:#f8fafc">⚙️ Configurar Bot V5</div>
+    <div>
+      <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">URL del Bot (Render)</label>
+      <input type="text" id="bot-url-inp" placeholder="https://bot-bybit-opciones.onrender.com" style="width:100%;background:#0b0e14;color:#e2e8f0;border:1px solid #1e2638;border-radius:4px;padding:8px;font-size:12px">
+    </div>
+    <div>
+      <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">API Token (X-Bot-Token)</label>
+      <input type="password" id="bot-token-inp" placeholder="Token secreto" style="width:100%;background:#0b0e14;color:#e2e8f0;border:1px solid #1e2638;border-radius:4px;padding:8px;font-size:12px">
+    </div>
+    <div id="bot-test-msg" style="font-size:11px;color:#64748b;min-height:16px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="saveBotCfg()" style="flex:1;height:34px;background:#064e3b;border:1px solid #10b981;color:#10b981;border-radius:4px;cursor:pointer;font-weight:600">💾 Guardar</button>
+      <button onclick="testBotCfg()" style="flex:1;height:34px;background:#18202f;border:1px solid #253146;color:#94a3b8;border-radius:4px;cursor:pointer">🔌 Probar</button>
+      <button onclick="document.getElementById('bot-modal').style.display='none'" style="flex:1;height:34px;background:#1f0a0a;border:1px solid #f43f5e;color:#f43f5e;border-radius:4px;cursor:pointer">✕</button>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- PANEL PRINCIPAL -->
+<div class="main-panel">
+
+  <!-- MÉTRICAS RESUMEN -->
+  <div class="summary-metrics" id="summary-metrics">
+    <div class="sm"><div class="sl">PnL Total</div><div class="sv pos" id="s-pnl">$--</div></div>
+    <div class="sm"><div class="sl">Posiciones</div><div class="sv acc" id="s-pos">--</div></div>
+    <div class="sm"><div class="sl">Crédito Total</div><div class="sv neu" id="s-cred">$--</div></div>
+    <div class="sm"><div class="sl">% Capturado</div><div class="sv warn" id="s-pct">--%</div></div>
+    <div class="sm"><div class="sl">Delta Neto</div><div class="sv" id="s-delta">--</div></div>
+    <div class="sm"><div class="sl">Theta/día</div><div class="sv pos" id="s-theta">$--</div></div>
+  </div>
+
+  <!-- TABLA POSICIONES -->
+  <div class="card">
+    <div class="card-title">
+      📊 Posiciones Abiertas
+      <span id="bot-status-badge" style="font-size:10px;color:#475569;font-weight:400;margin-left:auto">Conectando...</span>
+    </div>
+    <div class="pos-table-wrap">
+    <table class="pos-table" id="pos-table">
+      <thead><tr>
+        <th onclick="sortTable('estrategia')">Estrategia</th>
+        <th onclick="sortTable('asset')">Activo</th>
+        <th onclick="sortTable('expiry')">Vencimiento</th>
+        <th onclick="sortTable('dte')">DTE</th>
+        <th onclick="sortTable('credit_received')">Crédito</th>
+        <th onclick="sortTable('pnl')">PnL $</th>
+        <th onclick="sortTable('pnl_pct')">PnL %</th>
+        <th>% Capturado</th>
+        <th>PoP</th>
+        <th>Prob. Toque</th>
+        <th>Rango Precio</th>
+        <th>Griegas</th>
+        <th>Acciones</th>
+      </tr></thead>
+      <tbody id="pos-body">
+        <tr><td colspan="13" style="text-align:center;padding:30px;color:#475569">
+          <div class="empty-state">
+            <div class="ei">📊</div>
+            <div class="et">Conectando al bot...</div>
+            <div class="es">Configura la URL y token del bot en el Analizador</div>
+          </div>
+        </td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- GRÁFICA PNL HISTÓRICO -->
+  <div class="card">
+    <div class="card-title">📈 Evolución PnL de posiciones abiertas</div>
+    <div id="chart-pnl-hist" style="height:180px"></div>
+  </div>
+
+  <!-- RANGO HISTÓRICO DE PRECIO -->
+  <div class="card">
+    <div class="card-title">📏 Rango de precio histórico</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:11px;color:#475569;margin-bottom:8px">BTC — Últimos 12 meses</div>
+        <div class="hist-range" id="hist-btc">
+          <div class="hist-title">Cargando...</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#475569;margin-bottom:8px">ETH — Últimos 12 meses</div>
+        <div class="hist-range" id="hist-eth">
+          <div class="hist-title">Cargando...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAPA DE CALOR DE GREEKS -->
+  <div class="card">
+    <div class="card-title">🧬 Greeks del portafolio</div>
+    <div id="chart-greeks" style="height:160px"></div>
+  </div>
+
+</div>
+
+<!-- PANEL LATERAL — DETALLE DE POSICIÓN SELECCIONADA -->
+<div class="side-panel">
+  <div class="card-title" style="padding:0">📋 Detalle de posición</div>
+
+  <div id="detail-empty" style="text-align:center;padding:20px;color:#475569;font-size:12px">
+    Haz click en una posición para ver el detalle
+  </div>
+
+  <div id="detail-panel" style="display:none;display:flex;flex-direction:column;gap:10px">
+
+    <div class="card" style="padding:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span id="d-label" style="font-size:13px;font-weight:700;color:#38bdf8">--</span>
+        <span id="d-badge" class="badge badge-ic">IC</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-row"><span class="dl">Activo</span><span class="dv" id="d-asset">--</span></div>
+        <div class="detail-row"><span class="dl">Vencimiento</span><span class="dv" id="d-expiry">--</span></div>
+        <div class="detail-row"><span class="dl">DTE restante</span><span class="dv acc" id="d-dte">--</span></div>
+        <div class="detail-row"><span class="dl">Entrada</span><span class="dv" id="d-entry">--</span></div>
+        <div class="detail-row"><span class="dl">Crédito recibido</span><span class="dv pos" id="d-credit">--</span></div>
+        <div class="detail-row"><span class="dl">PnL actual</span><span class="dv" id="d-pnl">--</span></div>
+        <div class="detail-row"><span class="dl">% del crédito</span><span class="dv" id="d-pct">--</span></div>
+        <div class="detail-row"><span class="dl">IVR al entrar</span><span class="dv warn" id="d-ivr">--</span></div>
+      </div>
+    </div>
+
+    <!-- PROBABILIDADES -->
+    <div class="card" style="padding:10px">
+      <div class="card-title" style="margin-bottom:8px">🎯 Probabilidades</div>
+      <div class="detail-section">
+        <div class="detail-row"><span class="dl">PoP (vencimiento)</span><span class="dv pos" id="d-pop">--%</span></div>
+        <div class="detail-row"><span class="dl">Prob. toque BE</span><span class="dv neg" id="d-touch">--%</span></div>
+        <div class="detail-row"><span class="dl">Expected Move ±</span><span class="dv acc" id="d-em">$--</span></div>
+        <div class="detail-row"><span class="dl">BE inferior</span><span class="dv neg" id="d-be-low">$--</span></div>
+        <div class="detail-row"><span class="dl">BE superior</span><span class="dv neg" id="d-be-high">$--</span></div>
+      </div>
+    </div>
+
+    <!-- GREEKS -->
+    <div class="card" style="padding:10px">
+      <div class="card-title" style="margin-bottom:8px">🧬 Greeks</div>
+      <div class="detail-section">
+        <div class="detail-row"><span class="dl">Delta Δ</span><span class="dv" id="d-delta">--</span></div>
+        <div class="detail-row"><span class="dl">Theta Θ /día</span><span class="dv pos" id="d-theta">--</span></div>
+        <div class="detail-row"><span class="dl">Vega ν /1%IV</span><span class="dv neg" id="d-vega">--</span></div>
+        <div class="detail-row"><span class="dl">Gamma Γ</span><span class="dv" id="d-gamma">--</span></div>
+      </div>
+    </div>
+
+    <!-- MINI PAYOFF -->
+    <div class="card" style="padding:10px">
+      <div class="card-title" style="margin-bottom:6px">📈 Payoff al vencimiento</div>
+      <div id="detail-chart" class="chart-mini"></div>
+    </div>
+
+    <!-- ACCIONES -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn btn-danger" id="btn-close-pos" onclick="closeSelected()">✕ Cerrar posición</button>
+      <button class="btn btn-primary" onclick="analyzeSelected()">📈 Analizar en detalle</button>
+      <button class="btn" onclick="rollSelected()">🔄 Calcular roll</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ── Black-Scholes ──────────────────────────────────────────────────────────
+function normCDF(x){const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;const s=x<0?-1:1;x=Math.abs(x)/Math.sqrt(2);const t=1/(1+p*x);const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);return 0.5*(1+s*y);}
+function normPDF(x){return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI)}
+function bs(S,K,T,r,sigma,tipo){
+  if(T<=0||sigma<=0||S<=0||K<=0)return{precio:tipo==='call'?Math.max(0,S-K):Math.max(0,K-S),delta:0,gamma:0,theta:0,vega:0};
+  const d1=(Math.log(S/K)+(r+0.5*sigma*sigma)*T)/(sigma*Math.sqrt(T));
+  const d2=d1-sigma*Math.sqrt(T);
+  let precio,delta,theta;
+  if(tipo==='call'){precio=S*normCDF(d1)-K*Math.exp(-r*T)*normCDF(d2);delta=normCDF(d1);theta=(-(S*normPDF(d1)*sigma)/(2*Math.sqrt(T))-r*K*Math.exp(-r*T)*normCDF(d2))/365;}
+  else{precio=K*Math.exp(-r*T)*normCDF(-d2)-S*normCDF(-d1);delta=normCDF(d1)-1;theta=(-(S*normPDF(d1)*sigma)/(2*Math.sqrt(T))+r*K*Math.exp(-r*T)*normCDF(-d2))/365;}
+  return{precio,delta,gamma:normPDF(d1)/(S*sigma*Math.sqrt(T)),theta,vega:(S*normPDF(d1)*Math.sqrt(T))/100};
+}
+function fmt(v,d=2){return(v>=0?'$':'-$')+Math.abs(v).toLocaleString('es',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function probTouch(S,K,r,sigma,T){if(T<=0||sigma<=0)return 0;const d=(Math.log(K/S)+(r-0.5*sigma*sigma)*T)/(sigma*Math.sqrt(T));const d2=(Math.log(K/S)-(r-0.5*sigma*sigma)*T)/(sigma*Math.sqrt(T));return(normCDF(-d)+Math.exp(2*r*Math.log(K/S)/(sigma*sigma))*normCDF(d2))*100;}
+
+const DARK={template:'plotly_dark',paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',margin:{l:45,r:10,t:8,b:35},font:{family:'Segoe UI,system-ui',size:10,color:'#94a3b8'}};
+
+// Estado
+let allPositions=[];
+let selectedPos=null;
+let spotPrices={BTC:77000,ETH:2500};
+let greeksData={};
+let sortKey='pnl',sortDir=-1;
+
+// ── Bot config modal ─────────────────────────────────────────────────────────
+function openBotConfig(){
+  document.getElementById('bot-url-inp').value=BOT_CONFIG.url||'';
+  document.getElementById('bot-token-inp').value=BOT_CONFIG.token||'';
+  const m=document.getElementById('bot-modal');
+  m.style.display='flex';
+}
+function saveBotCfg(){
+  const url=document.getElementById('bot-url-inp').value.trim().replace(/\/$/,'');
+  const token=document.getElementById('bot-token-inp').value.trim();
+  localStorage.setItem('co_bot_url',url);
+  localStorage.setItem('co_bot_token',token);
+  document.getElementById('bot-modal').style.display='none';
+  loadAll();
+}
+async function testBotCfg(){
+  const msg=document.getElementById('bot-test-msg');
+  const url=document.getElementById('bot-url-inp').value.trim().replace(/\/$/,'');
+  const token=document.getElementById('bot-token-inp').value.trim();
+  msg.textContent='🔄 Probando...';msg.style.color='#64748b';
+  try{
+    const r=await fetch(url+'/status',{headers:{'X-Bot-Token':token}});
+    const d=await r.json();
+    msg.textContent=`✅ Conectado | IC:${d.open_ic?.length||0} IB:${d.open_ib?.length||0} | ${d.paused?'PAUSADO':'ACTIVO'}`;
+    msg.style.color='#10b981';
+  }catch(e){msg.textContent='❌ '+e.message;msg.style.color='#f43f5e';}
+}
+// ── Bot config inline ─────────────────────────────────────────────────────────
+const BOT_CONFIG={
+  get url(){return localStorage.getItem('co_bot_url')||''},
+  get token(){return localStorage.getItem('co_bot_token')||''},
+};
+async function botFetch(path,opts={}){
+  if(!BOT_CONFIG.url||!BOT_CONFIG.token)throw new Error('Bot no configurado');
+  const r=await fetch(BOT_CONFIG.url+path,{...opts,headers:{'X-Bot-Token':BOT_CONFIG.token,'Content-Type':'application/json',...(opts.headers||{})}});
+  if(!r.ok)throw new Error(`${r.status}`);
+  return r.json();
+}
+
+// ── Cargar datos ───────────────────────────────────────────────────────────
+async function loadAll(){
+  try{
+    // Precios spot
+    try{
+      const rb=await fetch('https://api.bybit.com/v5/market/tickers?category=spot&symbol=BTCUSDT');
+      spotPrices.BTC=parseFloat((await rb.json()).result.list[0].lastPrice);
+      const re=await fetch('https://api.bybit.com/v5/market/tickers?category=spot&symbol=ETHUSDT');
+      spotPrices.ETH=parseFloat((await re.json()).result.list[0].lastPrice);
+      document.getElementById('nav-price').textContent='BTC $'+spotPrices.BTC.toLocaleString();
+    }catch{}
+
+    // Portfolio del bot
+    const data=await botFetch('/portfolio');
+    const greeks=await botFetch('/greeks').catch(()=>({}));
+    greeksData=greeks;
+
+    allPositions=data.posiciones||[];
+
+    document.getElementById('bot-status-badge').innerHTML=
+      `<span style="color:#10b981">● Conectado</span> — ${allPositions.length} posición(es)`;
+
+    // Métricas resumen
+    const pnlTotal=data.pnl_total||0;
+    const credTotal=allPositions.reduce((s,p)=>s+(p.credito_entrada||0),0);
+    const pctCapt=credTotal>0?(pnlTotal/credTotal*100):0;
+    const thetaTotal=Object.values(greeks).reduce((s,g)=>s+(g?.theta||0),0);
+    const deltaTotal=Object.values(greeks).reduce((s,g)=>s+(g?.delta||0),0);
+
+    const pnlEl=document.getElementById('s-pnl');
+    pnlEl.textContent=fmt(pnlTotal);
+    pnlEl.className='sv '+(pnlTotal>=0?'pos':'neg');
+    document.getElementById('s-pos').textContent=allPositions.length;
+    document.getElementById('s-cred').textContent=fmt(credTotal);
+    const pctEl=document.getElementById('s-pct');
+    pctEl.textContent=pctCapt.toFixed(1)+'%';
+    pctEl.className='sv '+(pctCapt>=50?'pos':pctCapt>=25?'warn':'neg');
+    const dEl=document.getElementById('s-delta');
+    dEl.textContent=deltaTotal.toFixed(3);
+    dEl.className='sv '+(Math.abs(deltaTotal)<0.1?'pos':'warn');
+    const thEl=document.getElementById('s-theta');
+    thEl.textContent=fmt(thetaTotal);
+    thEl.className='sv '+(thetaTotal>=0?'pos':'neg');
+
+    renderTable();
+    renderGreeksChart();
+    await loadHistoricalRange();
+    document.getElementById('last-update').textContent=new Date().toLocaleTimeString('es');
+
+  }catch(e){
+    document.getElementById('bot-status-badge').innerHTML=`<span style="color:#f43f5e">● ${e.message}</span>`;
+    document.getElementById('pos-body').innerHTML=`<tr><td colspan="13">
+      <div class="empty-state"><div class="ei">⚠️</div>
+      <div class="et">No hay posiciones abiertas</div>
+      <div class="es">${e.message}</div></div></td></tr>`;
+  }
+}
+
+// ── Tabla de posiciones ────────────────────────────────────────────────────
+function sortTable(key){
+  if(sortKey===key)sortDir*=-1;else{sortKey=key;sortDir=-1;}
+  renderTable();
+}
+
+function renderTable(){
+  const sorted=[...allPositions].sort((a,b)=>{
+    const va=a[sortKey]||0,vb=b[sortKey]||0;
+    return(va>vb?1:-1)*sortDir;
+  });
+
+  const tb=document.getElementById('pos-body');
+  if(!sorted.length){
+    tb.innerHTML=`<tr><td colspan="13"><div class="empty-state">
+      <div class="ei">✅</div>
+      <div class="et">Sin posiciones abiertas</div>
+      <div class="es">El bot no tiene estrategias activas en este momento</div>
+    </div></td></tr>`;
+    return;
+  }
+
+  tb.innerHTML=sorted.map(p=>{
+    const S=spotPrices[p.asset]||77000;
+    const iv=(p.iv_rank_entry||50)/100*0.8+0.3; // estimado
+    const dte=calcDTE(p.expiry);
+    const T=Math.max(dte,0)/365;
+    const rfr=0.05;
+
+    // PoP estimado — para IC/IB rango entre strikes
+    const pop=estimatePoP(p,S,iv,T,rfr);
+    const touch=estimateTouch(p,S,iv,T,rfr);
+    const pct=p.credito_entrada>0?(p.pnl/p.credito_entrada*100):0;
+    const maxPct=100;
+    const barW=Math.min(100,Math.abs(pct));
+    const barColor=pct>=50?'#10b981':pct>=0?'#f59e0b':'#f43f5e';
+
+    const badgeClass={IC:'badge-ic',IB:'badge-ib',CAL:'badge-cal',CS:'badge-cs',DS:'badge-ds'}[p.estrategia]||'badge-ic';
+    const assetClass={BTC:'badge-btc',ETH:'badge-eth'}[p.asset]||'badge-btc';
+
+    const popColor=pop>=60?'#10b981':pop>=40?'#f59e0b':'#f43f5e';
+    const touchColor=touch<=30?'#10b981':touch<=50?'#f59e0b':'#f43f5e';
+
+    return `<tr onclick="selectPosition('${p.label}')" style="cursor:pointer" id="row-${p.label}">
+      <td><span class="badge ${badgeClass}">${p.estrategia}</span></td>
+      <td><span class="badge ${assetClass}">${p.asset}</span></td>
+      <td style="color:#94a3b8">${p.expiry||'--'}</td>
+      <td style="color:${dte<=3?'#f43f5e':dte<=7?'#f59e0b':'#38bdf8'};font-weight:600">${dte}d</td>
+      <td style="color:#e2e8f0">${fmt(p.credito_entrada)}</td>
+      <td style="color:${p.pnl>=0?'#10b981':'#f43f5e'};font-weight:700">${fmt(p.pnl)}</td>
+      <td style="color:${p.pnl_pct>=0?'#10b981':'#f43f5e'}">${p.pnl_pct}%</td>
+      <td>
+        <span style="font-size:10px;color:${barColor}">${pct.toFixed(1)}%</span>
+        <div class="pnl-bar-wrap"><div class="pnl-bar-fill" style="width:${barW}%;background:${barColor}"></div></div>
+      </td>
+      <td style="color:${popColor};font-weight:600">${pop.toFixed(0)}%</td>
+      <td style="color:${touchColor}">${touch.toFixed(0)}%</td>
+      <td>${renderRangeBar(p.asset,S)}</td>
+      <td style="font-size:10px;color:#64748b">
+        Δ${getGreek(p.asset,'delta')} θ${getGreek(p.asset,'theta')}
+      </td>
+      <td>
+        <button class="btn btn-danger" style="padding:2px 7px;font-size:10px" onclick="event.stopPropagation();closePos('${p.label}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function getGreek(asset,key){
+  const g=greeksData[asset];
+  if(!g)return '--';
+  return (g[key]||0).toFixed(3);
+}
+
+function renderRangeBar(asset,S){
+  const ranges={BTC:{min:30000,max:110000},ETH:{min:1200,max:4500}};
+  const r=ranges[asset]||{min:S*0.5,max:S*1.5};
+  const pct=Math.min(100,Math.max(0,(S-r.min)/(r.max-r.min)*100));
+  return `<div class="price-range" style="width:100px">
+    <div class="range-bar">
+      <div class="range-current" style="left:${pct}%"></div>
+    </div>
+    <div class="range-labels"><span>$${(r.min/1000).toFixed(0)}k</span><span>$${(r.max/1000).toFixed(0)}k</span></div>
+  </div>`;
+}
+
+function calcDTE(expiry){
+  if(!expiry)return 0;
+  const months={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+  try{
+    const d=+expiry.substring(0,2),m=months[expiry.substring(2,5)],y=2000+(+expiry.substring(5,7));
+    return Math.max(0,Math.round((new Date(y,m,d).getTime()-Date.now())/86400000));
+  }catch{return 0;}
+}
+
+function estimatePoP(pos,S,iv,T,rfr){
+  if(T<=0)return 0;
+  const mu=Math.log(S)+(rfr-0.5*iv*iv)*T;
+  const sig=iv*Math.sqrt(T);
+  // Estimación simple basada en rango ±10% del spot
+  const lo=S*0.90,hi=S*1.10;
+  return(normCDF((Math.log(hi)-mu)/sig)-normCDF((Math.log(lo)-mu)/sig))*100;
+}
+
+function estimateTouch(pos,S,iv,T,rfr){
+  if(T<=0)return 0;
+  // Prob de tocar el strike más cercano
+  const nearStrike=S*(pos.estrategia==='IC'?1.05:1.08);
+  return probTouch(S,nearStrike,rfr,iv,T);
+}
+
+// ── Seleccionar posición ───────────────────────────────────────────────────
+function selectPosition(label){
+  document.querySelectorAll('.pos-table tr').forEach(r=>r.classList.remove('selected'));
+  const row=document.getElementById('row-'+label);
+  if(row)row.classList.add('selected');
+
+  selectedPos=allPositions.find(p=>p.label===label);
+  if(!selectedPos)return;
+
+  const p=selectedPos;
+  const S=spotPrices[p.asset]||77000;
+  const iv=0.60; // estimado
+  const dte=calcDTE(p.expiry);
+  const T=Math.max(dte,0.001)/365;
+  const rfr=0.05;
+  const em=S*iv*Math.sqrt(T);
+  const pop=estimatePoP(p,S,iv,T,rfr);
+  const touch=estimateTouch(p,S,iv,T,rfr);
+  const pct=p.credito_entrada>0?(p.pnl/p.credito_entrada*100):0;
+
+  const badgeClass={IC:'badge-ic',IB:'badge-ib',CAL:'badge-cal',CS:'badge-cs',DS:'badge-ds'}[p.estrategia]||'badge-ic';
+  document.getElementById('d-label').textContent=p.label;
+  document.getElementById('d-badge').className='badge '+badgeClass;
+  document.getElementById('d-badge').textContent=p.estrategia;
+  document.getElementById('d-asset').textContent=p.asset;
+  document.getElementById('d-expiry').textContent=p.expiry||'--';
+  document.getElementById('d-dte').textContent=dte+' días';
+  document.getElementById('d-entry').textContent=p.entry_time?new Date(p.entry_time).toLocaleDateString('es'):'--';
+  document.getElementById('d-credit').textContent=fmt(p.credito_entrada);
+  const dpnl=document.getElementById('d-pnl');
+  dpnl.textContent=fmt(p.pnl);dpnl.className='dv '+(p.pnl>=0?'pos':'neg');
+  const dpct=document.getElementById('d-pct');
+  dpct.textContent=pct.toFixed(1)+'%';dpct.className='dv '+(pct>=50?'pos':pct>=0?'warn':'neg');
+  document.getElementById('d-ivr').textContent=(p.iv_rank_entry||'--')+'%';
+  document.getElementById('d-pop').textContent=pop.toFixed(1)+'%';
+  document.getElementById('d-touch').textContent=touch.toFixed(1)+'%';
+  document.getElementById('d-em').textContent='±'+fmt(em,0);
+  document.getElementById('d-be-low').textContent=fmt(S-em,0);
+  document.getElementById('d-be-high').textContent=fmt(S+em,0);
+
+  const g=greeksData[p.asset]||{};
+  document.getElementById('d-delta').textContent=(g.delta||0).toFixed(4);
+  const dth=document.getElementById('d-theta');
+  dth.textContent=fmt(g.theta||0);dth.className='dv '+(g.theta>=0?'pos':'neg');
+  document.getElementById('d-vega').textContent=fmt(g.vega||0);
+  document.getElementById('d-gamma').textContent=(g.gamma||0).toFixed(6);
+
+  // Mini payoff chart
+  renderMiniPayoff(p,S,iv,T,rfr);
+
+  document.getElementById('detail-empty').style.display='none';
+  document.getElementById('detail-panel').style.display='flex';
+}
+
+function renderMiniPayoff(pos,S,iv,T,rfr){
+  const N=100,lo=S*0.8,hi=S*1.2;
+  const xs=Array.from({length:N},(_,i)=>lo+(hi-lo)*i/(N-1));
+  // Estimación simple del payoff para IC
+  const cred=pos.credito_entrada||0;
+  const w=S*0.05;
+  const ys=xs.map(p=>{
+    if(pos.estrategia==='IC'){
+      if(p>S-w&&p<S+w)return cred;
+      if(p<=S-2*w||p>=S+2*w)return -cred;
+      if(p<=S-w)return cred*(p-(S-2*w))/w-cred;
+      return cred*(S+2*w-p)/w-cred;
+    }
+    return p>S?cred*(1-(p-S)/(S*0.1)):cred;
+  });
+  Plotly.react('detail-chart',[{x:xs,y:ys,mode:'lines',line:{color:'#38bdf8',width:2},fill:'tozeroy',fillcolor:'rgba(56,189,248,0.06)'}],
+    {...DARK,margin:{l:40,r:5,t:5,b:25},xaxis:{tickformat:'$,.0f',gridcolor:'#1e2638'},yaxis:{tickformat:'$,.1f',gridcolor:'#1e2638'},shapes:[{type:'line',x0:xs[0],x1:xs[N-1],y0:0,y1:0,line:{color:'#1e2638',width:1}},{type:'line',x0:S,x1:S,y0:0,y1:1,yref:'paper',line:{color:'#f59e0b',width:1.5,dash:'dot'}}],showlegend:false},{responsive:true,displayModeBar:false});
+}
+
+// ── Greeks chart ───────────────────────────────────────────────────────────
+function renderGreeksChart(){
+  const assets=Object.keys(greeksData);
+  if(!assets.length)return;
+  const metrics=['delta','gamma','vega','theta'];
+  const traces=assets.map(asset=>{
+    const g=greeksData[asset]||{};
+    return{x:metrics,y:metrics.map(m=>g[m]||0),name:asset,type:'bar',
+      marker:{color:asset==='BTC'?'#f7931a':'#627eea',opacity:0.8}};
+  });
+  Plotly.react('chart-greeks',traces,
+    {...DARK,barmode:'group',xaxis:{gridcolor:'#1e2638'},yaxis:{gridcolor:'#1e2638'},legend:{orientation:'h',y:1.1}},
+    {responsive:true,displayModeBar:false});
+}
+
+// ── Rango histórico ────────────────────────────────────────────────────────
+async function loadHistoricalRange(){
+  const ranges={
+    BTC:{min:42000,max:108000,label:'BTC'},
+    ETH:{min:1500,max:4100,label:'ETH'},
+  };
+  for(const[asset,r] of Object.entries(ranges)){
+    const S=spotPrices[asset]||r.min;
+    const pct=Math.min(100,Math.max(0,(S-r.min)/(r.max-r.min)*100));
+    const el=document.getElementById('hist-'+asset.toLowerCase());
+    el.innerHTML=`
+      <div class="hist-title" style="display:flex;justify-content:space-between">
+        <span>Min 52w: $${r.min.toLocaleString()}</span>
+        <span style="color:#f59e0b;font-weight:600">Actual: $${S.toLocaleString()}</span>
+        <span>Max 52w: $${r.max.toLocaleString()}</span>
+      </div>
+      <div class="hist-bar-wrap" style="margin-top:6px">
+        <div class="hist-bar-fill" style="width:100%"></div>
+        <div class="hist-spot" style="left:${pct}%"></div>
+      </div>
+      <div class="hist-labels">
+        <span>Mínimo</span>
+        <span style="color:#f59e0b">▲ ${pct.toFixed(0)}% del rango</span>
+        <span>Máximo</span>
+      </div>
+      <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
+        <div style="background:#1f0a0a;border:1px solid #7f1d1d;border-radius:4px;padding:4px">
+          <div style="font-size:9px;color:#f43f5e">Distancia al Min</div>
+          <div style="font-size:12px;font-weight:600;color:#f43f5e">-${((S-r.min)/S*100).toFixed(1)}%</div>
+        </div>
+        <div style="background:#0c1a2e;border:1px solid #1e3a5f;border-radius:4px;padding:4px">
+          <div style="font-size:9px;color:#38bdf8">Posición en rango</div>
+          <div style="font-size:12px;font-weight:600;color:#38bdf8">${pct.toFixed(0)}%</div>
+        </div>
+        <div style="background:#052e16;border:1px solid #166534;border-radius:4px;padding:4px">
+          <div style="font-size:9px;color:#10b981">Distancia al Max</div>
+          <div style="font-size:12px;font-weight:600;color:#10b981">+${((r.max-S)/S*100).toFixed(1)}%</div>
+        </div>
+      </div>`;
+  }
+}
+
+// ── Acciones ───────────────────────────────────────────────────────────────
+async function closePos(label){
+  if(!confirm(`¿Cerrar posición ${label}?`))return;
+  try{
+    const r=await botFetch(`/positions/${label}/close`,{method:'POST',body:JSON.stringify({reason:'manual_app'})});
+    alert(`✅ Cerrada | PnL: ${fmt(r.pnl||0)}`);
+    loadAll();
+  }catch(e){alert('❌ '+e.message);}
+}
+
+function closeSelected(){if(selectedPos)closePos(selectedPos.label);}
+
+function analyzeSelected(){
+  if(!selectedPos)return;
+  localStorage.setItem('co_analyze_label',selectedPos.label);
+  window.location.href='index.html';
+}
+
+function rollSelected(){
+  if(!selectedPos)return;
+  window.location.href='ajuste.html';
+}
+
+// ── PnL histórico chart ────────────────────────────────────────────────────
+function renderPnLChart(){
+  if(!allPositions.length)return;
+  const labels=allPositions.map(p=>p.label);
+  const pnls=allPositions.map(p=>p.pnl||0);
+  const creditos=allPositions.map(p=>p.credito_entrada||0);
+  Plotly.react('chart-pnl-hist',[
+    {x:labels,y:pnls,type:'bar',name:'PnL actual',marker:{color:pnls.map(v=>v>=0?'#10b981':'#f43f5e'),opacity:0.85}},
+    {x:labels,y:creditos,type:'bar',name:'Crédito total',marker:{color:'#38bdf8',opacity:0.3}},
+  ],{...DARK,barmode:'overlay',xaxis:{gridcolor:'#1e2638'},yaxis:{tickformat:'$,.2f',gridcolor:'#1e2638'},legend:{orientation:'h',y:1.1}},{responsive:true,displayModeBar:false});
+}
+
+window.addEventListener('load',async()=>{
+  await loadAll();
+  renderPnLChart();
+  setInterval(loadAll,15000);
+});
+</script>
+</body>
+</html>
