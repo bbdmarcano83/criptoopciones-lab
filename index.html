@@ -1169,10 +1169,11 @@ function deleteSaved(i){savedStrategies.splice(i,1);localStorage.setItem('co_str
 function onDTE(){const v=document.getElementById('dte').value;document.getElementById('dte-val').textContent=v+' días';if(typeof COState!=='undefined')COState.dte=+v;recalc();}
 function onIV(){const v=document.getElementById('iv').value;document.getElementById('iv-val').textContent=v+'%';recalc();}
 function onRango(){document.getElementById('rango-val').textContent='±'+document.getElementById('rango').value+'%';recalc();}
-function onExchangeChange(){document.getElementById('nav-ex').textContent=document.getElementById('exchange').value;if(typeof COState!=='undefined')COState.exchange=document.getElementById('exchange').value;fetchAll();}
+function onExchangeChange(){const v=document.getElementById('exchange').value;document.getElementById('nav-ex').textContent=v;localStorage.setItem('co_exchange',v);if(typeof COState!=='undefined')COState.exchange=v;fetchAll();}
 async function onAssetChange(){
   const act=document.getElementById('activo').value;
   document.getElementById('exec-activo-sel').value=act;
+  localStorage.setItem('co_activo',act);
   if(typeof COState!=='undefined')COState.activo=act;
   await fetchPrice();
   if(currentTpl&&TPLS[currentTpl])loadTpl(currentTpl);
@@ -1183,6 +1184,12 @@ async function fetchAll(){await fetchPrice();await Promise.all([fetchIVR(),fetch
 
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('load',async()=>{
+  // Restaurar exchange y activo guardados
+  const savedEx=localStorage.getItem('co_exchange')||'Bybit';
+  const savedAct=localStorage.getItem('co_activo')||'BTC';
+  document.getElementById('exchange').value=savedEx;
+  document.getElementById('activo').value=savedAct;
+  document.getElementById('nav-ex').textContent=savedEx;
   buildStratBtns();renderSaved();
   await onAssetChange();
   initDrag();
