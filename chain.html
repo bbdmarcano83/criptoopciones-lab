@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>CriptoOpciones Lab — Cadena</title>
-<script src="plotly.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
 <script src="co_shared.js"></script>
 <style id="shared-css"></style>
 <style>
@@ -184,7 +184,7 @@ async function loadAll(){
     if(ivs.length){
       const ivActual=+(ivs.reduce((a,b)=>a+b,0)/ivs.length).toFixed(1);
       const ivMin=+Math.min(...ivs).toFixed(1),ivMax=+Math.max(...ivs).toFixed(1);
-      const ivr=+((ivActual-ivMin)/(ivMax-ivMin)*100).toFixed(1);
+      const ivr=+calcIVR(ivActual, COState.activo).toFixed(1);
       COState.iv=ivActual;
       document.getElementById('iv-inp').value=Math.round(ivActual);
       document.getElementById('sp-iv').textContent=ivActual+'%';

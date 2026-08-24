@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CriptoOpciones Lab — Posiciones</title>
-<script src="plotly.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b0e14;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column}
@@ -137,7 +137,7 @@ nav{background:#121721;border-bottom:1px solid #1e2638;padding:0;display:flex;al
 </nav>
 
 <!-- MODAL CONFIG BOT -->
-<div id="bot-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+<div id="bot-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center">
   <div style="background:#121721;border:1px solid #1e2638;border-radius:10px;padding:20px;width:360px;display:flex;flex-direction:column;gap:10px">
     <div style="font-size:13px;font-weight:700;color:#f8fafc">⚙️ Configurar Bot V5</div>
     <div>
@@ -335,10 +335,12 @@ let sortKey='pnl',sortDir=-1;
 
 // ── Bot config modal ─────────────────────────────────────────────────────────
 function openBotConfig(){
-  document.getElementById('bot-url-inp').value=BOT_CONFIG.url||'';
-  document.getElementById('bot-token-inp').value=BOT_CONFIG.token||'';
+  document.getElementById('bot-url-inp').value=localStorage.getItem('co_bot_url')||'';
+  document.getElementById('bot-token-inp').value=localStorage.getItem('co_bot_token')||'';
   const m=document.getElementById('bot-modal');
   m.style.display='flex';
+  m.style.alignItems='center';
+  m.style.justifyContent='center';
 }
 function saveBotCfg(){
   const url=document.getElementById('bot-url-inp').value.trim().replace(/\/$/,'');
