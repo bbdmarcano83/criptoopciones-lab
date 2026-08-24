@@ -294,8 +294,9 @@ function renderChain(){
     // Insertar fila de spot
     if(!spotInserted&&k>=S){
       const sr=document.createElement('tr');sr.className='spot-row';
-      sr.innerHTML=`<td colspan="19">📍 SPOT ${COState.activo}: $${S.toLocaleString('es',{minimumFractionDigits:2})}&nbsp;&nbsp;|&nbsp;&nbsp;EM ±$${expectedMove(S,iv*100,T).toLocaleString('es',{maximumFractionDigits:0})}</td>`;
+      sr.innerHTML=`<td colspan="19">📍 SPOT ${COState.activo}: $${S.toLocaleString('es',{minimumFractionDigits:2})}&nbsp;&nbsp;|&nbsp;&nbsp;EM ±$${expectedMove(S,iv*100,T).toLocaleString('es',{maximumFractionDigits:0})}&nbsp;&nbsp;◄ ATM</td>`;
       tb.appendChild(sr);spotInserted=true;
+      setTimeout(()=>sr.scrollIntoView({behavior:'smooth',block:'center'}),200);
     }
 
     const row=byStrike[k]||{};
