@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CriptoOpciones Lab — Manual de Usuario</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b0e14;color:#e2e8f0;line-height:1.6}
+nav{background:#121721;border-bottom:1px solid #1e2638;padding:0 16px;display:flex;align-items:center;height:44px;position:sticky;top:0;z-index:100;gap:12px}
+.nav-logo{font-size:14px;font-weight:700}.nav-logo .c{color:#38bdf8}.nav-logo .o{color:#f8fafc}
+.nav-links{display:flex;gap:4px}
+.nav-link{padding:4px 10px;font-size:11px;color:#475569;text-decoration:none;border-radius:4px}
+.nav-link:hover{color:#38bdf8;background:#18202f}
+.container{max-width:900px;margin:0 auto;padding:24px 20px}
+h1{font-size:24px;font-weight:700;color:#f8fafc;margin-bottom:8px}
+h2{font-size:18px;font-weight:700;color:#38bdf8;margin:32px 0 12px;padding-bottom:8px;border-bottom:1px solid #1e2638}
+h3{font-size:14px;font-weight:600;color:#f59e0b;margin:20px 0 8px}
+h4{font-size:12px;font-weight:600;color:#10b981;margin:14px 0 6px}
+p{font-size:13px;color:#94a3b8;margin-bottom:10px}
+.lead{font-size:15px;color:#c8cfe0;margin-bottom:20px}
+.card{background:#121721;border:1px solid #1e2638;border-radius:8px;padding:16px;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:4px}
+.badge-blue{background:#0c1a2e;border:1px solid #38bdf8;color:#38bdf8}
+.badge-green{background:#052e16;border:1px solid #10b981;color:#10b981}
+.badge-amber{background:#1c1200;border:1px solid #f59e0b;color:#f59e0b}
+.badge-red{background:#1f0a0a;border:1px solid #f43f5e;color:#f43f5e}
+.badge-purple{background:#1a0a2e;border:1px solid #a78bfa;color:#a78bfa}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+th{background:#0b0e14;padding:8px 10px;text-align:left;color:#475569;font-weight:500;border-bottom:1px solid #1e2638}
+td{padding:7px 10px;border-bottom:1px solid #18202f;color:#94a3b8;vertical-align:top}
+td:first-child{color:#e2e8f0;font-weight:500;white-space:nowrap}
+code{background:#18202f;border:1px solid #253146;border-radius:3px;padding:1px 6px;font-size:11px;color:#38bdf8;font-family:monospace}
+.tip{background:#0c1a2e;border:1px solid #1e3a5f;border-radius:6px;padding:10px 14px;margin:10px 0;font-size:12px;color:#7dd3fc}
+.tip::before{content:"💡 ";font-weight:700}
+.warning{background:#1c1200;border:1px solid #92400e;border-radius:6px;padding:10px 14px;margin:10px 0;font-size:12px;color:#fcd34d}
+.warning::before{content:"⚠️ ";font-weight:700}
+.danger{background:#1f0a0a;border:1px solid #7f1d1d;border-radius:6px;padding:10px 14px;margin:10px 0;font-size:12px;color:#fca5a5}
+.danger::before{content:"🔴 ";font-weight:700}
+.step{display:flex;gap:12px;margin-bottom:10px;align-items:flex-start}
+.step-num{background:#38bdf8;color:#0b0e14;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:2px}
+.step-content{flex:1}
+.step-title{font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:3px}
+.step-desc{font-size:12px;color:#64748b}
+.toc{background:#121721;border:1px solid #1e2638;border-radius:8px;padding:16px;margin-bottom:24px}
+.toc h3{color:#38bdf8;margin:0 0 10px}
+.toc a{display:block;font-size:12px;color:#64748b;text-decoration:none;padding:3px 0;border-bottom:1px solid #18202f}
+.toc a:hover{color:#38bdf8}
+.toc a:last-child{border:none}
+.section-icon{font-size:18px;margin-right:8px}
+ul{padding-left:16px;margin-bottom:10px}
+ul li{font-size:12px;color:#94a3b8;margin-bottom:4px}
+hr{border:none;border-top:1px solid #1e2638;margin:24px 0}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><span class="c">Cripto</span><span class="o">Opciones</span> LAB</div>
+  <div class="nav-links">
+    <a href="index.html" class="nav-link">📈 Analizador</a>
+    <a href="positions.html" class="nav-link">📊 Posiciones</a>
+    <a href="chain.html" class="nav-link">📋 Cadena</a>
+    <a href="iv.html" class="nav-link">🌊 IV & Mercado</a>
+    <a href="ajuste.html" class="nav-link">🔧 Ajuste</a>
+    <a href="diario.html" class="nav-link">📓 Diario</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<h1>📖 Manual de Usuario — CriptoOpciones Lab</h1>
+<p class="lead">Terminal institucional de análisis y gestión de opciones de criptomonedas. Diseñado para operar en Bybit, Binance y Deribit.</p>
+
+<div class="toc">
+  <h3>📋 Índice</h3>
+  <a href="#inicio">1. Inicio rápido</a>
+  <a href="#analizador">2. Analizador — Página principal</a>
+  <a href="#cadena">3. Cadena de opciones</a>
+  <a href="#posiciones">4. Posiciones abiertas</a>
+  <a href="#iv">5. IV & Mercado</a>
+  <a href="#ajuste">6. Calculadora de ajuste / Roll</a>
+  <a href="#diario">7. Diario de trades</a>
+  <a href="#bot">8. Conexión con el Bot V5</a>
+  <a href="#conceptos">9. Conceptos clave</a>
+  <a href="#flujo">10. Flujo de trabajo recomendado</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="inicio"><span class="section-icon">🚀</span>1. Inicio rápido</h2>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-content">
+    <div class="step-title">Seleccionar exchange y activo</div>
+    <div class="step-desc">En el sidebar izquierdo elige <code>Bybit</code>, <code>Deribit</code> o <code>Binance</code> y el activo (<code>BTC</code>, <code>ETH</code>, etc.). El precio spot se carga automáticamente.</div>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-content">
+    <div class="step-title">Revisar el IVR</div>
+    <div class="step-desc">El panel de <strong>IV Rank</strong> muestra si la volatilidad está alta o baja. Esto determina qué estrategia usar. Verde = vender prima, Rojo = comprar prima.</div>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-content">
+    <div class="step-title">Seleccionar una plantilla de estrategia</div>
+    <div class="step-desc">Haz click en <code>🦅 IC</code>, <code>🦋 IB</code>, <code>🔰 BWC</code> u otra. Se cargan las patas automáticamente centradas en el precio actual.</div>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-content">
+    <div class="step-title">Analizar el payoff</div>
+    <div class="step-desc">La gráfica muestra la curva de ganancia/pérdida. Pasa el mouse para ver el PnL en cualquier precio. Haz click para anclar el cursor.</div>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">5</div>
+  <div class="step-content">
+    <div class="step-title">Ejecutar en Bybit</div>
+    <div class="step-desc">Si el bot está configurado, aparece el botón <code>🚀 Ejecutar en Bot</code>. Confirma los parámetros de TP/SL y el bot gestiona la posición mientras duermes.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="analizador"><span class="section-icon">📈</span>2. Analizador — Página principal</h2>
+
+<h3>Sidebar izquierdo</h3>
+<table>
+  <tr><th>Elemento</th><th>Qué hace</th><th>Cuándo usarlo</th></tr>
+  <tr><td>Exchange</td><td>Selecciona de dónde vienen los precios y la cadena de opciones</td><td>Al inicio de la sesión. Bybit para operar en Bybit, Deribit para Deribit</td></tr>
+  <tr><td>Activo</td><td>BTC, ETH, SOL o BNB</td><td>Según el activo que quieras operar</td></tr>
+  <tr><td>Precio Spot</td><td>Precio actual del activo. Se actualiza automáticamente cada 15 segundos</td><td>Puedes editarlo manualmente para hacer análisis hipotéticos</td></tr>
+  <tr><td>DTE</td><td>Days To Expiration — días hasta el vencimiento del contrato</td><td>Mueve el slider para ver cómo afecta el tiempo al payoff y theta decay</td></tr>
+  <tr><td>IV % Global</td><td>Volatilidad implícita usada en los cálculos de Black-Scholes</td><td>Se actualiza automáticamente desde el exchange. Ajusta para escenarios</td></tr>
+  <tr><td>Rango ±%</td><td>Amplitud de la gráfica de payoff respecto al precio actual</td><td>Aumenta si quieres ver qué pasa en movimientos extremos</td></tr>
+  <tr><td>IV Rank (IVR)</td><td>Percentil de la IV actual vs los últimos 12 meses</td><td>El indicador más importante para decidir la estrategia</td></tr>
+  <tr><td>Rango de precio</td><td>Min y max del activo en 6 y 12 meses desde CoinGecko</td><td>Para saber si el precio está en zona alta, media o baja históricamente</td></tr>
+  <tr><td>Bot V5 Portfolio</td><td>PnL en tiempo real de las posiciones que gestiona el bot</td><td>Monitoreo constante. Solo aparece si el bot está configurado</td></tr>
+  <tr><td>Plantillas</td><td>Estrategias predefinidas: IC, IB, BWC, BCS, BPS, Strad, Stran, DSC, DSP</td><td>Click para cargar la estrategia centrada en el precio actual</td></tr>
+  <tr><td>Guardadas</td><td>Estrategias que guardaste previamente</td><td>Para reutilizar configuraciones que funcionaron bien</td></tr>
+</table>
+
+<h3>Panel de IVR — El más importante</h3>
+<div class="card">
+  <table>
+    <tr><th>IVR</th><th>Color</th><th>Significado</th><th>Estrategia recomendada</th></tr>
+    <tr><td>≥ 65%</td><td><span class="badge badge-green">ALTO</span></td><td>La IV está cara. El mercado exagera el miedo</td><td>🦅 Iron Condor / 🦋 Iron Butterfly — VENDER prima</td></tr>
+    <tr><td>35% - 65%</td><td><span class="badge badge-amber">MEDIO</span></td><td>IV en zona neutral</td><td>📆 Calendar Spread — posición neutral en volatilidad</td></tr>
+    <tr><td>≤ 35%</td><td><span class="badge badge-red">BAJO</span></td><td>La IV está barata. El mercado está tranquilo</td><td>⚡ Straddle / Debit Spread — COMPRAR opciones</td></tr>
+  </table>
+</div>
+
+<h3>Métricas superiores</h3>
+<table>
+  <tr><th>Métrica</th><th>Qué mide</th><th>Referencia</th></tr>
+  <tr><td>Máx. Ganancia</td><td>Lo máximo que puedes ganar si el precio se queda en el rango óptimo</td><td>Para IC/IB es el crédito cobrado</td></tr>
+  <tr><td>Máx. Pérdida</td><td>Lo máximo que puedes perder. En IC/IB es la anchura del spread menos el crédito</td><td>Define tu riesgo máximo</td></tr>
+  <tr><td>PoP</td><td>Probability of Profit — probabilidad de que la posición sea ganadora al vencimiento</td><td>Busca ≥ 60% para estrategias de venta</td></tr>
+  <tr><td>Theta/día</td><td>Cuánto ganas o pierdes por cada día que pasa</td><td>Positivo = vendes tiempo. Negativo = compras tiempo</td></tr>
+  <tr><td>Delta Δ</td><td>Exposición direccional. 0 = neutral, +1 = alcista, -1 = bajista</td><td>Para IC/IB busca delta cercano a 0</td></tr>
+  <tr><td>Vega /1%IV</td><td>Cuánto cambia el PnL si la IV sube o baja 1%</td><td>Negativo si vendes prima (te perjudica que suba la IV)</td></tr>
+  <tr><td>Gamma Γ</td><td>Velocidad de cambio del delta</td><td>Alto gamma = posición más arriesgada cerca del vencimiento</td></tr>
+  <tr><td>Créd/Déb</td><td>Crédito neto cobrado (positivo) o débito pagado (negativo)</td><td>Para IC/IB debe ser positivo</td></tr>
+</table>
+
+<h3>Tabs de gráficas</h3>
+<table>
+  <tr><th>Tab</th><th>Qué muestra</th><th>Cuándo usarlo</th></tr>
+  <tr><td>📈 Payoff</td><td>Curva de PnL al vencimiento (blanca) y hoy (azul punteada). Break-evens en rojo</td><td>Vista principal. Siempre activa al analizar</td></tr>
+  <tr><td>⏰ Theta Decay</td><td>Cómo evoluciona el PnL día a día hasta el vencimiento</td><td>Para entender cuándo cerrar la posición (generalmente al 50% del crédito)</td></tr>
+  <tr><td>🌊 Mapa IV×Precio</td><td>Mapa de calor de PnL según precio e IV. Verde = ganancia, rojo = pérdida</td><td>Para ver el impacto de cambios de volatilidad en la posición</td></tr>
+  <tr><td>📊 Griegas</td><td>Delta y Theta graficadas vs precio del activo</td><td>Para entender cómo cambia la exposición según el precio</td></tr>
+  <tr><td>🎯 Escenarios</td><td>Barras de PnL para movimientos de -20% a +20%</td><td>Para análisis rápido de escenarios extremos</td></tr>
+</table>
+
+<h3>Tabla de patas</h3>
+<p>Cada fila es una pata de la estrategia. Puedes modificar todos los campos:</p>
+<table>
+  <tr><th>Campo</th><th>Descripción</th></tr>
+  <tr><td>Contrato</td><td>Nombre del contrato en el exchange. Ej: <code>ETH-28AUG26-2500-C-USDT</code>. Se llena automáticamente desde la cadena</td></tr>
+  <tr><td>Tipo</td><td><span class="badge badge-blue">CALL</span> = apuesta alcista / <span class="badge badge-red">PUT</span> = apuesta bajista</td></tr>
+  <tr><td>Acción</td><td><span class="badge badge-green">BUY</span> = compras la opción / <span class="badge badge-red">SELL</span> = vendes la opción</td></tr>
+  <tr><td>Strike</td><td>Precio de ejercicio del contrato. Puedes arrastrarlo en la gráfica</td></tr>
+  <tr><td>Prima</td><td>Precio de la opción en USDT. Incrementos de 0.1</td></tr>
+  <tr><td>Qty</td><td>Cantidad de contratos. En Bybit las opciones van en fracciones (0.1, 0.7, etc.)</td></tr>
+  <tr><td>IV%</td><td>Volatilidad implícita de esa pata específica</td></tr>
+  <tr><td>Δ BS</td><td>Delta calculado por Black-Scholes. Indica la exposición direccional de esta pata</td></tr>
+  <tr><td>Precio BS</td><td>Precio teórico calculado por Black-Scholes. Compara con la prima de mercado</td></tr>
+</table>
+
+<div class="tip">Puedes arrastrar las líneas de strike directamente en la gráfica de payoff. Mantén click izquierdo sobre la línea del strike y arrastra. El payoff se recalcula en tiempo real.</div>
+
+<h3>Cadena de opciones (parte inferior)</h3>
+<p>Muestra los strikes disponibles con sus precios en tiempo real. Las columnas en <span style="color:#10b981">verde</span> son CALLs, en <span style="color:#f43f5e">rojo</span> son PUTs. La fila amarilla es el precio spot actual (ATM).</p>
+<ul>
+  <li><strong>Click izquierdo</strong> en una celda → agrega esa opción como BUY a las patas</li>
+  <li><strong>Shift + Click</strong> → agrega como SELL</li>
+  <li>Selecciona el vencimiento con el desplegable</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="cadena"><span class="section-icon">📋</span>3. Cadena de opciones</h2>
+
+<p>Página dedicada a la cadena completa con todas las columnas profesionales.</p>
+
+<table>
+  <tr><th>Columna</th><th>Descripción</th></tr>
+  <tr><td>Vol</td><td>Volumen de contratos negociados en las últimas 24 horas</td></tr>
+  <tr><td>OI</td><td>Open Interest — contratos abiertos actualmente. Mayor OI = más liquidez</td></tr>
+  <tr><td>IV%</td><td>Volatilidad implícita de esa opción específica</td></tr>
+  <tr><td>Bid</td><td>Precio de compra (lo que te pagan si vendes)</td></tr>
+  <tr><td>Ask</td><td>Precio de venta (lo que pagas si compras)</td></tr>
+  <tr><td>Δ Delta</td><td>Sensibilidad al precio. CALL ATM ≈ 0.50, muy OTM ≈ 0.10</td></tr>
+  <tr><td>Strike</td><td>Precio de ejercicio. La fila amarilla es el ATM (precio actual)</td></tr>
+</table>
+
+<div class="tip">Las celdas sombreadas en verde son ITM (In The Money) para calls, en rojo son ITM para puts. Las opciones ITM tienen mayor valor intrínseco.</div>
+
+<p>El panel lateral derecho muestra:</p>
+<ul>
+  <li><strong>Expected Move ±</strong> — rango de precio esperado hasta el vencimiento basado en la IV</li>
+  <li><strong>Patas seleccionadas</strong> — las opciones que has clickeado</li>
+  <li><strong>Mini gráfica de payoff</strong> — preview de la estrategia armada</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="posiciones"><span class="section-icon">📊</span>4. Posiciones abiertas</h2>
+
+<p>Muestra todas las posiciones que gestiona el Bot V5 en tiempo real.</p>
+
+<table>
+  <tr><th>Columna</th><th>Descripción</th></tr>
+  <tr><td>Estrategia</td><td>Tipo: IC, IB, CAL, CS, DS</td></tr>
+  <tr><td>DTE</td><td>Días restantes hasta vencimiento. Rojo = urgente (&lt;3 días)</td></tr>
+  <tr><td>Crédito</td><td>Prima total cobrada al entrar. Es tu ganancia máxima posible</td></tr>
+  <tr><td>PnL $</td><td>Ganancia/pérdida actual en dólares</td></tr>
+  <tr><td>% Capturado</td><td>Qué porcentaje del crédito máximo ya capturaste. A 50% se recomienda cerrar</td></tr>
+  <tr><td>PoP</td><td>Probabilidad de éxito restante. Si cae mucho, considera cerrar</td></tr>
+  <tr><td>Prob. Toque</td><td>Probabilidad de que el precio toque el strike corto antes del vencimiento</td></tr>
+  <tr><td>Rango Precio</td><td>Barra visual de dónde está el precio en el rango histórico</td></tr>
+</table>
+
+<div class="tip">Haz click en cualquier posición para ver el detalle completo en el panel derecho, incluyendo las griegas, expected move, break-evens y una gráfica de payoff estimada.</div>
+
+<div class="warning">El botón de cerrar posición ejecuta el cierre directamente en Bybit via el bot. Confirma siempre antes de cerrar.</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="iv"><span class="section-icon">🌊</span>5. IV & Mercado</h2>
+
+<p>Panel de análisis profundo de volatilidad. Usa esto antes de decidir qué estrategia abrir.</p>
+
+<table>
+  <tr><th>Sección</th><th>Qué muestra</th><th>Cómo interpretarlo</th></tr>
+  <tr><td>IV Rank (IVR)</td><td>Percentil de la IV actual vs los últimos 52 semanas</td><td>≥65% = vender. ≤35% = comprar. 35-65% = neutral</td></tr>
+  <tr><td>Expected Move</td><td>Rango de precio esperado con 68% (1σ) y 95% (2σ) de probabilidad</td><td>Coloca los strikes de IC/IB fuera del EM para PoP mayor a 68%</td></tr>
+  <tr><td>Volatility Skew</td><td>Diferencia de IV entre strikes. Muestra si el mercado teme más caídas que subidas</td><td>Skew pronunciado hacia puts = mercado bajista/miedoso</td></tr>
+  <tr><td>Term Structure</td><td>IV por vencimiento. Normal = vencimientos lejanos tienen más IV</td><td>Backwardation (invertida) = pánico. Evita Calendar Spreads en backwardation</td></tr>
+  <tr><td>Probabilidades</td><td>Distribución log-normal del precio al vencimiento</td><td>Muestra la probabilidad de alza, baja y permanecer en rango</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="ajuste"><span class="section-icon">🔧</span>6. Calculadora de ajuste / Roll</h2>
+
+<p>Úsala cuando una posición se mueve en tu contra y necesitas decidir qué hacer.</p>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-content">
+    <div class="step-title">Cargar posición actual</div>
+    <div class="step-desc">Click en <code>📂 Cargar desde analizador</code> o rellena los campos manualmente con los datos de la posición problemática.</div>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-content">
+    <div class="step-title">Ver el estado actual</div>
+    <div class="step-desc">El panel derecho muestra el PnL no realizado, delta actual, theta restante y probabilidad de éxito. Aquí decides si actuar.</div>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-content">
+    <div class="step-title">Evaluar las opciones de roll</div>
+    <div class="step-desc">La calculadora te presenta 4 opciones: roll hacia afuera (más tiempo), roll hacia arriba/abajo (strike diferente), roll diagonal (ambos) o cerrar ahora.</div>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-content">
+    <div class="step-title">Comparar en la gráfica</div>
+    <div class="step-desc">La gráfica compara el PnL de mantener vs hacer roll. Elige la opción que mejor proteja tu capital.</div>
+  </div>
+</div>
+
+<div class="warning">Regla de oro: nunca hagas roll por más de lo que cobras. Si el roll cuesta más crédito del que genera, es mejor cerrar la posición.</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="diario"><span class="section-icon">📓</span>7. Diario de trades</h2>
+
+<p>Registro completo de todos tus trades para análisis estadístico y mejora continua.</p>
+
+<h3>Campos a registrar</h3>
+<table>
+  <tr><th>Campo</th><th>Descripción</th><th>Importancia</th></tr>
+  <tr><td>Contrato</td><td>Nombre exacto del contrato del exchange</td><td>Para rastrear posiciones específicas</td></tr>
+  <tr><td>Estrategia</td><td>IC, IB, Straddle, etc.</td><td>Para analizar qué estrategias funcionan mejor</td></tr>
+  <tr><td>Prima Entrada/Salida</td><td>Precio al que entraste y saliste</td><td>El PnL se calcula automáticamente</td></tr>
+  <tr><td>DTE entrada</td><td>Días hasta vencimiento cuando entraste</td><td>Para optimizar el tiempo óptimo de entrada</td></tr>
+  <tr><td>IVR al entrar</td><td>El IVR que había cuando abriste la posición</td><td>Para confirmar que entras en condiciones favorables</td></tr>
+  <tr><td>Motivo cierre</td><td>Take Profit, Stop Loss, Roll, Vencimiento</td><td>Para identificar patrones en tus salidas</td></tr>
+</table>
+
+<h3>Métricas del diario</h3>
+<table>
+  <tr><th>Métrica</th><th>Qué mide</th><th>Objetivo</th></tr>
+  <tr><td>Win Rate</td><td>% de trades ganadores</td><td>Para venta de opciones: busca ≥ 65%</td></tr>
+  <tr><td>Profit Factor</td><td>Ganancias totales / Pérdidas totales</td><td>≥ 1.5 es bueno. ≥ 2.0 es excelente</td></tr>
+  <tr><td>Max Drawdown</td><td>Mayor caída desde el pico de capital</td><td>Mantén por debajo del 15-20% del capital</td></tr>
+  <tr><td>Sharpe Ratio</td><td>Retorno ajustado por riesgo</td><td>≥ 1.0 es aceptable. ≥ 2.0 es muy bueno</td></tr>
+  <tr><td>Gan. Promedio</td><td>Ganancia media por trade ganador</td><td>Debe ser mayor que la pérdida promedio</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="bot"><span class="section-icon">🤖</span>8. Conexión con el Bot V5</h2>
+
+<h3>Configuración inicial</h3>
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-content">
+    <div class="step-title">Abrir configuración del bot</div>
+    <div class="step-desc">Click en el botón <code>⚙️ Bot</code> en la barra de navegación superior.</div>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-content">
+    <div class="step-title">Ingresar URL y token</div>
+    <div class="step-desc">URL: <code>https://bot-bybit-opciones.onrender.com</code> — Token: el valor de <code>API_TOKEN</code> que configuraste en Render.</div>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-content">
+    <div class="step-title">Probar conexión</div>
+    <div class="step-desc">Click en <code>🔌 Probar</code>. Debe mostrar "Conectado" con el estado actual del bot.</div>
+  </div>
+</div>
+
+<h3>Flujo de operación con el bot</h3>
+<div class="card">
+  <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Tú analizas y armas la estrategia</div><div class="step-desc">Usas el Analizador o la Cadena para construir el IC, IB o cualquier estrategia.</div></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Click en 🚀 Ejecutar en Bot</div><div class="step-desc">Aparece solo cuando el bot está conectado y hay patas armadas. Define TP% y SL%.</div></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">El bot ejecuta y gestiona</div><div class="step-desc">El bot envía las órdenes a Bybit y adopta la posición. Gestiona TP, SL, rolls y delta hedging automáticamente.</div></div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Monitoreas desde el teléfono</div><div class="step-desc">Accede a <code>https://bot-bybit-opciones.onrender.com/mobile</code> para ver el estado y cerrar posiciones desde cualquier lugar.</div></div></div>
+</div>
+
+<div class="danger">El botón "EJECUTAR REAL" envía órdenes reales a Bybit. Siempre usa "Simular" primero para verificar que la estrategia llega correctamente al bot.</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="conceptos"><span class="section-icon">📚</span>9. Conceptos clave</h2>
+
+<h3>Griegas</h3>
+<table>
+  <tr><th>Griega</th><th>Qué mide</th><th>Impacto en IC/IB</th></tr>
+  <tr><td>Delta Δ</td><td>Cambio en el precio de la opción por cada $1 que sube el activo</td><td>Busca delta cercano a 0 para posición neutral</td></tr>
+  <tr><td>Theta Θ</td><td>Cuánto pierde la opción de valor por cada día que pasa</td><td>Positivo al vender prima. Tu aliado en IC/IB</td></tr>
+  <tr><td>Vega ν</td><td>Sensibilidad a cambios en la volatilidad implícita</td><td>Negativo al vender. Te perjudica si la IV sube</td></tr>
+  <tr><td>Gamma Γ</td><td>Velocidad de cambio del Delta</td><td>Alto gamma cerca del vencimiento = más riesgo</td></tr>
+</table>
+
+<h3>Estrategias disponibles</h3>
+<table>
+  <tr><th>Estrategia</th><th>Estructura</th><th>Cuándo usarla</th><th>IVR ideal</th></tr>
+  <tr><td>🦅 Iron Condor (IC)</td><td>4 patas: 2 puts + 2 calls OTM</td><td>Mercado lateral, rango definido</td><td><span class="badge badge-green">≥ 35%</span></td></tr>
+  <tr><td>🦋 Iron Butterfly (IB)</td><td>4 patas: vender ATM, comprar wings</td><td>Mercado muy lateral, máxima theta</td><td><span class="badge badge-green">≥ 65%</span></td></tr>
+  <tr><td>🔰 Broken Wing (BWC)</td><td>IC asimétrico, ala más ancha de un lado</td><td>Sesgo direccional moderado</td><td><span class="badge badge-green">≥ 50%</span></td></tr>
+  <tr><td>📈 Bull Call Spread (BCS)</td><td>Comprar call + vender call superior</td><td>Alcista moderado</td><td><span class="badge badge-amber">35-65%</span></td></tr>
+  <tr><td>📉 Bear Put Spread (BPS)</td><td>Comprar put + vender put inferior</td><td>Bajista moderado</td><td><span class="badge badge-amber">35-65%</span></td></tr>
+  <tr><td>⚡ Straddle</td><td>Comprar call + put ATM</td><td>Esperas movimiento grande, dirección incierta</td><td><span class="badge badge-red">≤ 35%</span></td></tr>
+  <tr><td>🌊 Strangle</td><td>Comprar call + put OTM</td><td>Movimiento grande esperado, más barato que straddle</td><td><span class="badge badge-red">≤ 35%</span></td></tr>
+</table>
+
+<h3>IVR — IV Rank</h3>
+<div class="card">
+  <p>El IVR mide dónde está la volatilidad actual respecto a su rango del último año:</p>
+  <p><strong>Fórmula:</strong> IVR = (IV actual - IV mínima 52w) / (IV máxima 52w - IV mínima 52w) × 100</p>
+  <p>Un IVR de 80% significa que la volatilidad actual es más alta que el 80% del tiempo del último año. Momento ideal para vender opciones.</p>
+</div>
+
+<h3>Expected Move (EM)</h3>
+<div class="card">
+  <p>El movimiento esperado es el rango de precio donde el mercado estima que estará el activo al vencimiento con 68% de probabilidad (1 desviación estándar).</p>
+  <p><strong>Fórmula:</strong> EM = Precio × IV × √(DTE/365)</p>
+  <p>Para un IC, coloca los strikes cortos justo fuera del EM para tener PoP ≥ 68%.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="flujo"><span class="section-icon">⚡</span>10. Flujo de trabajo recomendado</h2>
+
+<div class="card">
+  <h3>Antes de abrir una posición</h3>
+  <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Revisar IV & Mercado</div><div class="step-desc">Ve a la página IV & Mercado. Confirma que el IVR está en zona favorable para tu estrategia.</div></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Revisar el rango histórico de precio</div><div class="step-desc">¿El precio está en zona alta, media o baja del año? Esto afecta dónde colocar los strikes.</div></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Verificar la estructura temporal</div><div class="step-desc">Si hay backwardation (IV corto plazo > largo plazo), evita Calendar Spreads.</div></div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Armar la estrategia en el Analizador</div><div class="step-desc">Selecciona la plantilla, ajusta los strikes y verifica que el PoP sea ≥ 60% para ventas de prima.</div></div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-content"><div class="step-title">Verificar el crédito neto</div><div class="step-desc">Para IC/IB, el crédito debe ser al menos 1/3 de la anchura del spread para que el ratio riesgo/beneficio sea favorable.</div></div></div>
+</div>
+
+<div class="card">
+  <h3>Durante la posición</h3>
+  <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Monitorear desde el teléfono</div><div class="step-desc">Abre la interfaz móvil del bot regularmente para ver el PnL actualizado.</div></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Cerrar al 50% del crédito</div><div class="step-desc">Cuando hayas capturado el 50% del crédito máximo, considera cerrar. Es la regla de TastyTrade.</div></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Ajustar si el precio se acerca al strike</div><div class="step-desc">Si el precio toca el 80% de la distancia al strike corto, evalúa hacer roll en la calculadora de Ajuste.</div></div></div>
+</div>
+
+<div class="card">
+  <h3>Al cerrar</h3>
+  <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Registrar en el Diario</div><div class="step-desc">Registra el trade con todos los datos. Incluye el IVR al entrar y el motivo de cierre.</div></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Analizar las métricas</div><div class="step-desc">Revisa tu Win Rate, Profit Factor y Max Drawdown periódicamente para optimizar tu estrategia.</div></div></div>
+</div>
+
+<hr>
+<p style="text-align:center;color:#334155;font-size:11px;padding:20px 0">CriptoOpciones Lab — Terminal institucional de opciones cripto<br>Desarrollado para operación en Bybit, Binance y Deribit</p>
+
+</div>
+</body>
+</html>
