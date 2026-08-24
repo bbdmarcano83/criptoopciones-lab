@@ -986,12 +986,12 @@ function renderChainTable(){
   let strikes=[];
   if(hasReal)strikes=Object.keys(chainData[expiry]).map(Number).sort((a,b)=>a-b);
   else{const step=S>10000?1000:(S>1000?50:(S>200?10:5));strikes=Array.from({length:15},(_,i)=>(Math.round(S/step)-7+i)*step);}
-  tb.innerHTML='';let spotInserted=false;let spotRowEl=null;
+  tb.innerHTML='';let spotInserted=false;
   strikes.forEach(k=>{
     if(!spotInserted&&S<=k){
       const sr=document.createElement('tr');sr.className='spot-row';
       sr.innerHTML=`<td colspan="13">📍 SPOT ${act}: $${S.toLocaleString('es',{minimumFractionDigits:2})} — ATM</td>`;
-      tb.appendChild(sr);spotInserted=true;spotRowEl=sr;
+      tb.appendChild(sr);spotInserted=true;
     }
     const itmc=k<S,itmp=k>S;
     let cD='--',cIV='--',cBid='--',cAsk='--',cVol='--',cOI='--',cSym='',cPrice=0;
@@ -1039,14 +1039,8 @@ function renderChainTable(){
   });
   if(!spotInserted){
     const sr=document.createElement('tr');sr.className='spot-row';
-    sr.innerHTML=`<td colspan="13">📍 SPOT ${act}: $${S.toLocaleString('es',{minimumFractionDigits:2})} — ATM</td>`;
-    tb.appendChild(sr);spotRowEl=sr;
-  }
-  // Scroll automático al ATM
-  if(spotRowEl){
-    setTimeout(()=>{
-      spotRowEl.scrollIntoView({behavior:'smooth',block:'center'});
-    },100);
+    sr.innerHTML=`<td colspan="13">📍 SPOT ${act}: $${S.toLocaleString('es',{minimumFractionDigits:2})}</td>`;
+    tb.appendChild(sr);
   }
 }
 
