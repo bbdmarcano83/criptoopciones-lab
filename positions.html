@@ -399,10 +399,8 @@ table.legs tr:hover td{background:#0d1117}
     </div>
     <div class="modal-field">
       <label>Nuevo tamaño</label>
-      <input type="number" id="size-input" step="0.01" min="0.01" oninput="updateSizePreview()">
-      <div class="modal-note" id="size-preview" style="margin-top:6px;font-size:11px;color:#64748b">
-        Ingresa el nuevo tamaño total
-      </div>
+      <input type="number" id="size-input" step="0.01" min="0.01" oninput="updateSizePreview()" placeholder="0.00">
+      <div class="modal-note" id="size-preview" style="margin-top:6px;font-size:11px;color:#64748b">Ingresa el nuevo tamaño total de contratos</div>
     </div>
     <div style="background:#111827;border:1px solid #1e2638;border-radius:4px;padding:8px;font-size:10px;color:#475569;margin-bottom:4px">
       <b style="color:#e2e8f0">Reducir:</b> cierra contratos via bot (orden de mercado)<br>
@@ -914,8 +912,18 @@ function updateSizePreview(){
 function openSizeModal(){
   if(!selectedPos){toast('Selecciona una posición','err');return;}
   const cur=selectedPos.legs?.[0]?.size||0;
-  el('size-current').textContent=cur+' contratos';
-  el('size-input').value=cur;
+  el('size-current').textContent=cur+' contratos (actual)';
+  // Input vacío para que usuario escriba el NUEVO valor
+  el('size-input').value='';
+  el('size-input').placeholder='Ej: '+(cur+0.1).toFixed(2);
+  // Reset button
+  const btn=el('size-confirm-btn');
+  if(btn){
+    btn.textContent='Aplicar';
+    btn.style.background='';btn.style.borderColor='';btn.style.color='';
+  }
+  const preview=el('size-preview');
+  if(preview){preview.textContent='Ingresa el nuevo tamaño total';preview.style.color='#475569';}
   showModal('modal-size');
 }
 
