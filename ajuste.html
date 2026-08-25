@@ -215,11 +215,19 @@ function calcAjuste(){
   // Opciones de roll
   const rollOpts=[];
 
+  // valorActual para cálculo de rolls — siempre definido
+  const gS=bs(S,Kshort,T,rfr,iv,tipo);
+  const gL=bs(S,Klong,T,rfr,iv,tipo);
+  const valorActual=_botLegs.length>=2
+    ? _botLegs.filter(l=>l.side==='sell').reduce((s,l)=>s+bs(S,l.strike,T,rfr,l.iv||iv,l.is_call?'call':'put').precio*l.size,0)
+      - _botLegs.filter(l=>l.side==='buy').reduce((s,l)=>s+bs(S,l.strike,T,rfr,l.iv||iv,l.is_call?'call':'put').precio*l.size,0)
+    : gS.precio - gL.precio;
+
   // Roll hacia afuera (mismo strike, más DTE)
   const gShortNew=bs(S,Kshort,Tnew,rfr,ivNew,tipo);
   const gLongNew=bs(S,Klong,Tnew,rfr,ivNew,tipo);
   const creditoNuevo=gShortNew.precio-gLongNew.precio;
-  const costoRollOut=(valorActual-creditoNuevo)*qty*100;
+  const costoRollOut=(valorActual-creditoNuevo)*qty;
   rollOpts.push({titulo:'Roll hacia afuera (mismo strike)',desc:`Cerrar posición actual y reabrir en DTE ${dteNew}`,costo:costoRollOut,tipo:costoRollOut>0?'neg':'pos'});
 
   // Roll hacia arriba (strike más alto, mismo DTE)
@@ -227,14 +235,14 @@ function calcAjuste(){
   const gShortUp=bs(S,KshortUp,T,rfr,iv,tipo);
   const gLongUp=bs(S,KshortUp+(Klong-Kshort),T,rfr,iv,tipo);
   const creditoUp=gShortUp.precio-gLongUp.precio;
-  const costoRollUp=(valorActual-creditoUp)*qty*100;
+  const costoRollUp=(valorActual-creditoUp)*qty;
   rollOpts.push({titulo:'Roll hacia arriba (strike más alto)',desc:`Mover strike corto a $${KshortUp.toLocaleString()} (mismo DTE)`,costo:costoRollUp,tipo:costoRollUp>0?'neg':'pos'});
 
   // Roll diagonal (strike más alto + más DTE)
   const gShortDiag=bs(S,KshortUp,Tnew,rfr,ivNew,tipo);
   const gLongDiag=bs(S,KshortUp+(Klong-Kshort),Tnew,rfr,ivNew,tipo);
   const creditoDiag=gShortDiag.precio-gLongDiag.precio;
-  const costoRollDiag=(valorActual-creditoDiag)*qty*100;
+  const costoRollDiag=(valorActual-creditoDiag)*qty;
   rollOpts.push({titulo:'Roll diagonal (strike alto + más DTE)',desc:`Strike a $${KshortUp.toLocaleString()} en DTE ${dteNew}`,costo:costoRollDiag,tipo:costoRollDiag>0?'neg':'pos'});
 
   // Cerrar ahora
