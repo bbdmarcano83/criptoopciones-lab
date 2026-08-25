@@ -290,17 +290,36 @@ let _botLegs=[];
 let _botRealPnl=null;
 
 async function loadBotPositions(){
+  const section=document.getElementById('bot-pos-section');
+  const badge=document.getElementById('bot-pos-badge');
   try{
+    if(!BOT_CONFIG.url||!BOT_CONFIG.token){
+      if(section){
+        section.style.display='block';
+        if(badge)badge.innerHTML='⚠️ Bot no configurado — ve a <b>Posiciones</b> y configura la URL y token del bot';
+      }
+      return;
+    }
+    if(badge)badge.textContent='Conectando al bot...';
+    if(section)section.style.display='block';
     const data=await botFetch('/live');
     botPositions=data.estrategias||[];
-    if(!botPositions.length)return;
+    if(!botPositions.length){
+      if(badge)badge.innerHTML='<span style="color:#f59e0b">⚠️ Sin posiciones abiertas en el bot</span>';
+      return;
+    }
     const sel=document.getElementById('bot-pos-select');
     if(!sel)return;
-    sel.innerHTML='<option value="">-- Selecciona --</option>'+
-      botPositions.map((p,i)=>`<option value="${i}">${p.estrategia} ${p.asset} | ${p.expiry} | PnL:${p.pnl>=0?'+':''}${p.pnl.toFixed(2)}</option>`).join('');
-    document.getElementById('bot-pos-section').style.display='block';
+    sel.innerHTML='<option value="">-- Selecciona posición --</option>'+
+      botPositions.map((p,i)=>`<option value="${i}">${p.estrategia} ${p.asset} | ${p.expiry} | PnL:${p.pnl>=0?'+':''}$${Math.abs(p.pnl).toFixed(2)}</option>`).join('');
+    if(badge)badge.textContent='';
+    // Auto-seleccionar si hay una sola posición
     if(botPositions.length===1){sel.value='0';loadFromBot();}
-  }catch(e){console.log('Bot:',e.message);}
+  }catch(e){
+    if(section)section.style.display='block';
+    if(badge)badge.innerHTML=`<span style="color:#f43f5e">❌ Error bot: ${e.message}</span>`;
+    console.log('Bot error:',e);
+  }
 }
 
 function loadFromBot(){
