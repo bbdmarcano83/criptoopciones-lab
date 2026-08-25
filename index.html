@@ -1235,31 +1235,47 @@ window.addEventListener('load',async()=>{
   refreshPortfolio();
 
   // ── Cargar patas si venimos de Posiciones (aumentar contratos) ──────────
-  const savedLegs=COState.legs;
-  if(savedLegs&&savedLegs.length>0){
-    legs=savedLegs.map(l=>({
-      tipo:    l.tipo||'call',
-      accion:  l.accion||'buy',
-      strike:  parseFloat(l.strike)||0,
-      prima:   parseFloat(l.prima)||0,
-      qty:     parseFloat(l.qty)||0.1,
-      iv:      parseFloat(l.iv)||50,
-      contrato:l.contrato||'',
-    }));
-    renderLegs();
-    recalc();
-    // Mostrar banner
-    const msg=localStorage.getItem('co_ajuste_msg');
-    if(msg){
-      localStorage.removeItem('co_ajuste_msg');
-      const banner=document.createElement('div');
-      banner.style.cssText='position:fixed;top:48px;left:50%;transform:translateX(-50%);background:#052e16;border:1px solid #166534;border-radius:6px;padding:8px 16px;font-size:12px;color:#10b981;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.5)';
-      banner.textContent='✅ '+msg;
-      document.body.appendChild(banner);
-      setTimeout(()=>banner.remove(),5000);
-    }
-    // Limpiar COState para que no recargue en el próximo visit
-    COState.legs=[];
+  // Leer de co_pending_legs (key dedicada) — DESPUÉS de onAssetChange
+  // para que no sea sobreescrita por loadTpl()
+  const pendingLegsStr=localStorage.getItem('co_pending_legs');
+  const pendingActivo=localStorage.getItem('co_pending_activo');
+  if(pendingLegsStr){
+    try{
+      const pendingLegs=JSON.parse(pendingLegsStr);
+      localStorage.removeItem('co_pending_legs');
+      localStorage.removeItem('co_pending_activo');
+      if(pendingLegs&&pendingLegs.length>0){
+        // Cambiar activo si es diferente
+        if(pendingActivo){
+          document.getElementById('activo').value=pendingActivo;
+          localStorage.setItem('co_activo',pendingActivo);
+        }
+        // Cargar patas
+        legs=pendingLegs.map(l=>({
+          tipo:    l.tipo||'call',
+          accion:  l.accion||'buy',
+          strike:  parseFloat(l.strike)||0,
+          prima:   parseFloat(l.prima)||0,
+          qty:     parseFloat(l.qty)||0.1,
+          iv:      parseFloat(l.iv)||50,
+          contrato:l.contrato||'',
+        }));
+        // Limpiar plantilla activa para que no sobreescriba
+        currentTpl=null;
+        renderLegs();
+        recalc();
+        // Banner
+        const msg=localStorage.getItem('co_ajuste_msg');
+        if(msg){
+          localStorage.removeItem('co_ajuste_msg');
+          const banner=document.createElement('div');
+          banner.style.cssText='position:fixed;top:48px;left:50%;transform:translateX(-50%);background:#052e16;border:1px solid #166534;border-radius:6px;padding:8px 16px;font-size:12px;color:#10b981;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.5)';
+          banner.textContent='✅ '+msg;
+          document.body.appendChild(banner);
+          setTimeout(()=>banner.remove(),5000);
+        }
+      }
+    }catch(e){console.log('Error loading pending legs:',e);}
   }
 
   setInterval(fetchAll,15000);
