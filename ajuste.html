@@ -2,19 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>CriptoOpciones Lab — Ajuste</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
 <script src="co_shared.js"></script>
-<style id="shared-css">
-@media(max-width:768px){
-  .ajuste-grid{grid-template-columns:1fr;overflow:visible}
-  .ajuste-form{border-right:none;border-bottom:1px solid #1e2035;max-height:none}
-  .ajuste-result{padding:12px}
-  nav{overflow-x:auto;white-space:nowrap}
-  input,select{font-size:16px}
-}
-</style>
+<style id="shared-css"></style>
 <style>
 .ajuste-grid{display:grid;grid-template-columns:340px 1fr;gap:0;flex:1;overflow:hidden}
 .ajuste-form{background:#111120;border-right:1px solid #1e2035;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
@@ -43,13 +34,10 @@
 <div class="ajuste-form">
   <div class="section-title">Posición actual</div>
 
-  <!-- Bot positions selector -->
-  <div id="bot-pos-section" style="display:none">
-    <div style="font-size:10px;color:#334155;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">
-      Posición del bot
-    </div>
-    <select id="bot-pos-select" onchange="loadFromBot()" 
-      style="width:100%;height:30px;font-size:12px;background:#0d1117;border:1px solid #38bdf8;border-radius:4px;color:#38bdf8">
+  <div id="bot-pos-section" style="display:none;margin-bottom:10px">
+    <label style="font-size:10px;color:#334155;text-transform:uppercase;letter-spacing:.8px">Posición del bot</label>
+    <select id="bot-pos-select" onchange="loadFromBot()"
+      style="width:100%;height:30px;margin-top:4px;font-size:12px;background:#0d1117;border:1px solid #38bdf8;border-radius:4px;color:#38bdf8">
       <option value="">-- Selecciona posición --</option>
     </select>
     <div id="bot-pos-badge" style="font-size:10px;color:#10b981;margin-top:4px"></div>
@@ -101,8 +89,8 @@
 
   <button class="btn primary" style="width:100%;height:34px" onclick="calcAjuste()">Calcular opciones de ajuste</button>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    <button class="btn" style="height:30px;font-size:11px" onclick="loadFromBot()">🤖 Cargar del bot</button>
-    <button class="btn" style="height:30px;font-size:11px" onclick="loadFromState()">📂 Del analizador</button>
+    <button class="btn" style="height:30px;font-size:11px" onclick="loadFromBot()">🤖 Bot</button>
+    <button class="btn" style="height:30px;font-size:11px" onclick="loadFromState()">📂 Analizador</button>
   </div>
 </div>
 
@@ -142,121 +130,6 @@ document.getElementById('nav-placeholder').innerHTML=navHTML('ajuste.html');
 
 const DARK={template:'plotly_dark',paper_bgcolor:'transparent',plot_bgcolor:'transparent',margin:{l:50,r:10,t:10,b:35},font:{family:'Segoe UI,system-ui',size:10}};
 
-// ── Bot config ─────────────────────────────────────────────────────────────
-const BOT_CONFIG={
-  get url(){return localStorage.getItem('co_bot_url')||localStorage.getItem('bot_url')||''},
-  get token(){return localStorage.getItem('co_bot_token')||localStorage.getItem('bot_token')||''},
-};
-
-async function botFetch(path,opts={}){
-  if(!BOT_CONFIG.url||!BOT_CONFIG.token)throw new Error('Bot no configurado');
-  const r=await fetch(BOT_CONFIG.url+path,{
-    ...opts,
-    headers:{'X-Bot-Token':BOT_CONFIG.token,'Content-Type':'application/json',...(opts.headers||{})},
-  });
-  if(!r.ok)throw new Error(await r.text());
-  return r.json();
-}
-
-let botPositions=[];
-
-async function loadBotPositions(){
-  try{
-    const data=await botFetch('/live');
-    botPositions=data.estrategias||[];
-    if(!botPositions.length)return;
-
-    const sel=document.getElementById('bot-pos-select');
-    sel.innerHTML='<option value="">-- Selecciona posición --</option>'+
-      botPositions.map((p,i)=>`<option value="${i}">${p.estrategia} ${p.asset} | ${p.expiry} | PnL:${p.pnl>=0?'+':''}${p.pnl.toFixed(2)}</option>`).join('');
-    document.getElementById('bot-pos-section').style.display='block';
-
-    // Auto-seleccionar si hay una sola
-    if(botPositions.length===1){
-      sel.value='0';
-      loadFromBot();
-    }
-  }catch(e){
-    console.log('Bot no disponible:',e.message);
-  }
-}
-
-function loadFromBot(){
-  const idx=document.getElementById('bot-pos-select').value;
-  if(idx==='')return;
-  const pos=botPositions[parseInt(idx)];
-  if(!pos)return;
-
-  const legs=pos.legs||[];
-  const sells=legs.filter(l=>l.side==='sell');
-  const buys=legs.filter(l=>l.side==='buy');
-  const calls=legs.filter(l=>l.is_call);
-  const puts=legs.filter(l=>l.is_put);
-
-  // Detectar tipo de estrategia para los campos
-  let stratType='call_spread';
-  if(pos.estrategia==='IC')stratType='iron_condor';
-  else if(pos.estrategia==='IB')stratType='iron_condor';
-  else if(sells.some(l=>l.is_put))stratType='put_spread';
-  else stratType='call_spread';
-  document.getElementById('strat-type').value=stratType;
-
-  // Strike corto = el sell con mayor delta absoluto
-  const shortLeg=sells.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta))[0];
-  const longLeg=buys.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta))[0];
-
-  if(shortLeg)document.getElementById('s-short').value=shortLeg.strike;
-  if(longLeg)document.getElementById('s-long').value=longLeg.strike;
-
-  // Crédito neto total
-  const credito=pos.credito_entrada||Math.abs(pos.pnl);
-  document.getElementById('prima-orig').value=credito.toFixed(2);
-
-  // DTE desde expiry
-  const months={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
-  let dte=16;
-  try{
-    const e=pos.expiry;
-    if(/^\d{2}[A-Z]{3}\d{2}$/.test(e)){
-      const d=+e.substring(0,2),m=months[e.substring(2,5)],y=2000+(+e.substring(5,7));
-      dte=Math.max(0,Math.round((new Date(y,m,d)-Date.now())/86400000));
-    }
-  }catch{}
-  document.getElementById('dte-rest').value=dte;
-
-  // IV promedio de las patas cortas
-  const ivAvg=sells.length>0?sells.reduce((s,l)=>s+(l.iv||50),0)/sells.length:50;
-  document.getElementById('iv-adj').value=ivAvg.toFixed(1);
-
-  // Precio spot actual
-  document.getElementById('spot-now').value=COState.spot||77000;
-
-  // Qty = size de la primera pata
-  const qty=legs.length>0?legs[0].size:0.1;
-  document.getElementById('qty-adj').value=qty;
-
-  // Precio de entrada spot (no disponible directamente, usar spot actual)
-  document.getElementById('s-entry').value=COState.spot||77000;
-
-  // ── Guardar patas reales para calcAjuste() ─────────────────────────────
-  _botRealPnl = pos.pnl;  // PnL real de Bybit
-  _botLegs = legs.map(l=>({
-    strike:    l.strike,
-    side:      l.side,
-    is_call:   l.is_call,
-    is_put:    l.is_put,
-    avg_price: l.avg_price || l.mark_price || 0,
-    size:      l.size || 0.1,
-    iv:        (l.iv || 50) / 100,
-  }));
-
-  // Badge con PnL real
-  document.getElementById('bot-pos-badge').innerHTML=
-    `✅ Cargado: PnL actual <b style="color:${pos.pnl>=0?'#10b981':'#f43f5e'}">${pos.pnl>=0?'+':''}$${pos.pnl.toFixed(2)}</b> | ${legs.length} patas`;
-
-  calcAjuste();
-}
-
 function loadFromState(){
   const legs=COState.legs;
   if(!legs||!legs.length){alert('No hay patas en el analizador. Ve al Analizador y crea una estrategia primero.');return;}
@@ -271,167 +144,295 @@ function loadFromState(){
   calcAjuste();
 }
 
-// ── Estado de patas cargadas desde el bot ─────────────────────────────────
-let _botLegs = [];     // patas reales del bot
-let _botRealPnl = null; // PnL real desde Bybit (no estimado)
-
 function calcAjuste(){
-  const S       = +document.getElementById('spot-now').value  || 2500;
-  const Kshort  = +document.getElementById('s-short').value   || 2600;
-  const Klong   = +document.getElementById('s-long').value    || 2700;
-  const primaOrig = +document.getElementById('prima-orig').value || 5.2;
-  const dte     = +document.getElementById('dte-rest').value  || 16;
-  const iv      = +document.getElementById('iv-adj').value/100 || 0.60;
-  const qty     = +document.getElementById('qty-adj').value   || 0.1;
-  const dteNew  = +document.getElementById('dte-new').value   || 30;
-  const ivNew   = +document.getElementById('iv-new').value/100 || 0.60;
-  const rfr     = COState.rfr || 0.05;
-  const T       = Math.max(dte, 0.001) / 365;
-  const Tnew    = Math.max(dteNew, 0.001) / 365;
-  const strat   = document.getElementById('strat-type').value;
+  const S=+document.getElementById('spot-now').value||77000;
+  const Kshort=+document.getElementById('s-short').value||79000;
+  const Klong=+document.getElementById('s-long').value||82000;
+  const primaOrig=+document.getElementById('prima-orig').value||500;
+  const dte=+document.getElementById('dte-rest').value||4;
+  const iv=+document.getElementById('iv-adj').value/100||0.45;
+  const qty=+document.getElementById('qty-adj').value||0.7;
+  const dteNew=+document.getElementById('dte-new').value||14;
+  const ivNew=+document.getElementById('iv-new').value/100||0.45;
+  const rfr=COState.rfr;
+  const T=dte/365,Tnew=dteNew/365;
+  const tipo='call'; // simplificado
 
-  let pnlActual=0, deltaNeto=0, thetaNeto=0, valorActual=0;
-
-  if(_botLegs.length >= 2){
-    // PnL real desde precios de mercado actuales de Bybit
-    // Usamos avg_price (entrada) vs BS(spot actual) para estimación
-    pnlActual = _botLegs.reduce((sum,l)=>{
-      const ivLeg = l.iv || iv;  // IV real de la pata si disponible
-      const g=bs(S,l.strike,T,rfr,ivLeg,l.is_call?'call':'put');
+  // Valor actual de la posición
+  const gShort=bs(S,Kshort,T,rfr,iv,tipo);
+  const gLong=bs(S,Klong,T,rfr,iv,tipo);
+  // Calcular PnL con patas reales si disponibles
+  let pnlActual, deltaNeto, thetaNeto;
+  if(_botLegs.length>=2){
+    pnlActual=_botLegs.reduce((sum,l)=>{
+      const g=bs(S,l.strike,T,rfr,l.iv||iv,l.is_call?'call':'put');
       return sum+(l.side==='sell'?(l.avg_price-g.precio):(g.precio-l.avg_price))*l.size;
     },0);
-    deltaNeto = _botLegs.reduce((sum,l)=>{
-      const g=bs(S,l.strike,T,rfr,iv,l.is_call?'call':'put');
+    deltaNeto=_botLegs.reduce((sum,l)=>{
+      const g=bs(S,l.strike,T,rfr,l.iv||iv,l.is_call?'call':'put');
       return sum+(l.side==='sell'?-g.delta:g.delta)*l.size;
     },0);
-    thetaNeto = _botLegs.reduce((sum,l)=>{
-      const g=bs(S,l.strike,T,rfr,iv,l.is_call?'call':'put');
+    thetaNeto=_botLegs.reduce((sum,l)=>{
+      const g=bs(S,l.strike,T,rfr,l.iv||iv,l.is_call?'call':'put');
       return sum+(l.side==='sell'?-g.theta:g.theta)*l.size;
     },0);
-    valorActual=_botLegs.filter(l=>l.side==='sell')
-      .reduce((s,l)=>s+bs(S,l.strike,T,rfr,iv,l.is_call?'call':'put').precio*l.size,0)
-      -_botLegs.filter(l=>l.side==='buy')
-      .reduce((s,l)=>s+bs(S,l.strike,T,rfr,iv,l.is_call?'call':'put').precio*l.size,0);
   }else{
-    // Fallback formulario — SIN multiplicador 100
-    const tipo=strat.includes('put')?'put':'call';
-    const gS=bs(S,Kshort,T,rfr,iv,tipo);
-    const gL=bs(S,Klong,T,rfr,iv,tipo);
-    valorActual=(gS.precio-gL.precio);
+    const valorActual=gShort.precio-gLong.precio;
     pnlActual=(primaOrig-valorActual)*qty;
-    deltaNeto=(gS.delta-gL.delta)*qty;
-    thetaNeto=(gS.theta-gL.theta)*qty;
+    deltaNeto=(gShort.delta-gLong.delta)*qty;
+    thetaNeto=(gShort.theta-gLong.theta)*qty;
   }
 
-  // PoP para IC
+  // PoP restante
   const mu=Math.log(S)+(rfr-0.5*iv*iv)*T;
   const sig=iv*Math.sqrt(T);
-  let popActual, be;
-  if(strat==='iron_condor'||strat==='iron_butterfly'){
-    const sc=_botLegs.find(l=>l.is_call&&l.side==='sell')?.strike||Kshort;
-    const sp=_botLegs.find(l=>l.is_put&&l.side==='sell')?.strike||Kshort*0.94;
-    const pAbove=1-normCDF((Math.log(sc)-mu)/sig);
-    const pBelow=normCDF((Math.log(sp)-mu)/sig);
-    popActual=Math.max(0,(1-pAbove-pBelow))*100;
-    be=sp+primaOrig/qty;
-  }else{
-    popActual=(1-normCDF((Math.log(Kshort)-mu)/sig))*100;
-    be=Kshort-primaOrig/qty;
-  }
+  const popActual=(1-normCDF((Math.log(Kshort)-mu)/sig))*100;
 
-  // Mostrar PnL real de Bybit si disponible, sino estimado BS
-  const pnlDisplay = (_botRealPnl !== null) ? _botRealPnl : pnlActual;
+  // BE aproximado
+  const be=Kshort-primaOrig/qty/100;
+
+  // Actualizar métricas
+  // Mostrar PnL real de Bybit si disponible
+  const pnlDisplay=(_botRealPnl!==null)?_botRealPnl:pnlActual;
   const pnlEl=document.getElementById('r-pnl');
   pnlEl.textContent=fmt(pnlDisplay)+(_botRealPnl!==null?' ✓':' ~');
   pnlEl.className='rv '+(pnlDisplay>=0?'pos':'neg');
-  document.getElementById('r-pct').textContent=primaOrig>0?(pnlDisplay/primaOrig*100).toFixed(1)+'%':'--%';
-  document.getElementById('r-delta').textContent=deltaNeto.toFixed(4);
+  document.getElementById('r-pct').textContent=((pnlActual/primaOrig)*100).toFixed(1)+'%';
+  document.getElementById('r-delta').textContent=deltaNeto.toFixed(3);
   document.getElementById('r-theta').textContent=fmt(thetaNeto)+'/día';
   document.getElementById('r-pop').textContent=popActual.toFixed(1)+'%';
   document.getElementById('r-be').textContent='$'+be.toLocaleString('es',{maximumFractionDigits:0});
 
   // Recomendación
   let rec='';
-  if(pnlActual>=primaOrig*0.5)rec='✅ Has capturado más del 50% del crédito. Considera cerrar.';
-  else if(pnlActual<=-primaOrig*0.5)rec='⚠️ Pérdida significativa. Evalúa un roll o cierre para limitar daños.';
-  else if(dte<=2)rec='⏰ DTE muy bajo. Cierra para evitar riesgo de vencimiento.';
-  else if(popActual<35)rec='🔴 PoP baja (<35%). Precio cerca del strike corto. Considera roll defensivo.';
-  else rec='🟡 Posición dentro de parámetros normales. Continúa monitoreando.';
+  if(pnlActual>=primaOrig*0.5)rec='✅ Considera cerrar la posición. Has capturado más del 50% del crédito máximo.';
+  else if(pnlActual<=-primaOrig*0.5)rec='⚠️ La posición está en pérdida significativa. Evalúa un roll o cierre para limitar daños.';
+  else if(dte<=2)rec='⏰ DTE muy bajo. Considera cerrar para evitar riesgo de vencimiento.';
+  else if(popActual<30)rec='🔴 PoP baja (<30%). El precio está cerca del strike corto. Considera roll defensivo.';
+  else rec='🟡 Posición activa dentro de parámetros normales. Continúa monitoreando.';
   document.getElementById('r-rec').textContent=rec;
 
-  // Roll options (SIN * 100)
-  const tipo2='call';
-  const gShortC=bs(S,Kshort,T,rfr,iv,tipo2);
-  const gLongC=bs(S,Klong,T,rfr,iv,tipo2);
-  const valActSimple=gShortC.precio-gLongC.precio;
+  // Opciones de roll
+  const rollOpts=[];
 
-  const gShortNew=bs(S,Kshort,Tnew,rfr,ivNew,tipo2);
-  const gLongNew=bs(S,Klong,Tnew,rfr,ivNew,tipo2);
+  // Roll hacia afuera (mismo strike, más DTE)
+  const gShortNew=bs(S,Kshort,Tnew,rfr,ivNew,tipo);
+  const gLongNew=bs(S,Klong,Tnew,rfr,ivNew,tipo);
   const creditoNuevo=gShortNew.precio-gLongNew.precio;
-  const costoRollOut=(valActSimple-creditoNuevo)*qty;
+  const costoRollOut=(valorActual-creditoNuevo)*qty*100;
+  rollOpts.push({titulo:'Roll hacia afuera (mismo strike)',desc:`Cerrar posición actual y reabrir en DTE ${dteNew}`,costo:costoRollOut,tipo:costoRollOut>0?'neg':'pos'});
 
-  const KshortUp=Math.round(Kshort*1.03/50)*50;
-  const gShortUp=bs(S,KshortUp,T,rfr,iv,tipo2);
-  const gLongUp=bs(S,KshortUp+(Klong-Kshort),T,rfr,iv,tipo2);
-  const costoRollUp=(valActSimple-(gShortUp.precio-gLongUp.precio))*qty;
+  // Roll hacia arriba (strike más alto, mismo DTE)
+  const KshortUp=Math.round((Kshort+S)*0.5/50)*50;
+  const gShortUp=bs(S,KshortUp,T,rfr,iv,tipo);
+  const gLongUp=bs(S,KshortUp+(Klong-Kshort),T,rfr,iv,tipo);
+  const creditoUp=gShortUp.precio-gLongUp.precio;
+  const costoRollUp=(valorActual-creditoUp)*qty*100;
+  rollOpts.push({titulo:'Roll hacia arriba (strike más alto)',desc:`Mover strike corto a $${KshortUp.toLocaleString()} (mismo DTE)`,costo:costoRollUp,tipo:costoRollUp>0?'neg':'pos'});
 
-  const gShortDiag=bs(S,KshortUp,Tnew,rfr,ivNew,tipo2);
-  const gLongDiag=bs(S,KshortUp+(Klong-Kshort),Tnew,rfr,ivNew,tipo2);
-  const costoRollDiag=(valActSimple-(gShortDiag.precio-gLongDiag.precio))*qty;
+  // Roll diagonal (strike más alto + más DTE)
+  const gShortDiag=bs(S,KshortUp,Tnew,rfr,ivNew,tipo);
+  const gLongDiag=bs(S,KshortUp+(Klong-Kshort),Tnew,rfr,ivNew,tipo);
+  const creditoDiag=gShortDiag.precio-gLongDiag.precio;
+  const costoRollDiag=(valorActual-creditoDiag)*qty*100;
+  rollOpts.push({titulo:'Roll diagonal (strike alto + más DTE)',desc:`Strike a $${KshortUp.toLocaleString()} en DTE ${dteNew}`,costo:costoRollDiag,tipo:costoRollDiag>0?'neg':'pos'});
 
-  const rollOpts=[
-    {titulo:'Roll OUT — mismo strike',desc:`Cerrar y reabrir en DTE ${dteNew}`,costo:costoRollOut,tipo:costoRollOut>0?'neg':'pos'},
-    {titulo:'Roll UP — short call',desc:`Mover CALL a $${KshortUp.toLocaleString()} (mismo DTE)`,costo:costoRollUp,tipo:costoRollUp>0?'neg':'pos'},
-    {titulo:'Roll diagonal',desc:`Strike $${KshortUp.toLocaleString()} en DTE ${dteNew}`,costo:costoRollDiag,tipo:costoRollDiag>0?'neg':'pos'},
-    {titulo:'Cerrar ahora',desc:`Capturar ${fmt(pnlActual)}`,costo:-pnlActual,tipo:pnlActual>=0?'pos':'neg'},
-  ];
-  document.getElementById('roll-options').innerHTML=rollOpts.map(o=>`
+  // Cerrar ahora
+  rollOpts.push({titulo:'Cerrar posición ahora',desc:`Capturar ${fmt(pnlActual)} de ganancia/pérdida`,costo:-pnlActual,tipo:pnlActual>=0?'pos':'neg'});
+
+  document.getElementById('roll-options').innerHTML=rollOpts.map((o,i)=>`
     <div class="roll-option" onclick="this.classList.toggle('selected')">
-      <div class="ro-title">${o.titulo}</div><div class="ro-desc">${o.desc}</div>
+      <div class="ro-title">${o.titulo}</div>
+      <div class="ro-desc">${o.desc}</div>
       <div class="ro-cost ${o.tipo}">${o.costo>0?'Costo: '+fmt(o.costo):'Crédito: '+fmt(-o.costo)}</div>
     </div>`).join('');
 
   // Gráfica comparativa
   const dtes2=Array.from({length:dte+1},(_,i)=>i);
   const pnlMantener=dtes2.map(d=>{
-    const Td=Math.max(d,0.001)/365;
-    if(_botLegs.length>=2)return _botLegs.reduce((sum,l)=>{
-      const g=bs(S,l.strike,Td,rfr,iv,l.is_call?'call':'put');
-      return sum+(l.side==='sell'?(l.avg_price-g.precio):(g.precio-l.avg_price))*l.size;
-    },0);
-    return(primaOrig-(bs(S,Kshort,Td,rfr,iv,tipo2).precio-bs(S,Klong,Td,rfr,iv,tipo2).precio))*qty;
+    if(d===0)return pnlActual;
+    const Td=d/365;
+    const gS=bs(S,Kshort,Td,rfr,iv,tipo);
+    const gL=bs(S,Klong,Td,rfr,iv,tipo);
+    return(primaOrig-(gS.precio-gL.precio))*qty*100;
   });
   const pnlRoll=dtes2.map(d=>{
-    const Td=Math.max(dteNew-d,0.001)/365;
-    return(creditoNuevo-(bs(S,KshortUp,Td,rfr,ivNew,tipo2).precio-bs(S,KshortUp+(Klong-Kshort),Td,rfr,ivNew,tipo2).precio))*qty+pnlActual;
+    const Td=(dteNew-d)/365;
+    const gS=bs(S,KshortUp,Td,rfr,ivNew,tipo);
+    const gL=bs(S,KshortUp+(Klong-Kshort),Td,rfr,ivNew,tipo);
+    return(creditoNuevo-(gS.precio-gL.precio))*qty*100+pnlActual;
   });
 
-async function navRefresh(){}
+  Plotly.react('compare-chart',[
+    {x:dtes2,y:pnlMantener,mode:'lines',name:'Mantener',line:{color:'#38bdf8',width:2}},
+    {x:dtes2,y:pnlRoll,mode:'lines',name:'Roll out',line:{color:'#22c55e',width:2,dash:'dot'}},
+  ],{...DARK,xaxis:{title:'Días hasta vencimiento',gridcolor:'#1e2035'},yaxis:{title:'PnL ($)',tickformat:'$,.2f',gridcolor:'#1e2035'},shapes:[{type:'line',x0:0,x1:dte,y0:0,y1:0,line:{color:'#1e2035',width:1}}],legend:{font:{size:9}}},{responsive:true,displayModeBar:false});
+}
+
+// ── Bot config ────────────────────────────────────────────────────────────
+const BOT_CONFIG={
+  get url(){return localStorage.getItem('co_bot_url')||localStorage.getItem('bot_url')||''},
+  get token(){return localStorage.getItem('co_bot_token')||localStorage.getItem('bot_token')||''},
+};
+async function botFetch(path,opts={}){
+  if(!BOT_CONFIG.url||!BOT_CONFIG.token)throw new Error('Bot no configurado');
+  const r=await fetch(BOT_CONFIG.url+path,{
+    ...opts,
+    headers:{'X-Bot-Token':BOT_CONFIG.token,'Content-Type':'application/json',...(opts.headers||{})}
+  });
+  if(!r.ok)throw new Error(await r.text());
+  return r.json();
+}
+
+// ── Estado de patas reales ────────────────────────────────────────────────
+let botPositions=[];
+let _botLegs=[];
+let _botRealPnl=null;
+
+async function loadBotPositions(){
+  try{
+    const data=await botFetch('/live');
+    botPositions=data.estrategias||[];
+    if(!botPositions.length)return;
+    const sel=document.getElementById('bot-pos-select');
+    if(!sel)return;
+    sel.innerHTML='<option value="">-- Selecciona --</option>'+
+      botPositions.map((p,i)=>`<option value="${i}">${p.estrategia} ${p.asset} | ${p.expiry} | PnL:${p.pnl>=0?'+':''}${p.pnl.toFixed(2)}</option>`).join('');
+    document.getElementById('bot-pos-section').style.display='block';
+    if(botPositions.length===1){sel.value='0';loadFromBot();}
+  }catch(e){console.log('Bot:',e.message);}
+}
+
+function loadFromBot(){
+  const idx=document.getElementById('bot-pos-select').value;
+  if(idx==='')return;
+  const pos=botPositions[parseInt(idx)];
+  if(!pos)return;
+  const legs=pos.legs||[];
+  const sells=legs.filter(l=>l.side==='sell');
+  const buys=legs.filter(l=>l.side==='buy');
+
+  // Estrategia
+  let stratType='iron_condor';
+  if(pos.estrategia==='CS')stratType=sells.some(l=>l.is_put)?'put_spread':'call_spread';
+  else if(pos.estrategia==='DS')stratType=buys.some(l=>l.is_call)?'call_spread':'put_spread';
+  else if(pos.estrategia==='CAL')stratType='call_spread';
+  document.getElementById('strat-type').value=stratType;
+
+  // Strikes — short call más relevante
+  const shortCall=sells.find(l=>l.is_call);
+  const longCall=buys.find(l=>l.is_call);
+  const shortPut=sells.find(l=>l.is_put);
+  if(shortCall)document.getElementById('s-short').value=shortCall.strike;
+  if(longCall)document.getElementById('s-long').value=longCall.strike;
+
+  // Crédito neto
+  document.getElementById('prima-orig').value=(pos.credito_entrada||0).toFixed(2);
+
+  // DTE
+  const months={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+  let dte=16;
+  try{
+    const e=pos.expiry;
+    if(/^\d{2}[A-Z]{3}\d{2}$/.test(e)){
+      const d=+e.substring(0,2),m=months[e.substring(2,5)],y=2000+(+e.substring(5,7));
+      dte=Math.max(0,Math.round((new Date(y,m,d)-Date.now())/86400000));
+    }
+  }catch{}
+  document.getElementById('dte-rest').value=dte;
+
+  // IV promedio
+  const ivAvg=sells.length>0?sells.reduce((s,l)=>s+(l.iv||50),0)/sells.length:50;
+  document.getElementById('iv-adj').value=ivAvg.toFixed(1);
+
+  // Spot y qty
+  document.getElementById('spot-now').value=COState.spot||2500;
+  document.getElementById('s-entry').value=COState.spot||2500;
+  document.getElementById('qty-adj').value=legs.length>0?legs[0].size:0.1;
+
+  // Guardar patas reales y PnL real
+  _botRealPnl=pos.pnl;
+  _botLegs=legs.map(l=>({
+    strike:l.strike, side:l.side,
+    is_call:l.is_call, is_put:l.is_put,
+    avg_price:l.avg_price||l.mark_price||0,
+    size:l.size||0.1, iv:(l.iv||50)/100,
+  }));
+
+  document.getElementById('bot-pos-badge').innerHTML=
+    `✅ Cargado: <b style="color:${pos.pnl>=0?'#10b981':'#f43f5e'}">${pos.pnl>=0?'+':''}$${pos.pnl.toFixed(2)}</b> | ${pos.estrategia} ${pos.asset} | ${legs.length} patas`;
+
+  calcAjuste();
+}
+
+async function navRefresh(){
+  try{
+    const ex=COState.exchange||'Bybit';
+    // Fetch BTC y ETH en paralelo
+    const [btc,eth]=await Promise.all([
+      fetchSpot(ex,'BTC'),
+      fetchSpot(ex,'ETH'),
+    ]);
+
+    // Actualizar nav-price con BTC naranja + ETH azul
+    const navP=document.getElementById('nav-price');
+    if(navP){
+      navP.innerHTML=
+        `<span style="color:#f7931a;font-weight:700">BTC $${btc?btc.toLocaleString('es',{maximumFractionDigits:0}):'--'}</span>`+
+        `<span style="color:#334155;margin:0 4px">|</span>`+
+        `<span style="color:#8b9cf7;font-weight:700">ETH $${eth?eth.toLocaleString('es',{maximumFractionDigits:0}):'--'}</span>`;
+      navP.style.minWidth='220px';
+    }
+
+    // Guardar spot del activo actual
+    const act=COState.activo||'ETH';
+    const spot=act==='BTC'?btc:eth;
+    if(spot){
+      COState.spot=spot;
+      const sf=document.getElementById('spot-now');
+      if(sf&&(sf.value=='77000'||sf.value=='2500'))sf.value=spot;
+    }
+
+    // Exchange label
+    const navEx=document.getElementById('nav-exchange');
+    if(navEx)navEx.textContent=ex;
+
+    // IVR
+    try{
+      const data=await botFetch('/live');
+      const ivrVal=data.greeks?.[act];
+      const navIvr=document.getElementById('nav-ivr');
+      if(navIvr)navIvr.textContent=ivrVal?'IVR --':'IVR --';
+    }catch{}
+
+  }catch(e){console.log('navRefresh:',e.message);}
+}
 // Fix nav active
 (function(){
   const cur=location.pathname.split('/').pop()||'index.html';
   document.querySelectorAll('.nav-link').forEach(a=>{
-    if(a.getAttribute('href')===cur)a.classList.add('active');
-    else a.classList.remove('active');
+    a.classList.toggle('active',a.getAttribute('href')===cur);
   });
 })();
 
-window.addEventListener('load',async ()=>{
-  document.getElementById('spot-now').value=COState.spot||77000;
+window.addEventListener('load',async()=>{
+  // Nav active link
+  (function(){
+    const cur=location.pathname.split('/').pop()||'index.html';
+    document.querySelectorAll('.nav-link').forEach(a=>{
+      a.classList.toggle('active',a.getAttribute('href')===cur);
+    });
+  })();
+
+  document.getElementById('spot-now').value=COState.spot||2500;
   document.getElementById('iv-adj').value=COState.iv||45;
   calcAjuste();
-  // Auto-cargar posiciones del bot
+  // Actualizar nav con precios reales
+  navRefresh();
+  // Cargar posiciones del bot
   await loadBotPositions();
-  // Mostrar mensaje si viene de positions.html
-  const msg=localStorage.getItem('co_ajuste_msg');
-  if(msg){
-    localStorage.removeItem('co_ajuste_msg');
-    const banner=document.createElement('div');
-    banner.style.cssText='background:#0c1a2e;border:1px solid #1e3a5f;border-radius:4px;padding:8px 12px;font-size:11px;color:#38bdf8;margin-bottom:8px';
-    banner.textContent='ℹ️ '+msg;
-    document.querySelector('.ajuste-form').prepend(banner);
-    setTimeout(()=>banner.remove(),5000);
-  }
+  // Refresh automático cada 60s
+  setInterval(navRefresh, 60000);
 });
 </script>
 </body>
