@@ -895,8 +895,26 @@ async function doSizeChange(){
       setTimeout(()=>loadAll(),1500);
     }catch(e){toast('❌ '+e.message,'err');}
   }else{
-    toast('Para agregar contratos: usa el analizador con qty='+(newSize-cur).toFixed(2),'y');
-    setTimeout(()=>{window.location.href='index.html';},2000);
+    // Pre-cargar patas en el analizador con qty adicional
+    const qty=newSize-cur;
+    const p=selectedPos;
+    if(p&&p.legs&&p.legs.length){
+      const legsForAnalyzer=p.legs.map(l=>({
+        tipo:     l.is_call?'call':'put',
+        accion:   l.side,
+        strike:   l.strike,
+        prima:    l.avg_price||l.mark_price||0,
+        qty:      parseFloat(qty.toFixed(2)),
+        iv:       l.iv||50,
+        contrato: l.symbol,
+      }));
+      COState.legs=legsForAnalyzer;
+      COState.activo=p.asset;
+      localStorage.setItem('co_ajuste_msg',
+        `Añadir ${qty.toFixed(2)} contratos al ${p.estrategia} ${p.asset} — revisa las patas y ejecuta`);
+    }
+    toast('Abriendo analizador con patas pre-cargadas...','y');
+    setTimeout(()=>{window.location.href='index.html';},1500);
   }
 }
 
