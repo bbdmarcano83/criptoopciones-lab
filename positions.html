@@ -488,10 +488,13 @@ async function loadAll(){
     renderSidebar();
     updateSummary(data);
 
-    // Re-select if we had one
+    // Re-select if we had one, else auto-select first
     if(selectedPos){
       const refreshed=allPositions.find(p=>p.label===selectedPos.label);
       if(refreshed)selectPosition(refreshed);
+    } else if(allPositions.length===1){
+      // Auto-select if only one position
+      selectPosition(allPositions[0]);
     }
 
   }catch(e){
@@ -518,13 +521,13 @@ function renderSidebar(){
     return;
   }
   el('sb-summary').style.display='block';
-  list.innerHTML=allPositions.map(p=>{
+  list.innerHTML=allPositions.map((p,i)=>{
     const pct=p.credito_entrada>0?(p.pnl/p.credito_entrada*100):0;
     const barW=Math.min(100,Math.abs(pct));
     const barC=pct>=50?'#10b981':pct>=0?'#f59e0b':'#f43f5e';
     const stratClass={IC:'ic',IB:'ib',CS:'cs',DS:'ds',CAL:'cal'}[p.estrategia]||'custom';
     const assetClass={BTC:'btc',ETH:'eth'}[p.asset]||'btc';
-    return `<div class="pos-card ${selectedPos?.label===p.label?'selected':''}" onclick="selectPosition(${JSON.stringify(JSON.stringify(p))})">
+    return `<div class="pos-card ${selectedPos?.label===p.label?'selected':''}" onclick="selectByIndex(${i})">
       <div class="pc-top">
         <span><span class="badge ${stratClass}">${p.estrategia}</span> <span class="badge ${assetClass}">${p.asset}</span></span>
         <span class="pc-pnl ${p.pnl>=0?'g':'r'}">${fmt(p.pnl)}</span>
@@ -535,9 +538,9 @@ function renderSidebar(){
   }).join('');
 }
 
-function selectPositionByStr(str){selectPosition(JSON.parse(str));}
+function selectByIndex(i){selectPosition(allPositions[i]);}
 function selectPosition(p){
-  if(typeof p==='string')p=JSON.parse(p);
+  if(!p)return;
   selectedPos=p;
   selectedRoll=null;
   el('btn-roll').disabled=true;
@@ -651,8 +654,9 @@ function renderRollOptions(p,S,iv,T){
     {id:'roll_auto',   title:'Roll AUTO — evaluación bot',desc:'El bot evalúa señales y decide',      costo:null,      tipo_api:'auto'},
   ];
 
-  el('roll-opts').innerHTML=opts.map(o=>`
-    <div class="roll-opt ${selectedRoll?.id===o.id?'selected':''}" onclick="selectRoll(${JSON.stringify(JSON.stringify(o))})">
+  _rollOpts=opts;
+  el('roll-opts').innerHTML=opts.map((o,i)=>`
+    <div class="roll-opt ${selectedRoll?.id===o.id?'selected':''}" onclick="selectRollByIndex(${i})">
       <div class="ro-title">${o.title}</div>
       <div class="ro-desc">${o.desc}</div>
       ${o.costo!==null?`<div class="ro-cost ${o.costo<=0?'g':'r'}">${o.costo<=0?'Crédito: '+fmt(-o.costo):'Débito: '+fmt(o.costo)}</div>`
@@ -660,11 +664,16 @@ function renderRollOptions(p,S,iv,T){
     </div>`).join('');
 }
 
-function selectRoll(str){
-  selectedRoll=JSON.parse(str);
+let _rollOpts=[];
+function selectRollByIndex(i){selectRoll(_rollOpts[i]);}
+function selectRoll(o){
+  if(!o)return;
+  selectedRoll=o;
   el('btn-roll').disabled=false;
-  // Re-render roll opts to update selected
-  if(selectedPos)renderRollOptions(selectedPos,spotPrices[selectedPos.asset]||2500,0.60,Math.max(calcDTE(selectedPos.expiry)||16,0.001)/365);
+  // Update visual selection
+  document.querySelectorAll('.roll-opt').forEach((el,i)=>{
+    el.classList.toggle('selected', _rollOpts[i]?.id===o.id);
+  });
 }
 
 // ── Legs table ────────────────────────────────────────────────────────────
