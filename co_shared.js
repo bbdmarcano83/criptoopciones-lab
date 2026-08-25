@@ -113,7 +113,7 @@ nav{background:#13131f;border-bottom:1px solid #1e2035;padding:0;display:flex;al
 .nav-link:hover{color:#94a3b8;background:#0d0d14}
 .nav-link.active{color:#38bdf8;border-bottom-color:#38bdf8;font-weight:600}
 .nav-spacer{flex:1}
-.nav-price{padding:0 10px;font-size:12px;color:#38bdf8;font-weight:600;border-left:1px solid #1e2035}
+.nav-price{padding:0 10px;font-size:12px;color:#38bdf8;font-weight:600;border-left:1px solid #1e2035;display:flex;align-items:center;gap:6px}
 .nav-ivr{padding:0 10px;font-size:11px;border-left:1px solid #1e2035}
 .nav-exchange{padding:0 10px;font-size:11px;color:#475569;border-left:1px solid #1e2035}
 .nav-btn{margin:0 8px;background:#1a1a2e;border:1px solid #2a2a45;border-radius:4px;padding:4px 10px;font-size:11px;color:#64748b;cursor:pointer}
@@ -157,8 +157,41 @@ function navHTML(activePage){
     </div>
     <div class="nav-spacer"></div>
     <span class="nav-exchange" id="nav-exchange">${COState.exchange}</span>
-    <span class="nav-price" id="nav-price">$${COState.spot.toLocaleString()}</span>
+    <span class="nav-price" id="nav-price" style="display:flex;align-items:center;gap:6px;min-width:220px">
+      <span id="np-btc" style="color:#f7931a;font-weight:700">BTC $--</span>
+      <span style="color:#334155">|</span>
+      <span id="np-eth" style="color:#8b9cf7;font-weight:700">ETH $--</span>
+    </span>
     <span class="nav-ivr badge" id="nav-ivr">IVR --</span>
     <button class="nav-btn" onclick="navRefresh()">⟳</button>
   </nav>`;
 }
+
+// ── Auto-init nav prices y active link ─────────────────────────────────────
+(function _navInit(){
+  // Set active link
+  const cur=location.pathname.split('/').pop()||'index.html';
+  document.addEventListener('DOMContentLoaded',function(){
+    document.querySelectorAll('.nav-link').forEach(function(a){
+      a.classList.toggle('active',a.getAttribute('href')===cur);
+    });
+  });
+  // Load BTC + ETH prices with correct colors
+  async function _loadNavPrices(){
+    try{
+      const [rb,re]=await Promise.all([
+        fetch('https://api.bybit.com/v5/market/tickers?category=spot&symbol=BTCUSDT').then(r=>r.json()),
+        fetch('https://api.bybit.com/v5/market/tickers?category=spot&symbol=ETHUSDT').then(r=>r.json()),
+      ]);
+      const btc=parseFloat(rb.result.list[0].lastPrice);
+      const eth=parseFloat(re.result.list[0].lastPrice);
+      const nb=document.getElementById('np-btc');
+      const ne=document.getElementById('np-eth');
+      if(nb)nb.textContent='BTC $'+btc.toLocaleString('es',{maximumFractionDigits:0});
+      if(ne)ne.textContent='ETH $'+eth.toLocaleString('es',{maximumFractionDigits:0});
+      if(eth)COState.spot=eth;
+    }catch(e){}
+  }
+  document.addEventListener('DOMContentLoaded',_loadNavPrices);
+  setInterval(_loadNavPrices,30000);
+})();
