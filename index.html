@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>CriptoOpciones Lab</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
 <style>
@@ -171,6 +174,36 @@ input[type=range]{width:100%;accent-color:#38bdf8;height:16px;margin-bottom:1px}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:#0b0e14}
 ::-webkit-scrollbar-thumb{background:#253146;border-radius:3px}
+
+/* ── Mobile Responsive ──────────────────────────────────────────────────── */
+@media(max-width:768px){
+  body{overflow:auto;height:auto;min-height:100vh}
+  .app{flex-direction:column;height:auto}
+  .sidebar{width:100%;border-right:none;border-bottom:1px solid #1e2638;
+           flex-direction:row;flex-wrap:wrap;padding:6px;gap:6px}
+  .sidebar-scroll{display:flex;flex-wrap:wrap;gap:6px;padding:0;flex:1}
+  .nav{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  .nav a{padding:6px 10px;font-size:11px}
+  .main{height:auto;flex:1}
+  .panel{flex-direction:column}
+  .panel-left{width:100%;border-right:none;border-bottom:1px solid #1e2638;
+              max-height:320px;overflow-y:auto}
+  .panel-right{width:100%}
+  .chart-area{height:320px}
+  .legs-table{font-size:10px}
+  .legs-table th,.legs-table td{padding:3px 4px}
+  .exec-btn{width:100%;font-size:12px;padding:10px}
+  .summary-bar{flex-wrap:wrap;gap:4px}
+  .summary-bar>div{min-width:calc(50% - 4px);font-size:10px}
+  #bot-section{width:100%}
+  .portfolio-item{font-size:11px}
+  input[type=number],input[type=text],select{font-size:16px} /* prevents zoom on iOS */
+}
+@media(max-width:480px){
+  .nav a{padding:5px 8px;font-size:10px}
+  .legs-table{font-size:9px}
+  .summary-bar>div{min-width:100%}
+}
 </style>
 </head>
 <body>
