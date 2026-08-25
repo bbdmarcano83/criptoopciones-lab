@@ -145,6 +145,7 @@ function loadFromState(){
 }
 
 function calcAjuste(){
+  const strat = document.getElementById('strat-type').value; // <-- FIX APLICADO
   const S=+document.getElementById('spot-now').value||77000;
   const Kshort=+document.getElementById('s-short').value||79000;
   const Klong=+document.getElementById('s-long').value||82000;
