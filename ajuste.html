@@ -144,8 +144,8 @@ const DARK={template:'plotly_dark',paper_bgcolor:'transparent',plot_bgcolor:'tra
 
 // ── Bot config ─────────────────────────────────────────────────────────────
 const BOT_CONFIG={
-  get url(){return localStorage.getItem('bot_url')||''},
-  get token(){return localStorage.getItem('bot_token')||''},
+  get url(){return localStorage.getItem('co_bot_url')||localStorage.getItem('bot_url')||''},
+  get token(){return localStorage.getItem('co_bot_token')||localStorage.getItem('bot_token')||''},
 };
 
 async function botFetch(path,opts={}){
@@ -382,7 +382,17 @@ window.addEventListener('load',async ()=>{
   calcAjuste();
   // Auto-cargar posiciones del bot
   await loadBotPositions();
+  // Mostrar mensaje si viene de positions.html
+  const msg=localStorage.getItem('co_ajuste_msg');
+  if(msg){
+    localStorage.removeItem('co_ajuste_msg');
+    const banner=document.createElement('div');
+    banner.style.cssText='background:#0c1a2e;border:1px solid #1e3a5f;border-radius:4px;padding:8px 12px;font-size:11px;color:#38bdf8;margin-bottom:8px';
+    banner.textContent='ℹ️ '+msg;
+    document.querySelector('.ajuste-form').prepend(banner);
+    setTimeout(()=>banner.remove(),5000);
+  }
 });
 </script>
-</body>S
+</body>
 </html>
