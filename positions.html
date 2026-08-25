@@ -459,7 +459,7 @@ function renderTable(){
     const S=spotPrices[p.asset]||77000;
     const iv=(p.iv_rank_entry||50)/100*0.8+0.3; // estimado
     const dte=calcDTE(p.expiry);
-    const T=Math.max(dte,0)/365;
+    const T=Math.max(dte||0,0.001)/365;
     const rfr=0.05;
 
     // PoP estimado — para IC/IB rango entre strikes
@@ -480,7 +480,7 @@ function renderTable(){
       <td><span class="badge ${badgeClass}">${p.estrategia}</span></td>
       <td><span class="badge ${assetClass}">${p.asset}</span></td>
       <td style="color:#94a3b8">${p.expiry||'--'}</td>
-      <td style="color:${dte<=3?'#f43f5e':dte<=7?'#f59e0b':'#38bdf8'};font-weight:600">${dte}d</td>
+      <td style="color:${dte===null?'#475569':dte<=3?'#f43f5e':dte<=7?'#f59e0b':'#38bdf8'};font-weight:600">${dte!==null?dte+'d':'--'}</td>
       <td style="color:#e2e8f0">${fmt(p.credito_entrada)}</td>
       <td style="color:${p.pnl>=0?'#10b981':'#f43f5e'};font-weight:700">${fmt(p.pnl)}</td>
       <td style="color:${p.pnl_pct>=0?'#10b981':'#f43f5e'}">${p.pnl_pct}%</td>
@@ -520,12 +520,23 @@ function renderRangeBar(asset,S){
 }
 
 function calcDTE(expiry){
-  if(!expiry)return 0;
+  if(!expiry||expiry==='--'||expiry==='N/A')return null;
   const months={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
   try{
-    const d=+expiry.substring(0,2),m=months[expiry.substring(2,5)],y=2000+(+expiry.substring(5,7));
-    return Math.max(0,Math.round((new Date(y,m,d).getTime()-Date.now())/86400000));
-  }catch{return 0;}
+    // Formato Bybit: 11SEP26
+    if(/^\d{2}[A-Z]{3}\d{2}$/.test(expiry)){
+      const d=+expiry.substring(0,2),m=months[expiry.substring(2,5)],y=2000+(+expiry.substring(5,7));
+      return Math.max(0,Math.round((new Date(y,m,d).getTime()-Date.now())/86400000));
+    }
+    // Formato ISO timestamp (ms)
+    if(/^\d{10,}$/.test(expiry)){
+      return Math.max(0,Math.round((new Date(+expiry).getTime()-Date.now())/86400000));
+    }
+    // Formato ISO date string
+    const dt=new Date(expiry);
+    if(!isNaN(dt))return Math.max(0,Math.round((dt.getTime()-Date.now())/86400000));
+  }catch{}
+  return null;
 }
 
 function estimatePoP(pos,S,iv,T,rfr){
@@ -557,7 +568,7 @@ function selectPosition(label){
   const S=spotPrices[p.asset]||77000;
   const iv=0.60; // estimado
   const dte=calcDTE(p.expiry);
-  const T=Math.max(dte,0.001)/365;
+  const T=Math.max(dte||0,0.001)/365;
   const rfr=0.05;
   const em=S*iv*Math.sqrt(T);
   const pop=estimatePoP(p,S,iv,T,rfr);
@@ -570,7 +581,7 @@ function selectPosition(label){
   document.getElementById('d-badge').textContent=p.estrategia;
   document.getElementById('d-asset').textContent=p.asset;
   document.getElementById('d-expiry').textContent=p.expiry||'--';
-  document.getElementById('d-dte').textContent=dte+' días';
+  document.getElementById('d-dte').textContent=dte!==null?dte+' días':'--';
   document.getElementById('d-entry').textContent=p.entry_time?new Date(p.entry_time).toLocaleDateString('es'):'--';
   document.getElementById('d-credit').textContent=fmt(p.credito_entrada);
   const dpnl=document.getElementById('d-pnl');
