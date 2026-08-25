@@ -925,35 +925,33 @@ function openSizeModal(){
 }
 
 async function doSizeChange(){
-  // qty = cantidad a añadir (positivo) o reducir (negativo)
-  const qty=parseFloat(parseFloat((el('size-input').value||'0').replace(',','.')).toFixed(4));
   const p=selectedPos;
   if(!p){toast('Sin posición seleccionada','err');return;}
+  // qty = cantidad a AÑADIR (positivo) o REDUCIR (negativo)
+  const qty=parseFloat((el('size-input').value||'0').replace(',','.'));
   const cur=parseFloat((p.legs?.[0]?.size||0).toFixed(4));
-  if(isNaN(qty)||qty===0){toast('Ingresa una cantidad','err');return;}
+  if(isNaN(qty)||qty===0){toast('Ingresa una cantidad válida','err');return;}
   const newTotal=parseFloat((cur+qty).toFixed(4));
-  if(newTotal<0){toast('No puedes reducir más de lo que tienes','err');return;}
+  if(newTotal<0){toast(`No puedes reducir más de ${cur} contratos`,'err');return;}
 
   closeModal('modal-size');
 
   if(qty<0){
-    // ── REDUCIR ──────────────────────────────────────────────────────────
-    const qty=parseFloat(Math.abs(qty).toFixed(4));
+    // ── REDUCIR ───────────────────────────────────────────────────────────
+    const absQty=parseFloat(Math.abs(qty).toFixed(4));
     try{
-      toast(`Reduciendo ${Math.abs(qty)} contratos...`,'y');
+      toast(`Reduciendo ${absQty} contratos...`,'y');
       const r=await botFetch(`/positions/${p.label}/close`,{
         method:'POST',
-        body:JSON.stringify({reason:`reduce_${Math.abs(qty)}_contracts`})
+        body:JSON.stringify({reason:`reduce_${absQty}_contracts`})
       });
-      toast(`✅ Reducido ${Math.abs(qty)} contratos | PnL: ${fmt(r.pnl||0)}`,'ok');
+      toast(`✅ Reducido ${absQty} contratos | PnL: ${fmt(r.pnl||0)}`,'ok');
       setTimeout(()=>loadAll(),1500);
     }catch(e){toast('❌ '+e.message,'err');}
 
   }else{
-    // ── AUMENTAR — ir al analizador con patas pre-cargadas ───────────────
-    const qty=parseFloat((newSize-cur).toFixed(4));
+    // ── AUMENTAR — ir al analizador con patas pre-cargadas ────────────────
     if(p.legs&&p.legs.length){
-      // Usar co_pending_legs — no COState.legs (se sobreescribe por loadTpl en index)
       const legsToSave=p.legs.map(l=>({
         tipo:     l.is_call?'call':'put',
         accion:   l.side==='sell'?'sell':'buy',
