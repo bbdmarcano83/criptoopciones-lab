@@ -204,23 +204,6 @@ input[type=range]{width:100%;accent-color:#38bdf8;height:16px;margin-bottom:1px}
   .legs-table{font-size:9px}
   .summary-bar>div{min-width:100%}
 }
-
-@media(max-width:768px){
-  body{overflow:auto;height:auto}
-  .app{flex-direction:column;height:auto}
-  .sidebar{width:100%!important;border-right:none;border-bottom:1px solid #1e2638;max-height:280px;overflow-y:auto}
-  .main{height:auto;flex:1}
-  .panel{flex-direction:column}
-  .panel-left,.panel-right{width:100%!important;border:none}
-  .panel-left{border-bottom:1px solid #1e2638!important;max-height:300px;overflow-y:auto}
-  nav{overflow-x:auto;white-space:nowrap}
-  .nav-links{min-width:max-content}
-  .chart-area{height:280px}
-  .legs-table{font-size:10px}
-  input,select{font-size:16px}
-  .summary-bar{flex-wrap:wrap}
-  .summary-bar>div{min-width:calc(50% - 4px)}
-}
 </style>
 </head>
 <body>
@@ -230,7 +213,6 @@ input[type=range]{width:100%;accent-color:#38bdf8;height:16px;margin-bottom:1px}
   <div class="nav-logo"><span class="c">Cripto</span><span class="o">Opciones</span><span class="l"> LAB</span></div>
   <div class="nav-links">
     <a href="index.html" class="nav-link active">📈 Analizador</a>
-    <a href="positions.html" class="nav-link">📊 Posiciones</a>
     <a href="chain.html" class="nav-link">📋 Cadena</a>
     <a href="iv.html" class="nav-link">🌊 IV & Mercado</a>
     <a href="ajuste.html" class="nav-link">🔧 Ajuste</a>
@@ -479,7 +461,6 @@ async function botFetch(path,opts={},retries=3){
 const BotAPI={
   async status(){return botFetch('/status')},
   async portfolio(){return botFetch('/portfolio')},
-  async live(){return botFetch('/live')},
   async live(){return botFetch('/live')},
   async mercado(asset){return botFetch(`/mercado/${asset}`)},
   async pause(){return botFetch('/pause',{method:'POST'})},
@@ -1252,6 +1233,35 @@ window.addEventListener('load',async()=>{
   initDrag();
   updateExecBtn();
   refreshPortfolio();
+
+  // ── Cargar patas si venimos de Posiciones (aumentar contratos) ──────────
+  const savedLegs=COState.legs;
+  if(savedLegs&&savedLegs.length>0){
+    legs=savedLegs.map(l=>({
+      tipo:    l.tipo||'call',
+      accion:  l.accion||'buy',
+      strike:  parseFloat(l.strike)||0,
+      prima:   parseFloat(l.prima)||0,
+      qty:     parseFloat(l.qty)||0.1,
+      iv:      parseFloat(l.iv)||50,
+      contrato:l.contrato||'',
+    }));
+    renderLegs();
+    recalc();
+    // Mostrar banner
+    const msg=localStorage.getItem('co_ajuste_msg');
+    if(msg){
+      localStorage.removeItem('co_ajuste_msg');
+      const banner=document.createElement('div');
+      banner.style.cssText='position:fixed;top:48px;left:50%;transform:translateX(-50%);background:#052e16;border:1px solid #166534;border-radius:6px;padding:8px 16px;font-size:12px;color:#10b981;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.5)';
+      banner.textContent='✅ '+msg;
+      document.body.appendChild(banner);
+      setTimeout(()=>banner.remove(),5000);
+    }
+    // Limpiar COState para que no recargue en el próximo visit
+    COState.legs=[];
+  }
+
   setInterval(fetchAll,15000);
   setInterval(refreshPortfolio,30000);
 });
