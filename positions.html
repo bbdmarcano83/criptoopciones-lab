@@ -398,12 +398,18 @@ table.legs tr:hover td{background:#0d1117}
     </div>
     <div class="modal-field">
       <label>Nuevo tamaño</label>
-      <input type="number" id="size-input" step="0.01" min="0.01">
-      <div class="modal-note">Para reducir: valor menor al actual. Para agregar: ve al analizador.</div>
+      <input type="number" id="size-input" step="0.01" min="0.01" oninput="updateSizePreview()">
+      <div class="modal-note" id="size-preview" style="margin-top:6px;font-size:11px;color:#64748b">
+        Ingresa el nuevo tamaño total
+      </div>
+    </div>
+    <div style="background:#111827;border:1px solid #1e2638;border-radius:4px;padding:8px;font-size:10px;color:#475569;margin-bottom:4px">
+      <b style="color:#e2e8f0">Reducir:</b> cierra contratos via bot (orden de mercado)<br>
+      <b style="color:#e2e8f0">Aumentar:</b> abre el analizador con las patas pre-cargadas para ejecutar
     </div>
     <div class="modal-actions">
       <button class="modal-cancel" onclick="closeModal('modal-size')">Cancelar</button>
-      <button class="modal-confirm" onclick="doSizeChange()">Aplicar</button>
+      <button class="modal-confirm" id="size-confirm-btn" onclick="doSizeChange()">Aplicar</button>
     </div>
   </div>
 </div>
@@ -871,6 +877,34 @@ async function doClose(){
   }
 }
 
+function updateSizePreview(){
+  const newSize=parseFloat(el('size-input').value||0);
+  const cur=parseFloat((selectedPos?.legs?.[0]?.size||0).toFixed(4));
+  const preview=el('size-preview');
+  const btn=el('size-confirm-btn');
+  if(!newSize||newSize<=0){
+    preview.textContent='Tamaño inválido';
+    preview.style.color='#f43f5e';
+    return;
+  }
+  const diff=parseFloat((newSize-cur).toFixed(4));
+  if(Math.abs(diff)<0.0001){
+    preview.textContent='Sin cambios';
+    preview.style.color='#475569';
+    btn.textContent='Aplicar';
+  }else if(diff<0){
+    preview.innerHTML=`🔴 Reducir <b>${Math.abs(diff).toFixed(4)}</b> contratos → cierre parcial via bot`;
+    preview.style.color='#f43f5e';
+    btn.textContent='Reducir';
+    btn.className='modal-confirm danger';
+  }else{
+    preview.innerHTML=`🟢 Añadir <b>${diff.toFixed(4)}</b> contratos → abre analizador pre-cargado`;
+    preview.style.color='#10b981';
+    btn.textContent='Ir al analizador';
+    btn.className='modal-confirm';
+  }
+}
+
 function openSizeModal(){
   if(!selectedPos){toast('Selecciona una posición','err');return;}
   const cur=selectedPos.legs?.[0]?.size||0;
@@ -880,41 +914,45 @@ function openSizeModal(){
 }
 
 async function doSizeChange(){
-  const newSize=parseFloat(el('size-input').value);
-  const cur=selectedPos.legs?.[0]?.size||0;
+  const newSize=parseFloat(parseFloat(el('size-input').value).toFixed(4));
+  const cur=parseFloat((selectedPos.legs?.[0]?.size||0).toFixed(4));
   if(!newSize||newSize<=0){toast('Tamaño inválido','err');return;}
-  if(newSize===cur){closeModal('modal-size');return;}
+  // Usar tolerancia para comparación float
+  if(Math.abs(newSize-cur)<0.0001){closeModal('modal-size');return;}
   closeModal('modal-size');
   if(newSize<cur){
+    // REDUCIR — cierre parcial via bot
+    const qty=parseFloat((cur-newSize).toFixed(4));
     try{
-      showToast('Reduciendo posición...','y');
+      showToast(`Reduciendo ${qty} contratos...`,'y');
       const r=await botFetch(`/positions/${selectedPos.label}/close`,{
-        method:'POST',body:JSON.stringify({reason:`reduce_to_${newSize}`})
+        method:'POST',body:JSON.stringify({reason:`reduce_size_from_${cur}_to_${newSize}`})
       });
-      toast(`✅ Reducido | PnL parcial: ${fmt(r.pnl||0)}`,'ok');
+      toast(`✅ Reducido ${qty} contratos | PnL: ${fmt(r.pnl||0)}`,'ok');
       setTimeout(()=>loadAll(),1500);
     }catch(e){toast('❌ '+e.message,'err');}
   }else{
-    // Pre-cargar patas en el analizador con qty adicional
-    const qty=newSize-cur;
+    // AUMENTAR — pre-cargar en analizador con qty adicional
+    const qty=parseFloat((newSize-cur).toFixed(4));
     const p=selectedPos;
     if(p&&p.legs&&p.legs.length){
       const legsForAnalyzer=p.legs.map(l=>({
         tipo:     l.is_call?'call':'put',
-        accion:   l.side,
+        accion:   l.side==='sell'?'sell':'buy',
         strike:   l.strike,
         prima:    l.avg_price||l.mark_price||0,
-        qty:      parseFloat(qty.toFixed(2)),
+        qty:      qty,
         iv:       l.iv||50,
         contrato: l.symbol,
       }));
       COState.legs=legsForAnalyzer;
       COState.activo=p.asset;
+      COState.spot=spotPrices[p.asset]||COState.spot;
       localStorage.setItem('co_ajuste_msg',
-        `Añadir ${qty.toFixed(2)} contratos al ${p.estrategia} ${p.asset} — revisa las patas y ejecuta`);
+        `➕ Añadir ${qty} contratos al ${p.estrategia} ${p.asset} — las patas están cargadas, ajusta qty y ejecuta en Bot`);
     }
-    toast('Abriendo analizador con patas pre-cargadas...','y');
-    setTimeout(()=>{window.location.href='index.html';},1500);
+    toast(`Abriendo analizador — agrega ${qty} contratos al ${p?.estrategia||''} ${p?.asset||''}`,'y');
+    setTimeout(()=>{window.location.href='index.html';},2000);
   }
 }
 
