@@ -183,13 +183,30 @@ function calcAjuste(){
     thetaNeto=(gShort.theta-gLong.theta)*qty;
   }
 
-  // PoP restante
+  // PoP restante — cálculo correcto según estrategia
   const mu=Math.log(S)+(rfr-0.5*iv*iv)*T;
   const sig=iv*Math.sqrt(T);
-  const popActual=(1-normCDF((Math.log(Kshort)-mu)/sig))*100;
+  let popActual, be;
 
-  // BE aproximado
-  const be=Kshort-primaOrig/qty/100;
+  if(strat==='iron_condor'||strat==='iron_butterfly'){
+    // IC/IB: PoP = P(short_put < precio < short_call al vencimiento)
+    // Usar strikes reales de las patas si disponibles
+    const sc=_botLegs.find(l=>l.is_call&&l.side==='sell')?.strike||Kshort;
+    const sp=_botLegs.find(l=>l.is_put&&l.side==='sell')?.strike||(Kshort*0.92);
+    const pAbove=1-normCDF((Math.log(sc)-mu)/sig);  // P(precio > short_call)
+    const pBelow=normCDF((Math.log(sp)-mu)/sig);     // P(precio < short_put)
+    popActual=Math.max(0,(1-pAbove-pBelow))*100;
+    // BE: punto medio entre los dos short strikes
+    be=(sc+sp)/2;
+  }else if(strat.includes('put')){
+    // Put spread: PoP = P(precio > short_put)
+    popActual=(1-normCDF((Math.log(Kshort)-mu)/sig))*100;
+    be=Kshort-primaOrig/qty;
+  }else{
+    // Call spread: PoP = P(precio < short_call)
+    popActual=normCDF((Math.log(Kshort)-mu)/sig)*100;
+    be=Kshort+primaOrig/qty;
+  }
 
   // Actualizar métricas
   // Mostrar PnL real de Bybit si disponible
@@ -208,6 +225,7 @@ function calcAjuste(){
   if(pnlActual>=primaOrig*0.5)rec='✅ Considera cerrar la posición. Has capturado más del 50% del crédito máximo.';
   else if(pnlActual<=-primaOrig*0.5)rec='⚠️ La posición está en pérdida significativa. Evalúa un roll o cierre para limitar daños.';
   else if(dte<=2)rec='⏰ DTE muy bajo. Considera cerrar para evitar riesgo de vencimiento.';
+  else if(popActual<40&&(strat==='iron_condor'||strat==='iron_butterfly'))rec='🟠 PoP moderada para IC. Monitorea los strikes cortos.';
   else if(popActual<30)rec='🔴 PoP baja (<30%). El precio está cerca del strike corto. Considera roll defensivo.';
   else rec='🟡 Posición activa dentro de parámetros normales. Continúa monitoreando.';
   document.getElementById('r-rec').textContent=rec;
