@@ -2,10 +2,19 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>CriptoOpciones Lab — Ajuste</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
 <script src="co_shared.js"></script>
-<style id="shared-css"></style>
+<style id="shared-css">
+@media(max-width:768px){
+  .ajuste-grid{grid-template-columns:1fr;overflow:visible}
+  .ajuste-form{border-right:none;border-bottom:1px solid #1e2035;max-height:none}
+  .ajuste-result{padding:12px}
+  nav{overflow-x:auto;white-space:nowrap}
+  input,select{font-size:16px}
+}
+</style>
 <style>
 .ajuste-grid{display:grid;grid-template-columns:340px 1fr;gap:0;flex:1;overflow:hidden}
 .ajuste-form{background:#111120;border-right:1px solid #1e2035;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
@@ -33,6 +42,19 @@
 <div class="ajuste-grid">
 <div class="ajuste-form">
   <div class="section-title">Posición actual</div>
+
+  <!-- Bot positions selector -->
+  <div id="bot-pos-section" style="display:none">
+    <div style="font-size:10px;color:#334155;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">
+      Posición del bot
+    </div>
+    <select id="bot-pos-select" onchange="loadFromBot()" 
+      style="width:100%;height:30px;font-size:12px;background:#0d1117;border:1px solid #38bdf8;border-radius:4px;color:#38bdf8">
+      <option value="">-- Selecciona posición --</option>
+    </select>
+    <div id="bot-pos-badge" style="font-size:10px;color:#10b981;margin-top:4px"></div>
+    <div style="height:1px;background:#1e2035;margin:10px 0"></div>
+  </div>
 
   <div class="field"><label>Estrategia</label>
     <select id="strat-type" onchange="calcAjuste()">
@@ -78,7 +100,10 @@
   </div>
 
   <button class="btn primary" style="width:100%;height:34px" onclick="calcAjuste()">Calcular opciones de ajuste</button>
-  <button class="btn" style="width:100%;height:34px" onclick="loadFromState()">📂 Cargar desde analizador</button>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <button class="btn" style="height:30px;font-size:11px" onclick="loadFromBot()">🤖 Cargar del bot</button>
+    <button class="btn" style="height:30px;font-size:11px" onclick="loadFromState()">📂 Del analizador</button>
+  </div>
 </div>
 
 <div class="ajuste-result">
@@ -116,6 +141,109 @@ document.getElementById('shared-css').textContent=CO_CSS;
 document.getElementById('nav-placeholder').innerHTML=navHTML('ajuste.html');
 
 const DARK={template:'plotly_dark',paper_bgcolor:'transparent',plot_bgcolor:'transparent',margin:{l:50,r:10,t:10,b:35},font:{family:'Segoe UI,system-ui',size:10}};
+
+// ── Bot config ─────────────────────────────────────────────────────────────
+const BOT_CONFIG={
+  get url(){return localStorage.getItem('bot_url')||''},
+  get token(){return localStorage.getItem('bot_token')||''},
+};
+
+async function botFetch(path,opts={}){
+  if(!BOT_CONFIG.url||!BOT_CONFIG.token)throw new Error('Bot no configurado');
+  const r=await fetch(BOT_CONFIG.url+path,{
+    ...opts,
+    headers:{'X-Bot-Token':BOT_CONFIG.token,'Content-Type':'application/json',...(opts.headers||{})},
+  });
+  if(!r.ok)throw new Error(await r.text());
+  return r.json();
+}
+
+let botPositions=[];
+
+async function loadBotPositions(){
+  try{
+    const data=await botFetch('/live');
+    botPositions=data.estrategias||[];
+    if(!botPositions.length)return;
+
+    const sel=document.getElementById('bot-pos-select');
+    sel.innerHTML='<option value="">-- Selecciona posición --</option>'+
+      botPositions.map((p,i)=>`<option value="${i}">${p.estrategia} ${p.asset} | ${p.expiry} | PnL:${p.pnl>=0?'+':''}${p.pnl.toFixed(2)}</option>`).join('');
+    document.getElementById('bot-pos-section').style.display='block';
+
+    // Auto-seleccionar si hay una sola
+    if(botPositions.length===1){
+      sel.value='0';
+      loadFromBot();
+    }
+  }catch(e){
+    console.log('Bot no disponible:',e.message);
+  }
+}
+
+function loadFromBot(){
+  const idx=document.getElementById('bot-pos-select').value;
+  if(idx==='')return;
+  const pos=botPositions[parseInt(idx)];
+  if(!pos)return;
+
+  const legs=pos.legs||[];
+  const sells=legs.filter(l=>l.side==='sell');
+  const buys=legs.filter(l=>l.side==='buy');
+  const calls=legs.filter(l=>l.is_call);
+  const puts=legs.filter(l=>l.is_put);
+
+  // Detectar tipo de estrategia para los campos
+  let stratType='call_spread';
+  if(pos.estrategia==='IC')stratType='iron_condor';
+  else if(pos.estrategia==='IB')stratType='iron_condor';
+  else if(sells.some(l=>l.is_put))stratType='put_spread';
+  else stratType='call_spread';
+  document.getElementById('strat-type').value=stratType;
+
+  // Strike corto = el sell con mayor delta absoluto
+  const shortLeg=sells.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta))[0];
+  const longLeg=buys.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta))[0];
+
+  if(shortLeg)document.getElementById('s-short').value=shortLeg.strike;
+  if(longLeg)document.getElementById('s-long').value=longLeg.strike;
+
+  // Crédito neto total
+  const credito=pos.credito_entrada||Math.abs(pos.pnl);
+  document.getElementById('prima-orig').value=credito.toFixed(2);
+
+  // DTE desde expiry
+  const months={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+  let dte=16;
+  try{
+    const e=pos.expiry;
+    if(/^\d{2}[A-Z]{3}\d{2}$/.test(e)){
+      const d=+e.substring(0,2),m=months[e.substring(2,5)],y=2000+(+e.substring(5,7));
+      dte=Math.max(0,Math.round((new Date(y,m,d)-Date.now())/86400000));
+    }
+  }catch{}
+  document.getElementById('dte-rest').value=dte;
+
+  // IV promedio de las patas cortas
+  const ivAvg=sells.length>0?sells.reduce((s,l)=>s+(l.iv||50),0)/sells.length:50;
+  document.getElementById('iv-adj').value=ivAvg.toFixed(1);
+
+  // Precio spot actual
+  document.getElementById('spot-now').value=COState.spot||77000;
+
+  // Qty = size de la primera pata
+  const qty=legs.length>0?legs[0].size:0.1;
+  document.getElementById('qty-adj').value=qty;
+
+  // Precio de entrada spot (no disponible directamente, usar spot actual)
+  document.getElementById('s-entry').value=COState.spot||77000;
+
+  // Badge con PnL real
+  document.getElementById('bot-pos-badge').innerHTML=
+    `✅ Cargado: PnL actual <b style="color:${pos.pnl>=0?'#10b981':'#f43f5e'}">${pos.pnl>=0?'+':''}$${pos.pnl.toFixed(2)}</b> | ${legs.length} patas`;
+
+  calcAjuste();
+}
 
 function loadFromState(){
   const legs=COState.legs;
@@ -239,11 +367,22 @@ function calcAjuste(){
 }
 
 async function navRefresh(){}
-window.addEventListener('load',()=>{
+// Fix nav active
+(function(){
+  const cur=location.pathname.split('/').pop()||'index.html';
+  document.querySelectorAll('.nav-link').forEach(a=>{
+    if(a.getAttribute('href')===cur)a.classList.add('active');
+    else a.classList.remove('active');
+  });
+})();
+
+window.addEventListener('load',async ()=>{
   document.getElementById('spot-now').value=COState.spot||77000;
   document.getElementById('iv-adj').value=COState.iv||45;
   calcAjuste();
+  // Auto-cargar posiciones del bot
+  await loadBotPositions();
 });
 </script>
-</body>
+</body>S
 </html>
