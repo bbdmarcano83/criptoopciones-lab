@@ -26,6 +26,7 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .tb-stat .tsl{font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:.5px}
 .tb-stat .tsv{font-size:12px;font-weight:600}
 .tsv.g{color:#10b981}.tsv.r{color:#f43f5e}.tsv.b{color:#38bdf8}.tsv.y{color:#f59e0b}.tsv.w{color:#e2e8f0}
+.tsv.btc{color:#f7931a;font-weight:700}.tsv.eth{color:#8b9cf7;font-weight:700}
 .tb-dot{width:7px;height:7px;border-radius:50%;margin-right:4px;flex-shrink:0}
 .tb-dot.g{background:#10b981}.tb-dot.r{background:#f43f5e}.tb-dot.y{background:#f59e0b}
 
@@ -193,7 +194,7 @@ table.legs tr:hover td{background:#0d1117}
   <div class="logo"><span class="c">Cripto</span><span class="o">Opciones</span><span class="l">LAB</span></div>
   <nav class="nav" id="nav-links">
     <a href="index.html">📈 Analizador</a>
-    <a href="positions.html" class="active">📊 Posiciones</a>
+    <a href="positions.html">📊 Posiciones</a>
     <a href="chain.html">📋 Cadena</a>
     <a href="iv.html">🌊 IV & Mercado</a>
     <a href="ajuste.html">🔧 Ajuste</a>
@@ -202,8 +203,8 @@ table.legs tr:hover td{background:#0d1117}
   </nav>
   <div class="tb-spacer"></div>
   <div class="tb-stats">
-    <div class="tb-stat"><div class="tsl">BTC</div><div class="tsv b" id="tb-btc">$--</div></div>
-    <div class="tb-stat"><div class="tsl">ETH</div><div class="tsv b" id="tb-eth">$--</div></div>
+    <div class="tb-stat"><div class="tsl">BTC</div><div class="tsv btc" id="tb-btc">$--</div></div>
+    <div class="tb-stat"><div class="tsl">ETH</div><div class="tsv eth" id="tb-eth">$--</div></div>
     <div class="tb-stat"><div class="tsl">IVR ETH</div><div class="tsv y" id="tb-ivr">--%</div></div>
     <div class="tb-stat"><div class="tsl">PnL Total</div><div class="tsv" id="tb-pnl">$--</div></div>
     <div class="tb-stat"><div class="tsl">Balance</div><div class="tsv w" id="tb-bal">$--</div></div>
@@ -885,6 +886,7 @@ function updateSizePreview(){
   if(!newSize||newSize<=0){
     preview.textContent='Tamaño inválido';
     preview.style.color='#f43f5e';
+    btn.textContent='Aplicar';
     return;
   }
   const diff=parseFloat((newSize-cur).toFixed(4));
@@ -893,15 +895,19 @@ function updateSizePreview(){
     preview.style.color='#475569';
     btn.textContent='Aplicar';
   }else if(diff<0){
-    preview.innerHTML=`🔴 Reducir <b>${Math.abs(diff).toFixed(4)}</b> contratos → cierre parcial via bot`;
+    preview.innerHTML=`🔴 Reducir <b>${Math.abs(diff).toFixed(4)}</b> contratos — cierre via bot`;
     preview.style.color='#f43f5e';
-    btn.textContent='Reducir';
-    btn.className='modal-confirm danger';
+    btn.textContent='Reducir contratos';
+    btn.style.background='#1f0a0a';
+    btn.style.borderColor='#7f1d1d';
+    btn.style.color='#f43f5e';
   }else{
-    preview.innerHTML=`🟢 Añadir <b>${diff.toFixed(4)}</b> contratos → abre analizador pre-cargado`;
+    preview.innerHTML=`🟢 Añadir <b>${diff.toFixed(4)}</b> contratos — ir al analizador`;
     preview.style.color='#10b981';
-    btn.textContent='Ir al analizador';
-    btn.className='modal-confirm';
+    btn.textContent='Ir al analizador →';
+    btn.style.background='#052e16';
+    btn.style.borderColor='#166534';
+    btn.style.color='#10b981';
   }
 }
 
@@ -914,29 +920,34 @@ function openSizeModal(){
 }
 
 async function doSizeChange(){
+  // Guardar estado ANTES de cerrar modal
   const newSize=parseFloat(parseFloat(el('size-input').value).toFixed(4));
-  const cur=parseFloat((selectedPos.legs?.[0]?.size||0).toFixed(4));
+  const p=selectedPos;  // snapshot antes de cerrar modal
+  if(!p){toast('Sin posición seleccionada','err');return;}
+  const cur=parseFloat((p.legs?.[0]?.size||0).toFixed(4));
   if(!newSize||newSize<=0){toast('Tamaño inválido','err');return;}
-  // Usar tolerancia para comparación float
   if(Math.abs(newSize-cur)<0.0001){closeModal('modal-size');return;}
+  
   closeModal('modal-size');
+
   if(newSize<cur){
-    // REDUCIR — cierre parcial via bot
+    // ── REDUCIR ──────────────────────────────────────────────────────────
     const qty=parseFloat((cur-newSize).toFixed(4));
     try{
-      showToast(`Reduciendo ${qty} contratos...`,'y');
-      const r=await botFetch(`/positions/${selectedPos.label}/close`,{
-        method:'POST',body:JSON.stringify({reason:`reduce_size_from_${cur}_to_${newSize}`})
+      toast(`Reduciendo ${qty} contratos...`,'y');
+      const r=await botFetch(`/positions/${p.label}/close`,{
+        method:'POST',
+        body:JSON.stringify({reason:`reduce_size_from_${cur}_to_${newSize}`})
       });
       toast(`✅ Reducido ${qty} contratos | PnL: ${fmt(r.pnl||0)}`,'ok');
       setTimeout(()=>loadAll(),1500);
     }catch(e){toast('❌ '+e.message,'err');}
+
   }else{
-    // AUMENTAR — pre-cargar en analizador con qty adicional
+    // ── AUMENTAR — ir al analizador con patas pre-cargadas ───────────────
     const qty=parseFloat((newSize-cur).toFixed(4));
-    const p=selectedPos;
-    if(p&&p.legs&&p.legs.length){
-      const legsForAnalyzer=p.legs.map(l=>({
+    if(p.legs&&p.legs.length){
+      COState.legs=p.legs.map(l=>({
         tipo:     l.is_call?'call':'put',
         accion:   l.side==='sell'?'sell':'buy',
         strike:   l.strike,
@@ -945,14 +956,13 @@ async function doSizeChange(){
         iv:       l.iv||50,
         contrato: l.symbol,
       }));
-      COState.legs=legsForAnalyzer;
       COState.activo=p.asset;
       COState.spot=spotPrices[p.asset]||COState.spot;
       localStorage.setItem('co_ajuste_msg',
-        `➕ Añadir ${qty} contratos al ${p.estrategia} ${p.asset} — las patas están cargadas, ajusta qty y ejecuta en Bot`);
+        `➕ Añadir ${qty} contratos al ${p.estrategia} ${p.asset} — patas cargadas, ajusta qty y ejecuta en Bot`);
     }
-    toast(`Abriendo analizador — agrega ${qty} contratos al ${p?.estrategia||''} ${p?.asset||''}`,'y');
-    setTimeout(()=>{window.location.href='index.html';},2000);
+    toast(`✅ Abriendo analizador para añadir ${qty} contratos...`,'ok');
+    setTimeout(()=>{window.location.href='index.html';},1500);
   }
 }
 
