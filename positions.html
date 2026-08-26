@@ -112,7 +112,6 @@ table.legs tr:hover td{background:#0d1117}
 .roll-opt{background:#111827;border:1px solid #1e2638;border-radius:4px;padding:7px 9px;margin-bottom:5px;cursor:pointer;transition:border-color .15s;word-wrap:break-word;overflow-wrap:break-word}
 .roll-opt:hover{border-color:#f59e0b}
 .roll-opt.selected{border-color:#f59e0b;background:#1c1200}
-.ro-title{font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:2px}
 .ro-title{font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:2px;white-space:normal;line-height:1.3}
 .ro-desc{font-size:9px;color:#475569;white-space:normal;line-height:1.3}
 .ro-cost{font-size:12px;font-weight:700;margin-top:4px}
@@ -765,10 +764,16 @@ function renderChart(){
       ...strikes.map(k=>({type:'line',x0:k,x1:k,y0:0,y1:1,yref:'paper',line:{color:'#f43f5e',width:.8,dash:'dot'}}))
     ];
     const anns=strikes.map(k=>({x:k,y:1.02,yref:'paper',text:'$'+k.toLocaleString(),showarrow:false,font:{color:'#f43f5e',size:9},xanchor:'center'}));
-    anns.push({x:S,y:1.08,yref:'paper',
-      text:`<b>$${S.toLocaleString('es',{maximumFractionDigits:0})}</b>`,
-      showarrow:false,font:{color:'#f59e0b',size:10},xanchor:'center',
-      bgcolor:'rgba(15,20,30,0.8)',borderpad:3});
+    anns.push({
+      x:S, y:0, yref:'y',
+      text:`<b>Spot $${S.toLocaleString('es',{maximumFractionDigits:0})}</b>`,
+      showarrow:true, arrowhead:2, arrowsize:1, arrowcolor:'#f59e0b',
+      ax:0, ay:-28,
+      font:{color:'#f59e0b',size:10},
+      bgcolor:'rgba(11,14,20,0.85)',
+      bordercolor:'#f59e0b',borderwidth:1,borderpad:3,
+      xanchor:'center'
+    });
     Plotly.react('main-chart',[
       {x:[...xs,...xs.slice().reverse()],y:[...ysExp.map(v=>Math.max(v,0)),...new Array(N).fill(0)],fill:'toself',fillcolor:'rgba(16,185,129,0.06)',line:{color:'transparent'},hoverinfo:'skip',showlegend:false},
       {x:[...xs,...xs.slice().reverse()],y:[...ysExp.map(v=>Math.min(v,0)),...new Array(N).fill(0)],fill:'toself',fillcolor:'rgba(244,63,94,0.06)',line:{color:'transparent'},hoverinfo:'skip',showlegend:false},
