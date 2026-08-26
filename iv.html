@@ -145,6 +145,13 @@ document.getElementById('ex').value=COState.exchange;
 
 const DARK={template:'plotly_dark',paper_bgcolor:'transparent',plot_bgcolor:'transparent',margin:{l:40,r:10,t:10,b:35},font:{family:'Segoe UI,system-ui',size:10}};
 
+// Rangos Históricos 52w Reales (Sincronizados con Bot Python)
+const IV_HISTORICO_52W = {
+  BTC: { min: 21.9, max: 83.9 },
+  ETH: { min: 28.3, max: 106.0 },
+  SOL: { min: 35.0, max: 120.0 }
+};
+
 function parseExpiryDate(expStr) {
   if (!expStr) return 0;
   if (!isNaN(expStr)) return Number(expStr);
@@ -160,6 +167,10 @@ function parseExpiryDate(expStr) {
   return Date.parse(expStr) || 0;
 }
 
+function pdfGauss(x, mean, std) {
+  return (1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / std, 2));
+}
+
 async function loadIV(){
   const act=document.getElementById('act').value;
   const ex=document.getElementById('ex').value;
@@ -172,30 +183,30 @@ async function loadIV(){
   document.getElementById('sum-spot').textContent='$'+S.toLocaleString('es',{minimumFractionDigits:2});
   if(document.getElementById('nav-price')) document.getElementById('nav-price').textContent='$'+S.toLocaleString();
 
-  if(!opts.length){document.getElementById('last-update').textContent='Sin datos';return;}
+  if(!opts || !opts.length){document.getElementById('last-update').textContent='Sin datos';return;}
 
-  // Ordenamiento cronológico de vencimientos
   const expiries=[...new Set(opts.map(o=>o.expiry))].sort((a,b)=>parseExpiryDate(a)-parseExpiryDate(b));
   document.getElementById('sum-exp').textContent=expiries.length;
 
   const validOpts=opts.filter(o=>o.iv>5&&o.iv<300);
   if(!validOpts.length){document.getElementById('last-update').textContent='Sin IV válida';return;}
 
-  // Selección de IV ATM (en lugar del promedio inflado)
+  // Obtener IV ATM real del vencimiento frontal
   const firstExp=expiries[0];
   const frontOpts=validOpts.filter(o=>o.expiry===firstExp);
   const targetOpts=frontOpts.length?frontOpts:validOpts;
   const atmOpt=targetOpts.reduce((prev,curr)=>Math.abs(curr.strike-S)<Math.abs(prev.strike-S)?curr:prev,targetOpts[0]);
   
-  const ivActual=+(atmOpt?atmOpt.iv:(validOpts.reduce((a,b)=>a+b.iv,0)/validOpts.length)).toFixed(1);
-  const ivMin=+Math.min(...validOpts.map(o=>o.iv)).toFixed(1);
-  const ivMax=+Math.max(...validOpts.map(o=>o.iv)).toFixed(1);
-  const ivr=+calcIVR(ivActual, act).toFixed(1);
+  const ivActual=+(atmOpt?atmOpt.iv:48.5).toFixed(1);
   COState.iv=ivActual;
+
+  // Cálculo IVR Histórico
+  const hist = IV_HISTORICO_52W[act] || { min: 25.0, max: 100.0 };
+  const ivr = +Math.max(0, Math.min(100, ((ivActual - hist.min) / (hist.max - hist.min)) * 100)).toFixed(1);
 
   document.getElementById('ivr-val').textContent=ivr.toFixed(1)+'%';
   document.getElementById('iv-actual').textContent=ivActual+'%';
-  document.getElementById('iv-range').textContent=ivMin+'% / '+ivMax+'%';
+  document.getElementById('iv-range').textContent=hist.min+'% / '+hist.max+'%';
   document.getElementById('ivr-fill').style.width=Math.min(100,ivr)+'%';
   document.getElementById('ivr-fill').style.background=ivr>=65?'#22c55e':ivr>=35?'#f59e0b':'#ef4444';
   document.getElementById('sum-iv').textContent=ivActual+'%';
@@ -235,19 +246,20 @@ async function loadIV(){
   document.getElementById('p-down').textContent=pDown.toFixed(1)+'%';
   document.getElementById('sum-range').textContent=pRange.toFixed(1)+'%';
 
-  // Gráfica de probabilidad (con encuadre dinámico ajustado)
-  const N=200;
-  const span = Math.max(em1 * 3.5, S * 0.12);
-  const lo = S - span, hi = S + span;
+  // Mapa de Probabilidades (Curva normalizada para evitar línea plana)
+  const N=100;
+  const stdDevPrice = S * sig;
+  const lo = S - 3.5 * stdDevPrice;
+  const hi = S + 3.5 * stdDevPrice;
   const xs = Array.from({length:N},(_,i)=>lo+(hi-lo)*i/(N-1));
-  const ys = xs.map(x=>{const z=(Math.log(x/S)-mu)/sig;return normPDF(z)/(x*sig);});
-  
+  const ys = xs.map(x=> pdfGauss(x, S, stdDevPrice));
+
   const xsRange = xs.filter(x=>x>=S*0.95&&x<=S*1.05);
-  const ysRange = xsRange.map(x=>{const z=(Math.log(x/S)-mu)/sig;return normPDF(z)/(x*sig);});
+  const ysRange = xsRange.map(x=> pdfGauss(x, S, stdDevPrice));
 
   Plotly.react('prob-chart',[
-    {x:xs,y:ys,mode:'lines',line:{color:'#38bdf8',width:2},fill:'tozeroy',fillcolor:'rgba(56,189,248,0.08)',name:'Distribución'},
-    {x:xsRange,y:ysRange,mode:'lines',line:{color:'#22c55e',width:0},fill:'tozeroy',fillcolor:'rgba(34,197,94,0.2)',name:'Rango ±5%'},
+    {x:xs,y:ys,mode:'lines',line:{color:'#38bdf8',width:2},fill:'tozeroy',fillcolor:'rgba(56,189,248,0.15)',name:'Distribución'},
+    {x:xsRange,y:ysRange,mode:'lines',line:{color:'#22c55e',width:0},fill:'tozeroy',fillcolor:'rgba(34,197,94,0.3)',name:'Rango ±5%'},
   ],{...DARK,xaxis:{tickformat:'$,.0f',gridcolor:'#1e2035'},yaxis:{gridcolor:'#1e2035',showticklabels:false},showlegend:false,shapes:[{type:'line',x0:S,x1:S,y0:0,y1:1,yref:'paper',line:{color:'#38bdf8',width:1.5,dash:'dot'}}]},{responsive:true,displayModeBar:false});
 
   // EM chart
@@ -261,7 +273,6 @@ async function loadIV(){
 
   // Skew
   if(expiries.length>0){
-    const firstExp=expiries[0];
     const expOpts=opts.filter(o=>o.expiry===firstExp&&o.iv>5);
     const callOpts=expOpts.filter(o=>o.tipo==='call').sort((a,b)=>a.strike-b.strike);
     const putOpts=expOpts.filter(o=>o.tipo==='put').sort((a,b)=>a.strike-b.strike);
@@ -273,7 +284,6 @@ async function loadIV(){
         {x:putOpts.map(o=>o.strike),y:putOpts.map(o=>o.iv),mode:'lines+markers',line:{color:'#fb923c',width:2},marker:{size:4},name:'PUT IV'},
       ],{...DARK,xaxis:{tickformat:'$,.0f',gridcolor:'#1e2035'},yaxis:{title:'IV %',gridcolor:'#1e2035'},shapes:[{type:'line',x0:COState.spot,x1:COState.spot,y0:0,y1:1,yref:'paper',line:{color:'#38bdf8',width:1,dash:'dot'}}],legend:{font:{size:9}}},{responsive:true,displayModeBar:false});
 
-      // Skew rows
       const atmStrike=callOpts.reduce((prev,curr)=>Math.abs(curr.strike-S)<Math.abs(prev.strike-S)?curr:prev).strike;
       const atmCall=callOpts.find(o=>o.strike===atmStrike);
       const otmCallP10=callOpts.find(o=>o.strike>=S*1.10);
@@ -314,4 +324,5 @@ async function navRefresh(){await loadIV();}
 window.addEventListener('load',()=>{loadIV();setInterval(loadIV,15000);});
 </script>
 </body>
-</html>
+  </html>
+  
