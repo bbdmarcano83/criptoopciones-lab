@@ -42,7 +42,7 @@ const IV_RANGES = {
   BNB: {min: 25.0, max: 90.0},
 };
 
-// Parser unificado de fechas de vencimiento
+// Parser unificado de fechas de vencimiento (Formato exacto 08:00 UTC)
 function parseExpiryDate(expStr) {
   if (!expStr) return 0;
   if (!isNaN(expStr)) return Number(expStr);
@@ -53,9 +53,17 @@ function parseExpiryDate(expStr) {
     const mon = months[m[2].toUpperCase()] || 0;
     let yr = parseInt(m[3], 10);
     if (yr < 100) yr += 2000;
-    return new Date(yr, mon, day).getTime();
+    return Date.UTC(yr, mon, day, 8, 0, 0); // Vencimiento exacto a las 08:00:00 UTC
   }
   return Date.parse(expStr) || 0;
+}
+
+// Calculadora rápida de DTE en días flotantes
+function calcDTE(expStr) {
+  const expMs = parseExpiryDate(expStr);
+  if (!expMs) return 0;
+  const diffDays = (expMs - Date.now()) / (1000 * 60 * 60 * 24);
+  return Math.max(0, +diffDays.toFixed(2));
 }
 
 // Calcular IVR unificado
@@ -93,19 +101,23 @@ async function fetchSpot(exchange,activo){
   }catch{return null;}
 }
 
-// Fetch opciones
+// Fetch opciones (Con limit=1000 y filtro de contratos vencidos)
 async function fetchOptions(exchange,activo){
   try{
+    const now = Date.now();
     if(exchange==='Bybit'){
-      const r=await fetch(`https://api.bybit.com/v5/market/tickers?category=option&baseCoin=${activo}`);
+      // limit=1000 evita la paginación por defecto de 50 elementos
+      const r=await fetch(`https://api.bybit.com/v5/market/tickers?category=option&baseCoin=${activo}&limit=1000`);
       const list=(await r.json()).result?.list||[];
-      return list.map(o=>{
-        const p=o.symbol.split('-');
-        return{symbol:o.symbol,expiry:p[1],strike:+p[2],tipo:p[3]==='C'?'call':'put',
-          delta:+o.delta||0,iv:+(o.markIv||0)*100,bid:+(o.bid1Price||0),ask:+(o.ask1Price||0),
-          mark:+(o.markPrice||0),volume:+(o.volume24h||0),oi:+(o.openInterest||0),
-          theta:+(o.theta||0),vega:+(o.vega||0),gamma:+(o.gamma||0)};
-      });
+      return list
+        .map(o=>{
+          const p=o.symbol.split('-');
+          return{symbol:o.symbol,expiry:p[1],strike:+p[2],tipo:p[3]==='C'?'call':'put',
+            delta:+o.delta||0,iv:+(o.markIv||0)*100,bid:+(o.bid1Price||0),ask:+(o.ask1Price||0),
+            mark:+(o.markPrice||0),volume:+(o.volume24h||0),oi:+(o.openInterest||0),
+            theta:+(o.theta||0),vega:+(o.vega||0),gamma:+(o.gamma||0)};
+        })
+        .filter(o => parseExpiryDate(o.expiry) > now); // Elimina opciones expiradas
     }else{
       const r=await fetch(`https://eapi.binance.com/eapi/v1/ticker?symbol=${activo}USDT`);
       const list=await r.json();
@@ -115,7 +127,7 @@ async function fetchOptions(exchange,activo){
           delta:+o.delta||0,iv:+(o.impliedVolatility||0)*100,bid:+(o.bidPrice||0),ask:+(o.askPrice||0),
           mark:+(o.markPrice||0),volume:+(o.volume||0),oi:+(o.openInterest||0),
           theta:0,vega:0,gamma:0};
-      });
+      }).filter(o => parseExpiryDate(o.expiry) > now); // Elimina opciones expiradas
     }
   }catch{return[];}
 }
