@@ -165,33 +165,39 @@ function navHTML(activePage){
     <span class="nav-ivr badge" id="nav-ivr">IVR --</span>
     <button class="nav-btn" onclick="navRefresh()">⟳</button>
   </nav>`;
+  // Ejecutar DESPUÉS de que el nav esté en el DOM
+  setTimeout(_initNav, 0);
 }
 
 // ── Auto-init nav prices y active link ─────────────────────────────────────
-(function _navInit(){
-  // Set active link
+async function _loadNavPrices(){
+  try{
+    const [rb,re]=await Promise.all([
+      fetch('https://api.bybit.com/v5/market/tickers?category=spot&symbol=BTCUSDT').then(r=>r.json()),
+      fetch('https://api.bybit.com/v5/market/tickers?category=spot&symbol=ETHUSDT').then(r=>r.json()),
+    ]);
+    const btc=parseFloat(rb.result.list[0].lastPrice);
+    const eth=parseFloat(re.result.list[0].lastPrice);
+    const nb=document.getElementById('np-btc');
+    const ne=document.getElementById('np-eth');
+    if(nb)nb.textContent='BTC $'+btc.toLocaleString('es',{maximumFractionDigits:0});
+    if(ne)ne.textContent='ETH $'+eth.toLocaleString('es',{maximumFractionDigits:0});
+    if(eth)COState.spot=eth;
+  }catch(e){}
+}
+
+function _setActiveNav(){
+  // Detectar página actual y marcar link activo
   const cur=location.pathname.split('/').pop()||'index.html';
-  document.addEventListener('DOMContentLoaded',function(){
-    document.querySelectorAll('.nav-link').forEach(function(a){
-      a.classList.toggle('active',a.getAttribute('href')===cur);
-    });
+  document.querySelectorAll('.nav-link').forEach(function(a){
+    a.classList.toggle('active',a.getAttribute('href')===cur);
   });
-  // Load BTC + ETH prices with correct colors
-  async function _loadNavPrices(){
-    try{
-      const [rb,re]=await Promise.all([
-        fetch('https://api.bybit.com/v5/market/tickers?category=spot&symbol=BTCUSDT').then(r=>r.json()),
-        fetch('https://api.bybit.com/v5/market/tickers?category=spot&symbol=ETHUSDT').then(r=>r.json()),
-      ]);
-      const btc=parseFloat(rb.result.list[0].lastPrice);
-      const eth=parseFloat(re.result.list[0].lastPrice);
-      const nb=document.getElementById('np-btc');
-      const ne=document.getElementById('np-eth');
-      if(nb)nb.textContent='BTC $'+btc.toLocaleString('es',{maximumFractionDigits:0});
-      if(ne)ne.textContent='ETH $'+eth.toLocaleString('es',{maximumFractionDigits:0});
-      if(eth)COState.spot=eth;
-    }catch(e){}
-  }
-  document.addEventListener('DOMContentLoaded',_loadNavPrices);
+}
+
+// navHTML() llama _initNav() con setTimeout(0) para ejecutar DESPUÉS
+// de que el nav esté en el DOM
+function _initNav(){
+  _setActiveNav();
+  _loadNavPrices();
   setInterval(_loadNavPrices,30000);
-})();
+}
