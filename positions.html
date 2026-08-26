@@ -81,7 +81,7 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .ctab:hover{color:#94a3b8}
 .ctab.active{color:#38bdf8;border-bottom-color:#38bdf8}
 .chart-container{flex:1;overflow:hidden;position:relative;min-height:250px;} /* ¡CORRECCIÓN AÑADIDA AQUÍ! */
-.legs-zone{border-top:1px solid #1e2638;flex-shrink:0}
+.legs-zone{border-top:1px solid #1e2638;flex-shrink:0;max-height:210px;overflow-y:auto}
 .legs-hdr{padding:5px 12px;background:#0d1117;border-bottom:1px solid #1e2638;display:flex;align-items:center;justify-content:space-between}
 .legs-hdr-title{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#334155;font-weight:600}
 .legs-table-wrap{overflow-x:auto}
@@ -207,7 +207,9 @@ table.legs tr:hover td{background:#0d1117}
     <div class="tb-stat"><div class="tsl">ETH</div><div class="tsv eth" id="tb-eth">$--</div></div>
     <div class="tb-stat"><div class="tsl">IVR ETH</div><div class="tsv y" id="tb-ivr">--%</div></div>
     <div class="tb-stat"><div class="tsl">PnL Total</div><div class="tsv" id="tb-pnl">$--</div></div>
-    <div class="tb-stat"><div class="tsl">Balance</div><div class="tsv w" id="tb-bal">$--</div></div>
+    <div class="tb-stat"><div class="tsl">Balance total</div><div class="tsv w" id="tb-bal">$--</div></div>
+    <div class="tb-stat"><div class="tsl">Disponible</div><div class="tsv g" id="tb-avail">$--</div></div>
+    <div class="tb-stat"><div class="tsl">Bloqueado</div><div class="tsv y" id="tb-locked">$--</div></div>
     <div class="tb-stat" style="cursor:pointer" onclick="loadAll()" title="Actualizar">
       <div class="tsl">Actualizar</div>
       <div class="tsv" id="tb-time" style="color:#475569">--:--</div>
@@ -480,6 +482,10 @@ async function loadAll(){
     el('tb-pnl').textContent=fmt(pnlTotal);
     el('tb-pnl').className='tsv '+(pnlTotal>=0?'g':'r');
     el('tb-bal').textContent=fmt(data.balance||0);
+    const avail=data.available||0;
+    const locked=Math.max(0,(data.balance||0)-avail);
+    el('tb-avail').textContent=fmt(avail);
+    el('tb-locked').textContent=fmt(locked);
     el('tb-ivr').textContent=(data.greeks?.ETH?(calcIVR(60,'ETH').toFixed(0)):'--')+'%';
     el('tb-time').textContent=new Date().toLocaleTimeString('es');
 
