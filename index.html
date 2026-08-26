@@ -930,25 +930,147 @@ async function fetchPrice(){
 
 // ── Cadena de opciones ─────────────────────────────────────────────────────
 async function fetchChain(){
-  const act=document.getElementById('activo').value;
+  const act=document.getElementById('activo').value.toUpperCase();
   const ex=document.getElementById('exchange').value;
   chainData={};
   const expSel=document.getElementById('chain-exp');
   expSel.innerHTML='<option value="">-- Vencimiento --</option>';
   if(ex==='Manual'){renderChainTable();return;}
+
   try{
-    let allOptions=[];
     if(ex==='Bybit'){
-      const r=await fetch(`https://api.bybit.com/v5/market/tickers?category=option&baseCoin=${act}`);
-      const j=await r.json();
-      if(j.result&&j.result.list){
-        allOptions=j.result.list.map(o=>{
-          const parts=o.symbol.split('-');
-          return{symbol:o.symbol,strike:parseInt(parts[2]),tipo:parts[3]==='C'?'call':'put',expiry:parts[1],
-            delta:parseFloat(o.delta||0),iv:parseFloat(o.markIv||0)*100,
-            bid:parseFloat(o.bid1Price||0),ask:parseFloat(o.ask1Price||0),
-            volume:parseFloat(o.volume24h||0),oi:parseFloat(o.openInterest||0)};
+      // 1) Descubrimiento de contratos: usar Instruments Info, no Tickers.
+      //    Así el selector refleja los vencimientos/instrumentos realmente
+      //    disponibles en Bybit, aunque todavía tengan poca actividad.
+      const instruments=[];
+      let cursor='';
+      do{
+        const params=new URLSearchParams({
+          category:'option',
+          baseCoin:act,
+          limit:'1000'
         });
+        if(cursor)params.set('cursor',cursor);
+
+        const r=await fetch(`https://api.bybit.com/v5/market/instruments-info?${params.toString()}`);
+        if(!r.ok)throw new Error(`Bybit instruments HTTP ${r.status}`);
+        const j=await r.json();
+        if(j.retCode!==0)throw new Error(j.retMsg||`Bybit instruments error ${j.retCode}`);
+
+        const list=j.result&&Array.isArray(j.result.list)?j.result.list:[];
+        instruments.push(...list);
+        cursor=(j.result&&j.result.nextPageCursor)||'';
+      }while(cursor);
+
+      const now=Date.now();
+      const bySymbol=new Map();
+
+      instruments.forEach(inst=>{
+        const symbol=inst.symbol||'';
+        const parts=symbol.split('-');
+        if(parts.length<4)return;
+
+        // Solo contratos negociables y con vencimiento futuro.
+        const status=String(inst.status||'');
+        const deliveryTime=Number(inst.deliveryTime||0);
+        if(status!=='Trading')return;
+        if(deliveryTime&&deliveryTime<=now)return;
+
+        const expiry=parts[1];
+        const strike=Number(parts[2]);
+        const tipo=parts[3]==='C'?'call':parts[3]==='P'?'put':null;
+        if(!expiry||!Number.isFinite(strike)||!tipo)return;
+
+        bySymbol.set(symbol,{
+          symbol,strike,tipo,expiry,
+          deliveryTime,
+          delta:0,iv:0,bid:0,ask:0,volume:0,oi:0
+        });
+      });
+
+      // Construir la cadena a partir de los instrumentos reales.
+      bySymbol.forEach(o=>{
+        if(!chainData[o.expiry])chainData[o.expiry]={};
+        if(!chainData[o.expiry][o.strike]){
+          chainData[o.expiry][o.strike]={call:null,put:null};
+        }
+        chainData[o.expiry][o.strike][o.tipo]=o;
+      });
+
+      const expiryMeta={};
+      bySymbol.forEach(o=>{
+        if(!expiryMeta[o.expiry] || (o.deliveryTime&&o.deliveryTime<expiryMeta[o.expiry])){
+          expiryMeta[o.expiry]=o.deliveryTime||0;
+        }
+      });
+
+      const expiries=Object.keys(chainData).sort((a,b)=>{
+        const ta=expiryMeta[a]||0;
+        const tb=expiryMeta[b]||0;
+        return ta-tb;
+      });
+
+      // Carga de mercado bajo demanda: Instruments Info descubre la cadena;
+      // Tickers aporta IV/Greeks/bid/ask/volumen/OI del vencimiento elegido.
+      const loadExpiryTickers=async(expiry)=>{
+        if(!expiry || !chainData[expiry])return;
+
+        const params=new URLSearchParams({
+          category:'option',
+          baseCoin:act,
+          expDate:expiry
+        });
+        const r=await fetch(`https://api.bybit.com/v5/market/tickers?${params.toString()}`);
+        if(!r.ok)throw new Error(`Bybit tickers HTTP ${r.status}`);
+        const j=await r.json();
+        if(j.retCode!==0)throw new Error(j.retMsg||`Bybit tickers error ${j.retCode}`);
+
+        const list=j.result&&Array.isArray(j.result.list)?j.result.list:[];
+        list.forEach(o=>{
+          const parts=(o.symbol||'').split('-');
+          if(parts.length<4)return;
+          const strike=Number(parts[2]);
+          const tipo=parts[3]==='C'?'call':parts[3]==='P'?'put':null;
+          if(!Number.isFinite(strike)||!tipo)return;
+
+          const row=chainData[expiry][strike]&&chainData[expiry][strike][tipo];
+          if(!row)return;
+
+          row.delta=parseFloat(o.delta||0);
+          row.iv=parseFloat(o.markIv||0)*100;
+          row.bid=parseFloat(o.bid1Price||0);
+          row.ask=parseFloat(o.ask1Price||0);
+          row.volume=parseFloat(o.volume24h||0);
+          row.oi=parseFloat(o.openInterest||0);
+          row.lastPrice=parseFloat(o.lastPrice||0);
+          row.markPrice=parseFloat(o.markPrice||0);
+        });
+      };
+
+      if(expiries.length){
+        expSel.innerHTML='<option value="">-- Vencimiento --</option>'+
+          expiries.map(e=>{
+            const ts=expiryMeta[e];
+            const dte=ts?Math.max(0,(ts-now)/86400000):null;
+            return `<option value="${e}">📅 ${e}${dte!==null?` · ${dte.toFixed(1)} DTE`:''}</option>`;
+          }).join('');
+
+        expSel.value=expiries[0];
+        expSel.onchange=async()=>{
+          const selected=expSel.value;
+          if(!selected){renderChainTable();return;}
+          try{
+            expSel.disabled=true;
+            await loadExpiryTickers(selected);
+          }catch(e){
+            console.log('Bybit expiry ticker error:',e);
+          }finally{
+            expSel.disabled=false;
+            renderChainTable();
+          }
+        };
+
+        await loadExpiryTickers(expiries[0]);
       }
     }else if(ex==='Deribit'){
       try{
@@ -976,21 +1098,15 @@ async function fetchChain(){
     }else if(ex==='Binance'){
       console.log('Binance: cadena sintética (CORS)');
     }
-    
-    if(allOptions.length){
-      allOptions.forEach(o=>{
-        if(!o.strike||isNaN(o.strike))return;
-        if(!chainData[o.expiry])chainData[o.expiry]={};
-        if(!chainData[o.expiry][o.strike])chainData[o.expiry][o.strike]={call:null,put:null};
-        chainData[o.expiry][o.strike][o.tipo]=o;
-      });
-    }
 
-    const expiries=Object.keys(chainData).sort();
-    if(expiries.length){
-      expSel.innerHTML='<option value="">-- Vencimiento --</option>'+
-        expiries.map(e=>`<option value="${e}">📅 ${e}</option>`).join('');
-      expSel.value=expiries[0];
+    // Para exchanges distintos de Bybit mantenemos el comportamiento existente.
+    if(ex!=='Bybit'){
+      const expiries=Object.keys(chainData).sort();
+      if(expiries.length){
+        expSel.innerHTML='<option value="">-- Vencimiento --</option>'+
+          expiries.map(e=>`<option value="${e}">📅 ${e}</option>`).join('');
+        expSel.value=expiries[0];
+      }
     }
   }catch(e){console.log('Chain error:',e);}
   renderChainTable();
