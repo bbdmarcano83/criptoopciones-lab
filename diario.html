@@ -68,6 +68,7 @@
   <div class="field"><label>Notas</label><textarea id="t-notas" placeholder="Observaciones del trade..."></textarea></div>
 
   <button class="btn success" style="width:100%;height:32px;margin-bottom:6px" onclick="addTrade()">+ Registrar trade</button>
+  <button id="btn-import" class="btn" style="width:100%;height:32px;margin-bottom:6px;background:#0c1a2e;border:1px solid #1e3a5f;color:#38bdf8" onclick="importFromBot()">🤖 Importar del bot</button>
   <button class="btn danger" style="width:100%;height:32px" onclick="clearAll()">🗑 Limpiar diario</button>
 </div>
 
@@ -244,8 +245,166 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='criptoopciones_diario.csv';a.click();
 }
 
+// ── Bot config ────────────────────────────────────────────────────────────
+const BOT_CONFIG={
+  get url(){return localStorage.getItem('co_bot_url')||localStorage.getItem('bot_url')||''},
+  get token(){return localStorage.getItem('co_bot_token')||localStorage.getItem('bot_token')||''},
+};
+async function botFetch(path,opts={}){
+  if(!BOT_CONFIG.url||!BOT_CONFIG.token)throw new Error('Bot no configurado');
+  const r=await fetch(BOT_CONFIG.url+path,{
+    ...opts,
+    headers:{'X-Bot-Token':BOT_CONFIG.token,'Content-Type':'application/json',...(opts.headers||{})}
+  });
+  if(!r.ok)throw new Error(await r.text());
+  return r.json();
+}
+
+// ── Auto-import desde bot ─────────────────────────────────────────────────
+async function importFromBot(){
+  const btn=document.getElementById('btn-import');
+  if(btn){btn.textContent='Importando...';btn.disabled=true;}
+  try{
+    // 1. Posiciones actuales abiertas → pre-llenar el formulario
+    const live=await botFetch('/live');
+    const positions=live.estrategias||[];
+
+    if(positions.length>0){
+      const p=positions[0]; // Tomar la primera posición
+      const legs=p.legs||[];
+      const sells=legs.filter(l=>l.side==='sell');
+
+      // Pre-llenar formulario
+      document.getElementById('t-activo').value=p.asset||'ETH';
+      document.getElementById('t-contrato').value=p.label||'';
+
+      // Estrategia
+      const stratMap={'IC':'Iron Condor','IB':'Iron Butterfly','CS':'Bull Call Spread','DS':'Debit Spread','CAL':'Calendar Spread'};
+      const stratEl=document.getElementById('t-estrategia');
+      const stratVal=stratMap[p.estrategia]||'Iron Condor';
+      for(let o of stratEl.options){if(o.text===stratVal){stratEl.value=o.value;break;}}
+
+      // Prima entrada = crédito total
+      document.getElementById('t-prima-in').value=(p.credito_entrada||0).toFixed(2);
+      // Prima salida actual = crédito - PnL
+      const primaOut=Math.max(0,(p.credito_entrada||0)-(p.pnl||0));
+      document.getElementById('t-prima-out').value=primaOut.toFixed(2);
+
+      // Qty
+      const qty=legs.length>0?legs[0].size:0.1;
+      document.getElementById('t-qty').value=qty;
+
+      // DTE desde expiry
+      const months={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+      let dte=0;
+      try{
+        const e=p.expiry;
+        if(/^\d{2}[A-Z]{3}\d{2}$/.test(e)){
+          const d=+e.substring(0,2),m=months[e.substring(2,5)],y=2000+(+e.substring(5,7));
+          dte=Math.max(0,Math.round((new Date(y,m,d)-Date.now())/86400000));
+        }
+      }catch{}
+      document.getElementById('t-dte').value=dte;
+
+      // IVR
+      document.getElementById('t-ivr').value=Math.round(p.iv_rank_entry||50);
+
+      // Dirección
+      const hasCall=legs.some(l=>l.is_call&&l.side==='sell');
+      const hasPut=legs.some(l=>l.is_put&&l.side==='sell');
+      document.getElementById('t-dir').value=(hasCall&&hasPut)?'NEUTRAL':hasCall?'CALL':'PUT';
+
+      showToast(`✅ Formulario pre-llenado con ${p.estrategia} ${p.asset}`, true);
+    }
+
+    // 2. Importar trades cerrados desde historial del bot
+    try{
+      const stats=await botFetch('/stats');
+      let imported=0;
+      const existingIds=new Set(trades.map(t=>t.id));
+
+      // Posiciones cerradas de la DB
+      const closed=await botFetch('/positions').catch(()=>[]);
+      const closedPos=Array.isArray(closed)?closed.filter(p=>p.status==='closed'):[];
+
+      for(const p of closedPos){
+        const tradeId=p.id||Date.now()+Math.random();
+        if(existingIds.has(tradeId))continue;
+
+        const pnl=parseFloat(p.pnl||0);
+        const cred=parseFloat(p.credit_received||0);
+        const qty=parseFloat(p.contracts||0.1);
+
+        const newTrade={
+          id:tradeId,
+          fecha:p.entry_time?p.entry_time.split('T')[0]:new Date().toISOString().split('T')[0],
+          activo:p.asset||'ETH',
+          contrato:p.label||'--',
+          estrategia:p.strategy||'Iron Condor',
+          dir:'NEUTRAL',
+          primaIn:cred,
+          primaOut:Math.max(0,cred-pnl),
+          qty:qty,
+          pnl:pnl,
+          dte:16,
+          ivr:parseFloat(p.iv_rank_entry||50),
+          motivo:p.status==='tp'?'Take Profit':p.status==='sl'?'Stop Loss':'Manual',
+          duracion:0,
+          notas:`Importado del bot — ${p.label}`,
+          wl:pnl>0?'WIN':pnl<0?'LOSS':'FLAT',
+          imported:true,
+        };
+        trades.push(newTrade);
+        imported++;
+      }
+
+      if(imported>0){
+        localStorage.setItem('co_diario',JSON.stringify(trades));
+        renderAll();
+        showToast(`✅ ${imported} trade(s) importado(s) del bot`, true);
+      }else if(closedPos.length===0){
+        showToast('Sin trades cerrados en el bot aún', true);
+      }
+    }catch(e2){
+      console.log('Stats import:', e2.message);
+    }
+
+  }catch(e){
+    showToast('❌ '+e.message, false);
+  }finally{
+    if(btn){btn.textContent='🤖 Importar del bot';btn.disabled=false;}
+  }
+}
+
+function showToast(msg, ok){
+  let t=document.getElementById('diario-toast');
+  if(!t){
+    t=document.createElement('div');t.id='diario-toast';
+    t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:6px;font-size:12px;z-index:999;transition:opacity .3s';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.background=ok?'#052e16':'#1f0a0a';
+  t.style.border=ok?'1px solid #166534':'1px solid #7f1d1d';
+  t.style.color=ok?'#10b981':'#f43f5e';
+  t.style.opacity='1';
+  setTimeout(()=>t.style.opacity='0',3000);
+}
+
+// Fix nav active
+(function(){
+  const cur=location.pathname.split('/').pop()||'index.html';
+  document.querySelectorAll('.nav-link').forEach(a=>{
+    a.classList.toggle('active',a.getAttribute('href')===cur);
+  });
+})();
+
 async function navRefresh(){}
-window.addEventListener('load',()=>renderAll());
+window.addEventListener('load',()=>{
+  renderAll();
+  // Auto-refresh IVR en nav
+  navRefresh();
+});
 </script>
 </body>
 </html>
