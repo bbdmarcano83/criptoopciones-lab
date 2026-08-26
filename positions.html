@@ -80,7 +80,7 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .ctab{padding:0 14px;font-size:11px;color:#475569;cursor:pointer;display:flex;align-items:center;border-bottom:2px solid transparent;transition:all .15s}
 .ctab:hover{color:#94a3b8}
 .ctab.active{color:#38bdf8;border-bottom-color:#38bdf8}
-.chart-container{flex:1;overflow:hidden}
+.chart-container{flex:1;overflow:hidden;position:relative;min-height:250px;} /* ¡CORRECCIÓN AÑADIDA AQUÍ! */
 .legs-zone{border-top:1px solid #1e2638;flex-shrink:0}
 .legs-hdr{padding:5px 12px;background:#0d1117;border-bottom:1px solid #1e2638;display:flex;align-items:center;justify-content:space-between}
 .legs-hdr-title{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#334155;font-weight:600}
@@ -273,12 +273,13 @@ table.legs tr:hover td{background:#0d1117}
           <div class="legs-table-wrap">
             <table class="legs" id="legs-table">
               <thead><tr>
-                <th>Símbolo</th><th>Tipo</th><th>Acción</th><th>Strike</th>
+                <!-- ¡CORRECCIÓN AÑADIDA AQUÍ: Columna "Cant."! -->
+                <th>Símbolo</th><th>Tipo</th><th>Acción</th><th>Cant.</th><th>Strike</th>
                 <th>Entrada</th><th>Actual</th><th>IV%</th>
                 <th>PnL Pata</th><th>Delta Δ</th><th>Theta θ</th><th>Vega ν</th>
               </tr></thead>
               <tbody id="legs-body">
-                <tr><td colspan="11" style="text-align:center;color:#334155;padding:12px">Sin datos</td></tr>
+                <tr><td colspan="12" style="text-align:center;color:#334155;padding:12px">Sin datos</td></tr>
               </tbody>
             </table>
           </div>
@@ -685,7 +686,8 @@ function selectRoll(o){
 function renderLegsTable(){
   const p=selectedPos;
   if(!p||!p.legs?.length){
-    el('legs-body').innerHTML='<tr><td colspan="11" style="text-align:center;color:#334155;padding:10px">Sin patas disponibles</td></tr>';
+    // ¡CORRECCIÓN AÑADIDA AQUÍ: colspan=12!
+    el('legs-body').innerHTML='<tr><td colspan="12" style="text-align:center;color:#334155;padding:10px">Sin patas disponibles</td></tr>';
     return;
   }
   el('legs-ts').textContent=p.legs.length+' patas';
@@ -697,6 +699,7 @@ function renderLegsTable(){
       <td style="font-family:monospace;font-size:9px;color:#475569">${l.symbol}</td>
       <td><span class="leg-type ${typeClass}">${typeLabel}</span></td>
       <td><span class="leg-side ${l.side}">${l.side.toUpperCase()}</span></td>
+      <td style="font-weight:700;color:#e2e8f0">${l.size||1}</td> <!-- ¡CORRECCIÓN AÑADIDA AQUÍ: Columna Size! -->
       <td style="color:#e2e8f0;font-weight:600">$${(l.strike||0).toLocaleString()}</td>
       <td style="color:#64748b">$${(l.avg_price||0).toFixed(2)}</td>
       <td style="color:#e2e8f0">$${(l.mark_price||0).toFixed(2)}</td>
@@ -1013,6 +1016,12 @@ function showToast(msg,type){toast(msg,type);}
 window.addEventListener('load',()=>{
   loadAll();
   autoRefreshTimer=setInterval(loadAll,30000);
+});
+
+/* ¡CORRECCIÓN AÑADIDA AQUÍ: Fix para Plotly Resize! */
+window.addEventListener('resize', () => {
+  const chart = document.getElementById('main-chart');
+  if(chart) Plotly.Plots.resize(chart);
 });
 </script>
 </body>
