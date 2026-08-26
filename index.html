@@ -197,7 +197,7 @@ input[type=range]{width:100%;accent-color:#38bdf8;height:16px;margin-bottom:1px}
   .summary-bar>div{min-width:calc(50% - 4px);font-size:10px}
   #bot-section{width:100%}
   .portfolio-item{font-size:11px}
-  input[type=number],input[type=text],select{font-size:16px} /* prevents zoom on iOS */
+  input[type=number],input[type=text],select{font-size:16px}
 }
 @media(max-width:480px){
   .nav a{padding:5px 8px;font-size:10px}
@@ -469,19 +469,23 @@ const BotAPI={
   async adoptar(asset,estrategia,legs,tpPct=50,slPct=100,label=''){return botFetch('/adoptar',{method:'POST',body:JSON.stringify({asset,estrategia,patas:legs,tp_pct:tpPct,sl_pct:slPct,label})})},
   async ejecutar(legs,dryRun=false){return botFetch('/ejecutar',{method:'POST',body:JSON.stringify({patas:legs,dry_run:dryRun})})},
 };
-async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100){
+async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100,dryRun=false){
   if(!legs?.length){alert('No hay patas armadas');return;}
   if(!BOT_CONFIG.url||!BOT_CONFIG.token){alert('Configura el bot primero (⚙️ Bot)');return;}
   const credNeto=legs.reduce((s,l)=>s+((l.accion==='sell'?l.prima:-l.prima)*l.qty),0);
   const resumen=legs.map(l=>`${l.accion.toUpperCase()} ${l.tipo.toUpperCase()} $${l.strike} x ${l.qty} @ $${l.prima}`).join('\n');
-  if(!confirm(`¿Ejecutar en Bybit?\n\n${resumen}\n\nCrédito neto: $${credNeto.toFixed(2)}\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Órdenes REALES`))return;
+  if(!dryRun && !confirm(`¿Ejecutar en Bybit?\n\n${resumen}\n\nCrédito neto: $${credNeto.toFixed(2)}\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Órdenes REALES`))return;
   try{
     const patasEjec=legs.map(l=>({symbol:l.contrato||`${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}`,side:l.accion==='buy'?'Buy':'Sell',qty:l.qty}));
-    const resEjec=await BotAPI.ejecutar(patasEjec,false);
+    const resEjec=await BotAPI.ejecutar(patasEjec,dryRun);
     if(!resEjec.ok)throw new Error(resEjec.error||'Error ejecutando');
-    const patasAdopt=legs.map(l=>({symbol:l.contrato||`${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}`,side:l.accion,qty:l.qty,prima:l.prima}));
-    const resAdopt=await BotAPI.adoptar(asset,estrategia,patasAdopt,tpPct,slPct);
-    alert(`✅ Ejecutado!\nCrédito: $${resAdopt.credito_neto?.toFixed(2)||credNeto.toFixed(2)}\nLabel: ${resAdopt.label}\nBot gestiona TP/SL`);
+    if(!dryRun){
+      const patasAdopt=legs.map(l=>({symbol:l.contrato||`${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}`,side:l.accion,qty:l.qty,prima:l.prima}));
+      const resAdopt=await BotAPI.adoptar(asset,estrategia,patasAdopt,tpPct,slPct);
+      alert(`✅ Ejecutado!\nCrédito: $${resAdopt.credito_neto?.toFixed(2)||credNeto.toFixed(2)}\nLabel: ${resAdopt.label}\nBot gestiona TP/SL`);
+    } else {
+      alert(`🔍 Simulación exitosa:\n${resumen}\nCrédito estimado: $${credNeto.toFixed(2)}`);
+    }
     if(document.getElementById('portfolio-mini'))refreshPortfolio();
   }catch(e){alert('❌ '+e.message);}
 }
@@ -554,16 +558,12 @@ function loadTpl(n){
   const w=Math.max(step,Math.round((S*0.04)/step)*step);
   const Sr=Math.round(S/step)*step;
   legs=TPLS[n](Sr,w,IV).map(([tipo,accion,strike,prima,qty,iv])=>({tipo,accion,strike:+strike,prima:+prima,qty:+qty,iv:+iv,contrato:''}));
-  // Sincronizar activo seleccionado
   const act=document.getElementById('activo').value;
   document.getElementById('exec-activo-sel').value=act;
-  // Sincronizar estrategia
   const stratMap={'🦅 IC':'IC','🦋 IB':'IB','🔰 BWC':'BWC','📈 BCS':'CS','📉 BPS':'CS','💰 DSC':'DS','💰 DSP':'DS','⚡ Strad':'IC','🌊 Stran':'IC'};
   document.getElementById('exec-strat-sel').value=stratMap[n]||'IC';
-  // Guardar en estado compartido
   if(typeof COState!=='undefined')COState.legs=legs;
   renderLegs();recalc();
-  // Mostrar botón ejecutar si bot configurado
   updateExecBtn();
 }
 
@@ -690,10 +690,11 @@ function plotPayoff(d){
   ];
   Plotly.react('chart',traces,{...DARK,xaxis:{tickformat:'$,.0f',gridcolor:'#1e2638'},yaxis:{tickformat:'$,.2f',gridcolor:'#1e2638'},legend:{orientation:'h',y:1.07,font:{size:10}},hovermode:'x unified',shapes,annotations:anns,dragmode:'pan'},{responsive:true,scrollZoom:true,displayModeBar:false});
   const el=document.getElementById('chart');
-  // Remover listeners anteriores para evitar memory leak
-  el.removeAllListeners('plotly_hover');
-  el.removeAllListeners('plotly_unhover');
-  el.removeAllListeners('plotly_click');
+  if (el.off) {
+    el.off('plotly_hover');
+    el.off('plotly_unhover');
+    el.off('plotly_click');
+  }
   el.on('plotly_hover',e=>{if(!e.points||!e.points[0])return;updateCursorBar(e.points[0].x,precios,pnlV,pnlH,d);});
   el.on('plotly_unhover',()=>{if(cursorPx===null)document.getElementById('cursor-bar').classList.remove('show');});
   el.on('plotly_click',e=>{if(!e.points||!e.points[0])return;cursorPx=e.points[0].x;plotPayoff(chartData);});
@@ -741,7 +742,7 @@ function plotGreeks(d){
 function plotScenarios(d){
   const{S}=d;const pcts=[-20,-15,-10,-5,-2,0,2,5,10,15,20];
   const pnls=pcts.map(pct=>{const pe=S*(1+pct/100);return legs.reduce((s,l)=>{const ev=l.tipo==='call'?Math.max(0,pe-l.strike):Math.max(0,l.strike-pe);return s+(l.accion==='buy'?(ev-l.prima):(l.prima-ev))*l.qty;},0);});
-  Plotly.react('chart',[{x:pcts.map(p=>`${p>=0?'+':''}${p}%`),y:pnls,type:'bar',marker:{color:pnls.map(v=>v>=0?'#10b981':'#f43f5e'),opacity:0.85},text:pnls.map(v=>fmt(v)),textposition:'outside',textfont:{size:9},hovertemplate:'%{x} → $%{y:.2f}<extra></extra>'}],
+  Plotly.react('chart',[{x:pcts.map(p=>`${p>=0?'+':''}${p}%`),y:pnls,type:'bar',marker:{color:pnls.map(v=>v>=0?'#10b981':'#f43f5e'),opacity:0.85},text:pnls.map(v=>fmt(v)),textposition:'outside',textfont:{size:9},hovertemplate:'%{x} → $%{z:.2f}<extra></extra>'}],
     {...DARK,xaxis:{title:'Movimiento'},yaxis:{gridcolor:'#1e2638',tickformat:'$,.2f'},shapes:[{type:'line',x0:-0.5,x1:20.5,y0:0,y1:0,line:{color:'#253146',dash:'dash',width:1}}]},{responsive:true,displayModeBar:false});
 }
 
@@ -781,10 +782,7 @@ async function fetchPriceRange(){
   const S=parseFloat(document.getElementById('spot').value)||77000;
   try{
     const now=Date.now();
-    const ms6=now-180*24*3600*1000;
-    const ms12=now-365*24*3600*1000;
     let data6=null,data12=null;
-    // CoinGecko API — permite CORS desde browser, datos reales de mercado
     const cgIds={BTC:'bitcoin',ETH:'ethereum',SOL:'solana',BNB:'binancecoin'};
     const cgId=cgIds[act]||'bitcoin';
     const [r6,r12]=await Promise.all([
@@ -827,39 +825,31 @@ async function fetchIVR(){
   const act=document.getElementById('activo').value;
   const ex=document.getElementById('exchange').value;
   if(ex==='Manual')return;
-  // Deribit IVR — usa DVOL (índice oficial de volatilidad de Deribit)
-  // + histórico de 52 semanas para calcular el rango real
   if(ex==='Deribit'){
     try{
       const currency=act.toLowerCase();
-      // DVOL actual — índice oficial de volatilidad implícita de Deribit
       const [rDvol, rHist] = await Promise.all([
         fetch(`https://www.deribit.com/api/v2/public/get_index_price?index_name=${currency}_usd`),
-        fetch(`https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${currency}&start_timestamp=${Date.now()-365*24*3600*1000}&end_timestamp=${Date.now()}&resolution=3600`)
+        fetch(`https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${currency}&start_timestamp=${Date.now()-365*24*3600*1000}&end_timestamp=${Date.now()}&resolution=86400`)
       ]);
       const jDvol = await rDvol.json();
       const jHist = await rHist.json();
 
-      // IV actual desde DVOL o historical_volatility
       let ivActual = 0;
       const rIV = await fetch(`https://www.deribit.com/api/v2/public/get_historical_volatility?currency=${currency}`);
       const jIV = await rIV.json();
       if(jIV.result?.length>0) ivActual = jIV.result[jIV.result.length-1][1]||0;
 
-      // Rango 52w real desde el histórico del DVOL
       let ivMin=30,ivMax=120,ivr=50;
       if(jHist.result?.data?.length>0){
-        const vals=jHist.result.data.map(d=>d[4]).filter(v=>v>0); // close price del DVOL
+        const vals=jHist.result.data.map(d=>d[4]).filter(v=>v>0);
         if(vals.length>0){
           if(ivActual===0)ivActual=vals[vals.length-1];
-          // Usar rangos históricos conocidos para IVR real — el DVOL de 30 días
-          // no tiene suficiente historia para calcular IVR de 52 semanas
           ivr=+calcIVR(ivActual,act).toFixed(1);
           ivMin=IV_RANGES[act]?.min||30;
           ivMax=IV_RANGES[act]?.max||120;
         }
       }else{
-        // Fallback a rangos conocidos
         ivr=+calcIVR(ivActual||45,act).toFixed(1);
         const r=IV_RANGES[act]||{min:30,max:120};
         ivMin=r.min;ivMax=r.max;
@@ -876,13 +866,11 @@ async function fetchIVR(){
         document.getElementById('ivr-strat').textContent=ivr>=65?'🦅 IC / 🦋 IB (vender prima)':ivr>=35?'📆 Calendar Spread':'⚡ Straddle / Debit Spread';
         document.getElementById('iv').value=Math.round(ivActual);
         document.getElementById('iv-val').textContent=Math.round(ivActual)+'%';
-        console.log(`✅ IVR Deribit real: ${act} IVR=${ivr.toFixed(1)}% IV=${ivActual.toFixed(1)}% rango:${ivMin}-${ivMax}%`);
         return;
       }
     }catch(e){console.log('Deribit IVR error:',e);}
   }
 
-  // Binance bloquea CORS desde browser — usar solo Bybit
   if(ex==='Binance'){
     const ivActual=parseFloat(document.getElementById('iv').value)||45;
     const ivr=+calcIVR(ivActual,act).toFixed(1);
@@ -903,7 +891,6 @@ async function fetchIVR(){
     if(ivs.length>0){
       const ivActual=+(ivs.reduce((a,b)=>a+b,0)/ivs.length).toFixed(1);
       const ivMin=+Math.min(...ivs).toFixed(1),ivMax=+Math.max(...ivs).toFixed(1);
-      // FIX: usar rangos históricos reales de 52 semanas
       const ivr=+calcIVR(ivActual,act).toFixed(1);
       document.getElementById('ivr-actual').textContent=ivActual+'%';
       document.getElementById('ivr-rank').textContent=ivr.toFixed(1)+'%';
@@ -969,7 +956,6 @@ async function fetchChain(){
         const r=await fetch(`https://www.deribit.com/api/v2/public/get_instruments?currency=${currency}&kind=option&expired=false`);
         const j=await r.json();
         if(j.result){
-          // Obtener tickers para los instrumentos
           const instruments=j.result.slice(0,100);
           for(const inst of instruments){
             const parts=inst.instrument_name.split('-');
@@ -988,9 +974,9 @@ async function fetchChain(){
         }
       }catch(e){console.log('Deribit chain error:',e);}
     }else if(ex==='Binance'){
-      // Binance bloquea CORS — cadena sintética con BS
       console.log('Binance: cadena sintética (CORS)');
     }
+    
     if(allOptions.length){
       allOptions.forEach(o=>{
         if(!o.strike||isNaN(o.strike))return;
@@ -998,10 +984,13 @@ async function fetchChain(){
         if(!chainData[o.expiry][o.strike])chainData[o.expiry][o.strike]={call:null,put:null};
         chainData[o.expiry][o.strike][o.tipo]=o;
       });
-      const expiries=Object.keys(chainData).sort();
+    }
+
+    const expiries=Object.keys(chainData).sort();
+    if(expiries.length){
       expSel.innerHTML='<option value="">-- Vencimiento --</option>'+
         expiries.map(e=>`<option value="${e}">📅 ${e}</option>`).join('');
-      if(expiries.length)expSel.value=expiries[0];
+      expSel.value=expiries[0];
     }
   }catch(e){console.log('Chain error:',e);}
   renderChainTable();
@@ -1182,7 +1171,7 @@ async function confirmarEjecucion(dryRun){
   const slPct=parseFloat(document.getElementById('exec-sl').value)||100;
   closeExecModal();
   try{
-    await ejecutarEstrategia(legs,asset,estrategia,tpPct,slPct);
+    await ejecutarEstrategia(legs,asset,estrategia,tpPct,slPct,dryRun);
     if(!dryRun)refreshPortfolio();
   }catch(e){alert('❌ '+e.message);}
 }
@@ -1222,7 +1211,6 @@ async function fetchAll(){await fetchPrice();await Promise.all([fetchIVR(),fetch
 
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('load',async()=>{
-  // Restaurar exchange y activo guardados
   const savedEx=localStorage.getItem('co_exchange')||'Bybit';
   const savedAct=localStorage.getItem('co_activo')||'BTC';
   document.getElementById('exchange').value=savedEx;
@@ -1235,8 +1223,6 @@ window.addEventListener('load',async()=>{
   refreshPortfolio();
 
   // ── Cargar patas si venimos de Posiciones (aumentar contratos) ──────────
-  // Leer de co_pending_legs (key dedicada) — DESPUÉS de onAssetChange
-  // para que no sea sobreescrita por loadTpl()
   const pendingLegsStr=localStorage.getItem('co_pending_legs');
   const pendingActivo=localStorage.getItem('co_pending_activo');
   if(pendingLegsStr){
@@ -1245,41 +1231,24 @@ window.addEventListener('load',async()=>{
       localStorage.removeItem('co_pending_legs');
       localStorage.removeItem('co_pending_activo');
       if(pendingLegs&&pendingLegs.length>0){
-        // Cambiar activo si es diferente
         if(pendingActivo){
           document.getElementById('activo').value=pendingActivo;
           localStorage.setItem('co_activo',pendingActivo);
         }
-        // Cargar patas
         legs=pendingLegs.map(l=>({
           tipo:    l.tipo||'call',
           accion:  l.accion||'buy',
           strike:  parseFloat(l.strike)||0,
           prima:   parseFloat(l.prima)||0,
           qty:     parseFloat(l.qty)||0.1,
-          iv:      parseFloat(l.iv)||50,
-          contrato:l.contrato||'',
+          iv:      parseFloat(l.iv)||45,
+          contrato:l.contrato||''
         }));
-        // Limpiar plantilla activa para que no sobreescriba
-        currentTpl=null;
         renderLegs();
         recalc();
-        // Banner
-        const msg=localStorage.getItem('co_ajuste_msg');
-        if(msg){
-          localStorage.removeItem('co_ajuste_msg');
-          const banner=document.createElement('div');
-          banner.style.cssText='position:fixed;top:48px;left:50%;transform:translateX(-50%);background:#052e16;border:1px solid #166534;border-radius:6px;padding:8px 16px;font-size:12px;color:#10b981;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.5)';
-          banner.textContent='✅ '+msg;
-          document.body.appendChild(banner);
-          setTimeout(()=>banner.remove(),5000);
-        }
       }
-    }catch(e){console.log('Error loading pending legs:',e);}
+    }catch(e){console.error("Error cargando patas pendientes:",e);}
   }
-
-  setInterval(fetchAll,15000);
-  setInterval(refreshPortfolio,30000);
 });
 </script>
 </body>
