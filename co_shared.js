@@ -34,19 +34,50 @@ const COState={
   get rfr(){return parseFloat(localStorage.getItem('co_rfr')||'5')/100},
 };
 
-// Rangos históricos de IV por activo (52 semanas aproximados)
+// Rangos históricos 52w unificados (Sincronizados con Bot Python)
 const IV_RANGES = {
-  BTC: {min: 38, max: 120},
-  ETH: {min: 30, max: 110},
-  SOL: {min: 45, max: 180},
-  BNB: {min: 25, max: 90},
+  BTC: {min: 21.9, max: 83.9},
+  ETH: {min: 28.3, max: 106.0},
+  SOL: {min: 35.0, max: 120.0},
+  BNB: {min: 25.0, max: 90.0},
 };
 
-// Calcular IVR correcto usando histórico conocido
+// Parser unificado de fechas de vencimiento
+function parseExpiryDate(expStr) {
+  if (!expStr) return 0;
+  if (!isNaN(expStr)) return Number(expStr);
+  const months = {JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+  const m = String(expStr).trim().match(/^(\d{1,2})([A-Z]{3})(\d{2,4})$/i);
+  if (m) {
+    const day = parseInt(m[1], 10);
+    const mon = months[m[2].toUpperCase()] || 0;
+    let yr = parseInt(m[3], 10);
+    if (yr < 100) yr += 2000;
+    return new Date(yr, mon, day).getTime();
+  }
+  return Date.parse(expStr) || 0;
+}
+
+// Calcular IVR unificado
 function calcIVR(ivActual, activo){
-  const range = IV_RANGES[activo] || {min:30, max:120};
+  const range = IV_RANGES[activo] || {min: 25.0, max: 100.0};
   const ivr = ((ivActual - range.min) / (range.max - range.min)) * 100;
-  return Math.max(0, Math.min(100, ivr));
+  return +Math.max(0, Math.min(100, ivr)).toFixed(1);
+}
+
+// Extractor unificado de IV ATM del primer vencimiento
+function obtenerIVATM(opts, spot) {
+  if (!opts || !opts.length) return COState.iv || 48.5;
+  const validas = opts.filter(o => o.iv > 5 && o.iv < 300);
+  if (!validas.length) return COState.iv || 48.5;
+
+  const expiries = [...new Set(validas.map(o => o.expiry))].sort((a,b) => parseExpiryDate(a) - parseExpiryDate(b));
+  const frontOpts = validas.filter(o => o.expiry === expiries[0]);
+
+  const atmOpt = frontOpts.reduce((prev, curr) => 
+    Math.abs(curr.strike - spot) < Math.abs(prev.strike - spot) ? curr : prev, frontOpts[0]);
+
+  return +(atmOpt ? atmOpt.iv : 48.5).toFixed(1);
 }
 
 // Fetch precio
@@ -165,11 +196,10 @@ function navHTML(activePage){
     <span class="nav-ivr badge" id="nav-ivr">IVR --</span>
     <button class="nav-btn" onclick="navRefresh()">⟳</button>
   </nav>`;
-  // Ejecutar DESPUÉS de que el nav esté en el DOM
   setTimeout(_initNav, 0);
 }
 
-// ── Auto-init nav prices y active link ─────────────────────────────────────
+// Auto-init nav prices y active link sin sobrescribir el spot activo
 async function _loadNavPrices(){
   try{
     const [rb,re]=await Promise.all([
@@ -182,20 +212,20 @@ async function _loadNavPrices(){
     const ne=document.getElementById('np-eth');
     if(nb)nb.textContent='BTC $'+btc.toLocaleString('es',{maximumFractionDigits:0});
     if(ne)ne.textContent='ETH $'+eth.toLocaleString('es',{maximumFractionDigits:0});
-    if(eth)COState.spot=eth;
+    
+    // Asignar al spot el precio del activo actualmente seleccionado
+    const spotActivo = COState.activo === 'BTC' ? btc : COState.activo === 'ETH' ? eth : null;
+    if(spotActivo) COState.spot = spotActivo;
   }catch(e){}
 }
 
 function _setActiveNav(){
-  // Detectar página actual y marcar link activo
   const cur=location.pathname.split('/').pop()||'index.html';
   document.querySelectorAll('.nav-link').forEach(function(a){
     a.classList.toggle('active',a.getAttribute('href')===cur);
   });
 }
 
-// navHTML() llama _initNav() con setTimeout(0) para ejecutar DESPUÉS
-// de que el nav esté en el DOM
 function _initNav(){
   _setActiveNav();
   _loadNavPrices();
