@@ -2,430 +2,665 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CriptoOpciones Lab — Manual de Usuario</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>CriptoOpciones LAB — Manual Operativo Institucional</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b0e14;color:#e2e8f0;line-height:1.6}
-nav{background:#121721;border-bottom:1px solid #1e2638;padding:0 16px;display:flex;align-items:center;height:44px;position:sticky;top:0;z-index:100;gap:12px}
-.nav-logo{font-size:14px;font-weight:700}.nav-logo .c{color:#38bdf8}.nav-logo .o{color:#f8fafc}
-.nav-links{display:flex;gap:4px}
-.nav-link{padding:4px 10px;font-size:11px;color:#475569;text-decoration:none;border-radius:4px}
-.nav-link:hover{color:#38bdf8;background:#18202f}
-.container{max-width:900px;margin:0 auto;padding:24px 20px}
-h1{font-size:24px;font-weight:700;color:#f8fafc;margin-bottom:8px}
-h2{font-size:18px;font-weight:700;color:#38bdf8;margin:32px 0 12px;padding-bottom:8px;border-bottom:1px solid #1e2638}
-h3{font-size:14px;font-weight:600;color:#f59e0b;margin:20px 0 8px}
-h4{font-size:12px;font-weight:600;color:#10b981;margin:14px 0 6px}
-p{font-size:13px;color:#94a3b8;margin-bottom:10px}
-.lead{font-size:15px;color:#c8cfe0;margin-bottom:20px}
-.card{background:#121721;border:1px solid #1e2638;border-radius:8px;padding:16px;margin-bottom:12px}
-.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:4px}
-.badge-blue{background:#0c1a2e;border:1px solid #38bdf8;color:#38bdf8}
-.badge-green{background:#052e16;border:1px solid #10b981;color:#10b981}
-.badge-amber{background:#1c1200;border:1px solid #f59e0b;color:#f59e0b}
-.badge-red{background:#1f0a0a;border:1px solid #f43f5e;color:#f43f5e}
-.badge-purple{background:#1a0a2e;border:1px solid #a78bfa;color:#a78bfa}
-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
-th{background:#0b0e14;padding:8px 10px;text-align:left;color:#475569;font-weight:500;border-bottom:1px solid #1e2638}
-td{padding:7px 10px;border-bottom:1px solid #18202f;color:#94a3b8;vertical-align:top}
-td:first-child{color:#e2e8f0;font-weight:500;white-space:nowrap}
-code{background:#18202f;border:1px solid #253146;border-radius:3px;padding:1px 6px;font-size:11px;color:#38bdf8;font-family:monospace}
-.tip{background:#0c1a2e;border:1px solid #1e3a5f;border-radius:6px;padding:10px 14px;margin:10px 0;font-size:12px;color:#7dd3fc}
-.tip::before{content:"💡 ";font-weight:700}
-.warning{background:#1c1200;border:1px solid #92400e;border-radius:6px;padding:10px 14px;margin:10px 0;font-size:12px;color:#fcd34d}
-.warning::before{content:"⚠️ ";font-weight:700}
-.danger{background:#1f0a0a;border:1px solid #7f1d1d;border-radius:6px;padding:10px 14px;margin:10px 0;font-size:12px;color:#fca5a5}
-.danger::before{content:"🔴 ";font-weight:700}
-.step{display:flex;gap:12px;margin-bottom:10px;align-items:flex-start}
-.step-num{background:#38bdf8;color:#0b0e14;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:2px}
-.step-content{flex:1}
-.step-title{font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:3px}
-.step-desc{font-size:12px;color:#64748b}
-.toc{background:#121721;border:1px solid #1e2638;border-radius:8px;padding:16px;margin-bottom:24px}
-.toc h3{color:#38bdf8;margin:0 0 10px}
-.toc a{display:block;font-size:12px;color:#64748b;text-decoration:none;padding:3px 0;border-bottom:1px solid #18202f}
-.toc a:hover{color:#38bdf8}
-.toc a:last-child{border:none}
-.section-icon{font-size:18px;margin-right:8px}
-ul{padding-left:16px;margin-bottom:10px}
-ul li{font-size:12px;color:#94a3b8;margin-bottom:4px}
-hr{border:none;border-top:1px solid #1e2638;margin:24px 0}
+:root{--bg:#080c12;--p:#0c121b;--p2:#101823;--b:#1c2a3b;--b2:#29405a;--txt:#dce8f5;--mut:#748aa2;--cyan:#38bdf8;--green:#35d08a;--red:#ff6d7a;--amber:#f6ad42;--vio:#9aa6ff}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--txt);font-family:"Segoe UI",Arial,sans-serif}
+body{overflow:hidden;font-size:12px}
+.top{height:36px;background:#0b1017;border-bottom:1px solid var(--b);display:flex;align-items:center}
+.logo{height:100%;padding:0 14px;border-right:1px solid var(--b);display:flex;align-items:center;font-weight:800}.logo .c{color:var(--cyan)}.logo .l{font-size:9px;color:#53677d;margin-left:3px}
+.nav{display:flex;height:100%}.nav a{display:flex;align-items:center;padding:0 10px;text-decoration:none;color:#586b82;font-size:10px;border-bottom:2px solid transparent}.nav a.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.spacer{flex:1}.actions{display:flex;gap:4px;padding-right:7px}.btn{height:25px;border:1px solid #2b4057;background:#101925;color:#9fb2c6;border-radius:4px;padding:0 8px;font:700 7px "Segoe UI";cursor:pointer}.btn:hover{border-color:var(--cyan);color:#eaf8ff}.btn.pdf{border-color:#236b8e;color:#69d8ff;background:#082337}.btn.sec{border-color:#61511f;color:#ffc75c;background:#1b1607}
+.shell{height:calc(100vh - 36px - 19px);display:flex;overflow:hidden}
+.toc{width:220px;flex:0 0 220px;background:#0b1017;border-right:1px solid var(--b);display:flex;flex-direction:column;overflow:hidden}
+.toc-head{height:32px;padding:0 9px;border-bottom:1px solid var(--b);display:flex;align-items:center;font-size:7px;letter-spacing:1px;color:#657b93;font-weight:800}
+.toc-list{flex:1;overflow:auto;padding:5px}.toc-item{width:100%;border:1px solid transparent;background:transparent;color:#71869e;text-align:left;border-radius:3px;padding:6px 7px;font:600 8px "Segoe UI";cursor:pointer;margin-bottom:2px}.toc-item span{display:inline-block;width:25px;color:#40556d;font-size:6px}.toc-item:hover{background:#0e1823;color:#b9c9d9}.toc-item.active{border-color:#285675;background:#0c1a26;color:#73dcff}
+.toc-foot{padding:6px;border-top:1px solid var(--b);font-size:6.5px;color:#61758b;line-height:1.45}
+.content{flex:1;min-width:0;overflow:auto;background:#090e14}.manual-section{display:none;max-width:1120px;margin:0 auto;padding:22px 30px 45px}.manual-section.active{display:block}
+.section-kicker{font-size:7px;letter-spacing:1.2px;color:#4c6883;text-transform:uppercase;margin-bottom:6px}
+h1{font-size:24px;line-height:1.15;margin-bottom:8px;color:#edf6ff}h2{font-size:14px;color:#dceafa;margin:22px 0 8px;border-bottom:1px solid #1b2b3e;padding-bottom:5px}h3{font-size:11px;color:#a9c1d8;margin:15px 0 5px}
+p{line-height:1.58;color:#9bafc4;margin-bottom:8px}p.lead{font-size:13px;color:#b7c8d9;max-width:920px}.note{font-size:10px;color:#7890a8;border-left:2px solid #3b566f;padding-left:8px}
+ul{margin:7px 0 12px 18px;color:#9fb1c3}li{line-height:1.5;margin:3px 0}b{color:#e1edf8}
+.hero{border:1px solid #27516f;background:linear-gradient(135deg,#0d1a26,#09121b);border-radius:7px;padding:24px;margin-bottom:15px}.eyebrow{font-size:7px;color:#52c8ff;letter-spacing:1.4px;margin-bottom:7px}.hero h1{font-size:28px}.hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:16px}.hero-grid div{border:1px solid #20394f;background:#09131c;border-radius:4px;padding:7px}.hero-grid span{display:block;color:#527089;font-size:6px;text-transform:uppercase}.hero-grid b{font-size:9px}
+.callout{border:1px solid #29425a;background:#0d151f;border-radius:5px;padding:10px 12px;margin:12px 0}.callout b{display:block;font-size:9px;margin-bottom:3px}.callout p,.callout ul{margin-bottom:0}.callout.key{border-color:#235e46;background:#081710}.callout.key b{color:#55dda0}.callout.warn{border-color:#70551f;background:#171305}.callout.warn b{color:#ffc65c}.callout.bad{border-color:#6f3039;background:#190c11}.callout.bad b{color:#ff7a86}
+.sequence{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:14px 0 18px}.sequence div{border:1px solid #29516b;background:#0d1823;color:#8edfff;border-radius:4px;padding:7px 9px;font-size:7px;font-weight:800}.sequence i{color:#475d73;font-style:normal}.sequence.compact div{padding:6px 8px}
+.flow-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0}.flow{border:1px solid #20354a;background:#0c151f;border-radius:5px;padding:8px}.flow b{display:block;color:#78d9ff;font-size:8px;margin-bottom:3px}.flow span{font-size:7px;color:#7790a7;line-height:1.4}
+.gate{display:flex;gap:8px;align-items:flex-start;border-left:2px solid #35d08a;padding:5px 0 5px 8px;margin:6px 0 13px}.gate span{font-size:6px;color:#55dda0;border:1px solid #276149;padding:2px 4px;border-radius:3px}.gate p{margin:0;font-size:9px}
+table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:9px}th{text-align:left;color:#63809a;font-size:7px;text-transform:uppercase;background:#0b121b;border-bottom:1px solid #29405a;padding:6px}td{vertical-align:top;color:#9fb2c5;border-bottom:1px solid #18283a;padding:6px;line-height:1.45}td:first-child{color:#d4e2ee;font-weight:650}
+.tag{display:inline-block;border:1px solid #345069;border-radius:3px;padding:2px 4px;font-size:6px}.tag.live{color:#59e0a3;border-color:#285f48}.tag.model{color:#ffc761;border-color:#72551b}.tag.warn{color:#ffc761;border-color:#72551b}.tag.bad{color:#ff7b86;border-color:#71313a}
+.strategy-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:8px 0 14px}.strategy-grid>div{border:1px solid #1d3043;background:#0c141d;border-radius:5px;padding:8px}.strategy-grid b{font-size:9px}.strategy-grid p{font-size:8px;margin:3px 0 0}
+.checklist{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:8px 0 14px}.checklist.one{grid-template-columns:repeat(2,1fr)}.checklist label{border:1px solid #1c2e40;background:#0b131c;border-radius:3px;padding:6px;color:#9eb2c4;font-size:8px}
+.glossary{display:grid;grid-template-columns:160px 1fr;gap:0;margin-top:8px}.glossary dt,.glossary dd{border-bottom:1px solid #18283a;padding:7px}.glossary dt{font-weight:800;color:#d7e8f5}.glossary dd{color:#98adc1;line-height:1.45}
+.footer{height:19px;background:#090e14;border-top:1px solid var(--b);display:flex;align-items:center;padding:0 8px;color:#53677d;font-size:6.5px}.footer .sp{flex:1}
+@media(max-width:1100px){.toc{width:190px;flex-basis:190px}.manual-section{padding:18px 20px 40px}.flow-cards{grid-template-columns:repeat(2,1fr)}}
+@media print{
+  @page{size:A4;margin:14mm 13mm 14mm}
+  html,body{height:auto!important;background:#fff!important;color:#111!important;overflow:visible!important;font-family:Arial,sans-serif}
+  .top,.toc,.footer,.screen-only{display:none!important}
+  .shell,.content{display:block!important;height:auto!important;overflow:visible!important;background:#fff!important}
+  .manual-section{display:block!important;max-width:none!important;margin:0!important;padding:0!important;color:#111!important;page-break-after:always}
+  body.print-section .manual-section{display:none!important}
+  body.print-section .manual-section.print-target{display:block!important}
+  h1,h2,h3,b{color:#111!important} h1{font-size:22pt}h2{font-size:13pt;border-bottom:1px solid #bbb}h3{font-size:10pt}
+  p,li,td,.glossary dd{color:#333!important;font-size:9pt;line-height:1.45}
+  .hero,.callout,.flow,.strategy-grid>div,.checklist label,.hero-grid div,.gate{background:#fff!important;color:#111!important;border-color:#bbb!important}
+  .hero{padding:12px}.hero h1{font-size:25pt}.eyebrow,.section-kicker{color:#555!important}
+  .sequence div{background:#fff!important;color:#111!important;border-color:#999!important}
+  table{font-size:8pt}th{background:#eee!important;color:#222!important;border-color:#aaa!important}td{color:#333!important;border-color:#ddd!important}
+  .tag{color:#222!important;border-color:#777!important}
+  .callout{break-inside:avoid}.strategy-grid>div,.flow,table,.checklist{break-inside:avoid}
+}
 </style>
 </head>
 <body>
-
-<nav>
-  <div class="nav-logo"><span class="c">Cripto</span><span class="o">Opciones</span> LAB</div>
-  <div class="nav-links">
-    <a href="index.html" class="nav-link">📈 Analizador</a>
-    <a href="positions.html" class="nav-link">📊 Posiciones</a>
-    <a href="chain.html" class="nav-link">📋 Cadena</a>
-    <a href="iv.html" class="nav-link">🌊 IV & Mercado</a>
-    <a href="ajuste.html" class="nav-link">🔧 Ajuste</a>
-    <a href="diario.html" class="nav-link">📓 Diario</a>
+<div class="top">
+  <div class="logo"><span class="c">Cripto</span><span>Opciones</span><span class="l">LAB</span></div>
+  <div class="nav">
+    <a href="index.html">📈 Analizador</a><a href="positions.html">🛡️ Riesgo & Posiciones</a><a href="chain.html">📋 Cadena</a><a href="iv.html">🌊 Volatilidad</a><a href="ajuste.html">🔧 Ajuste / Roll</a><a href="diario.html">📓 Diario</a><a class="active" href="manual.html">📖 Manual</a>
   </div>
-</nav>
-
-<div class="container">
-
-<h1>📖 Manual de Usuario — CriptoOpciones Lab</h1>
-<p class="lead">Terminal institucional de análisis y gestión de opciones de criptomonedas. Diseñado para operar en Bybit, Binance y Deribit.</p>
-
-<div class="toc">
-  <h3>📋 Índice</h3>
-  <a href="#inicio">1. Inicio rápido</a>
-  <a href="#analizador">2. Analizador — Página principal</a>
-  <a href="#cadena">3. Cadena de opciones</a>
-  <a href="#posiciones">4. Posiciones abiertas</a>
-  <a href="#iv">5. IV & Mercado</a>
-  <a href="#ajuste">6. Calculadora de ajuste / Roll</a>
-  <a href="#diario">7. Diario de trades</a>
-  <a href="#bot">8. Conexión con el Bot V5</a>
-  <a href="#conceptos">9. Conceptos clave</a>
-  <a href="#flujo">10. Flujo de trabajo recomendado</a>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<h2 id="inicio"><span class="section-icon">🚀</span>1. Inicio rápido</h2>
-
-<div class="step">
-  <div class="step-num">1</div>
-  <div class="step-content">
-    <div class="step-title">Seleccionar exchange y activo</div>
-    <div class="step-desc">En el sidebar izquierdo elige <code>Bybit</code>, <code>Deribit</code> o <code>Binance</code> y el activo (<code>BTC</code>, <code>ETH</code>, etc.). El precio spot se carga automáticamente.</div>
+  <div class="spacer"></div>
+  <div class="actions">
+    <button class="btn sec" onclick="printSection()">🖨 SECCIÓN</button>
+    <button class="btn pdf" onclick="printFull()">🖨 MANUAL COMPLETO</button>
   </div>
 </div>
-<div class="step">
-  <div class="step-num">2</div>
-  <div class="step-content">
-    <div class="step-title">Revisar el IVR</div>
-    <div class="step-desc">El panel de <strong>IV Rank</strong> muestra si la volatilidad está alta o baja. Esto determina qué estrategia usar. Verde = vender prima, Rojo = comprar prima.</div>
-  </div>
-</div>
-<div class="step">
-  <div class="step-num">3</div>
-  <div class="step-content">
-    <div class="step-title">Seleccionar una plantilla de estrategia</div>
-    <div class="step-desc">Haz click en <code>🦅 IC</code>, <code>🦋 IB</code>, <code>🔰 BWC</code> u otra. Se cargan las patas automáticamente centradas en el precio actual.</div>
-  </div>
-</div>
-<div class="step">
-  <div class="step-num">4</div>
-  <div class="step-content">
-    <div class="step-title">Analizar el payoff</div>
-    <div class="step-desc">La gráfica muestra la curva de ganancia/pérdida. Pasa el mouse para ver el PnL en cualquier precio. Haz click para anclar el cursor.</div>
-  </div>
-</div>
-<div class="step">
-  <div class="step-num">5</div>
-  <div class="step-content">
-    <div class="step-title">Ejecutar en Bybit</div>
-    <div class="step-desc">Si el bot está configurado, aparece el botón <code>🚀 Ejecutar en Bot</code>. Confirma los parámetros de TP/SL y el bot gestiona la posición mientras duermes.</div>
+<div class="shell">
+  <aside class="toc"><div class="toc-head">MANUAL / PLAYBOOK</div><div class="toc-list"><button class="toc-item active" data-id="overview" onclick="showSection('overview')"><span>00</span>Manual Operativo Institucional</button>
+<button class="toc-item" data-id="workflow" onclick="showSection('workflow')"><span>01</span>Secuencia obligatoria de decisión</button>
+<button class="toc-item" data-id="plan" onclick="showSection('plan')"><span>02</span>Plan de Trading Institucional</button>
+<button class="toc-item" data-id="volatility" onclick="showSection('volatility')"><span>03</span>Volatility Desk</button>
+<button class="toc-item" data-id="chain" onclick="showSection('chain')"><span>04</span>Option Chain Desk</button>
+<button class="toc-item" data-id="analyzer" onclick="showSection('analyzer')"><span>05</span>Analyzer / Execution Desk</button>
+<button class="toc-item" data-id="risk" onclick="showSection('risk')"><span>06</span>Risk Desk</button>
+<button class="toc-item" data-id="adjust" onclick="showSection('adjust')"><span>07</span>Adjustment Desk</button>
+<button class="toc-item" data-id="close" onclick="showSection('close')"><span>08</span>Close Protocol</button>
+<button class="toc-item" data-id="journal" onclick="showSection('journal')"><span>09</span>Performance & Trade Review Desk</button>
+<button class="toc-item" data-id="governance" onclick="showSection('governance')"><span>10</span>Datos, continuidad y control de cambios</button>
+<button class="toc-item" data-id="checklists" onclick="showSection('checklists')"><span>11</span>Checklists operativas</button>
+<button class="toc-item" data-id="glossary" onclick="showSection('glossary')"><span>12</span>Referencia rápida</button></div>
+  <div class="toc-foot"><b style="color:#8aa1b7">Regla:</b> Régimen → Contratos → Estructura → Riesgo → Ejecución.<br><br>Versión: Institutional 1.0</div></aside>
+  <main class="content"><article id="sec-overview" class="manual-section active"><div class="section-kicker">00 · VISIÓN GENERAL</div>
+<div class="hero">
+  <div class="eyebrow">CRIPTOOPCIONES LAB · BTC / ETH OPTIONS DESK</div>
+  <h1>Manual Operativo Institucional</h1>
+  <p class="lead">Playbook oficial de decisión, ejecución, riesgo, ajustes y revisión. Este documento define cómo debe utilizarse la terminal como un proceso de inversión repetible, auditable y basado en riesgo.</p>
+  <div class="hero-grid">
+    <div><span>Universo</span><b>BTC · ETH</b></div>
+    <div><span>Mercados</span><b>Bybit · Deribit</b></div>
+    <div><span>Core</span><b>Volatilidad + Riesgo definido</b></div>
+    <div><span>Histórico</span><b>Google Sheets · PRODUCTION</b></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<h2 id="analizador"><span class="section-icon">📈</span>2. Analizador — Página principal</h2>
-
-<h3>Sidebar izquierdo</h3>
-<table>
-  <tr><th>Elemento</th><th>Qué hace</th><th>Cuándo usarlo</th></tr>
-  <tr><td>Exchange</td><td>Selecciona de dónde vienen los precios y la cadena de opciones</td><td>Al inicio de la sesión. Bybit para operar en Bybit, Deribit para Deribit</td></tr>
-  <tr><td>Activo</td><td>BTC, ETH, SOL o BNB</td><td>Según el activo que quieras operar</td></tr>
-  <tr><td>Precio Spot</td><td>Precio actual del activo. Se actualiza automáticamente cada 15 segundos</td><td>Puedes editarlo manualmente para hacer análisis hipotéticos</td></tr>
-  <tr><td>DTE</td><td>Days To Expiration — días hasta el vencimiento del contrato</td><td>Mueve el slider para ver cómo afecta el tiempo al payoff y theta decay</td></tr>
-  <tr><td>IV % Global</td><td>Volatilidad implícita usada en los cálculos de Black-Scholes</td><td>Se actualiza automáticamente desde el exchange. Ajusta para escenarios</td></tr>
-  <tr><td>Rango ±%</td><td>Amplitud de la gráfica de payoff respecto al precio actual</td><td>Aumenta si quieres ver qué pasa en movimientos extremos</td></tr>
-  <tr><td>IV Rank (IVR)</td><td>Percentil de la IV actual vs los últimos 12 meses</td><td>El indicador más importante para decidir la estrategia</td></tr>
-  <tr><td>Rango de precio</td><td>Min y max del activo en 6 y 12 meses desde CoinGecko</td><td>Para saber si el precio está en zona alta, media o baja históricamente</td></tr>
-  <tr><td>Bot V5 Portfolio</td><td>PnL en tiempo real de las posiciones que gestiona el bot</td><td>Monitoreo constante. Solo aparece si el bot está configurado</td></tr>
-  <tr><td>Plantillas</td><td>Estrategias predefinidas: IC, IB, BWC, BCS, BPS, Strad, Stran, DSC, DSP</td><td>Click para cargar la estrategia centrada en el precio actual</td></tr>
-  <tr><td>Guardadas</td><td>Estrategias que guardaste previamente</td><td>Para reutilizar configuraciones que funcionaron bien</td></tr>
-</table>
-
-<h3>Panel de IVR — El más importante</h3>
-<div class="card">
-  <table>
-    <tr><th>IVR</th><th>Color</th><th>Significado</th><th>Estrategia recomendada</th></tr>
-    <tr><td>≥ 65%</td><td><span class="badge badge-green">ALTO</span></td><td>La IV está cara. El mercado exagera el miedo</td><td>🦅 Iron Condor / 🦋 Iron Butterfly — VENDER prima</td></tr>
-    <tr><td>35% - 65%</td><td><span class="badge badge-amber">MEDIO</span></td><td>IV en zona neutral</td><td>📆 Calendar Spread — posición neutral en volatilidad</td></tr>
-    <tr><td>≤ 35%</td><td><span class="badge badge-red">BAJO</span></td><td>La IV está barata. El mercado está tranquilo</td><td>⚡ Straddle / Debit Spread — COMPRAR opciones</td></tr>
-  </table>
+<div class="callout key">
+  <b>Regla maestra</b>
+  <p>La terminal no se utiliza para “buscar una operación”. Se utiliza para comprobar, en orden, si existe una ventaja de volatilidad, si hay contratos ejecutables, si una estructura ofrece una relación riesgo/beneficio aceptable y si la cartera puede absorber el riesgo.</p>
 </div>
 
-<h3>Métricas superiores</h3>
-<table>
-  <tr><th>Métrica</th><th>Qué mide</th><th>Referencia</th></tr>
-  <tr><td>Máx. Ganancia</td><td>Lo máximo que puedes ganar si el precio se queda en el rango óptimo</td><td>Para IC/IB es el crédito cobrado</td></tr>
-  <tr><td>Máx. Pérdida</td><td>Lo máximo que puedes perder. En IC/IB es la anchura del spread menos el crédito</td><td>Define tu riesgo máximo</td></tr>
-  <tr><td>PoP</td><td>Probability of Profit — probabilidad de que la posición sea ganadora al vencimiento</td><td>Busca ≥ 60% para estrategias de venta</td></tr>
-  <tr><td>Theta/día</td><td>Cuánto ganas o pierdes por cada día que pasa</td><td>Positivo = vendes tiempo. Negativo = compras tiempo</td></tr>
-  <tr><td>Delta Δ</td><td>Exposición direccional. 0 = neutral, +1 = alcista, -1 = bajista</td><td>Para IC/IB busca delta cercano a 0</td></tr>
-  <tr><td>Vega /1%IV</td><td>Cuánto cambia el PnL si la IV sube o baja 1%</td><td>Negativo si vendes prima (te perjudica que suba la IV)</td></tr>
-  <tr><td>Gamma Γ</td><td>Velocidad de cambio del delta</td><td>Alto gamma = posición más arriesgada cerca del vencimiento</td></tr>
-  <tr><td>Créd/Déb</td><td>Crédito neto cobrado (positivo) o débito pagado (negativo)</td><td>Para IC/IB debe ser positivo</td></tr>
-</table>
+<h2>Qué es esta terminal</h2>
+<p>CriptoOpciones LAB es un desk de opciones BTC/ETH compuesto por módulos especializados. Cada pestaña responde una pregunta distinta. El valor del sistema proviene de mantener esas funciones separadas: primero se evalúa el entorno, luego los contratos, después la estructura, luego el riesgo y finalmente la ejecución.</p>
 
-<h3>Tabs de gráficas</h3>
-<table>
-  <tr><th>Tab</th><th>Qué muestra</th><th>Cuándo usarlo</th></tr>
-  <tr><td>📈 Payoff</td><td>Curva de PnL al vencimiento (blanca) y hoy (azul punteada). Break-evens en rojo</td><td>Vista principal. Siempre activa al analizar</td></tr>
-  <tr><td>⏰ Theta Decay</td><td>Cómo evoluciona el PnL día a día hasta el vencimiento</td><td>Para entender cuándo cerrar la posición (generalmente al 50% del crédito)</td></tr>
-  <tr><td>🌊 Mapa IV×Precio</td><td>Mapa de calor de PnL según precio e IV. Verde = ganancia, rojo = pérdida</td><td>Para ver el impacto de cambios de volatilidad en la posición</td></tr>
-  <tr><td>📊 Griegas</td><td>Delta y Theta graficadas vs precio del activo</td><td>Para entender cómo cambia la exposición según el precio</td></tr>
-  <tr><td>🎯 Escenarios</td><td>Barras de PnL para movimientos de -20% a +20%</td><td>Para análisis rápido de escenarios extremos</td></tr>
-</table>
+<div class="sequence">
+  <div>VOLATILIDAD</div><i>→</i><div>CADENA</div><i>→</i><div>ANALIZADOR</div><i>→</i><div>EJECUCIÓN</div><i>→</i><div>RIESGO</div><i>→</i><div>AJUSTE</div><i>→</i><div>CIERRE</div><i>→</i><div>DIARIO</div>
+</div>
 
-<h3>Tabla de patas</h3>
-<p>Cada fila es una pata de la estrategia. Puedes modificar todos los campos:</p>
-<table>
-  <tr><th>Campo</th><th>Descripción</th></tr>
-  <tr><td>Contrato</td><td>Nombre del contrato en el exchange. Ej: <code>ETH-28AUG26-2500-C-USDT</code>. Se llena automáticamente desde la cadena</td></tr>
-  <tr><td>Tipo</td><td><span class="badge badge-blue">CALL</span> = apuesta alcista / <span class="badge badge-red">PUT</span> = apuesta bajista</td></tr>
-  <tr><td>Acción</td><td><span class="badge badge-green">BUY</span> = compras la opción / <span class="badge badge-red">SELL</span> = vendes la opción</td></tr>
-  <tr><td>Strike</td><td>Precio de ejercicio del contrato. Puedes arrastrarlo en la gráfica</td></tr>
-  <tr><td>Prima</td><td>Precio de la opción en USDT. Incrementos de 0.1</td></tr>
-  <tr><td>Qty</td><td>Cantidad de contratos. En Bybit las opciones van en fracciones (0.1, 0.7, etc.)</td></tr>
-  <tr><td>IV%</td><td>Volatilidad implícita de esa pata específica</td></tr>
-  <tr><td>Δ BS</td><td>Delta calculado por Black-Scholes. Indica la exposición direccional de esta pata</td></tr>
-  <tr><td>Precio BS</td><td>Precio teórico calculado por Black-Scholes. Compara con la prima de mercado</td></tr>
-</table>
-
-<div class="tip">Puedes arrastrar las líneas de strike directamente en la gráfica de payoff. Mantén click izquierdo sobre la línea del strike y arrastra. El payoff se recalcula en tiempo real.</div>
-
-<h3>Cadena de opciones (parte inferior)</h3>
-<p>Muestra los strikes disponibles con sus precios en tiempo real. Las columnas en <span style="color:#10b981">verde</span> son CALLs, en <span style="color:#f43f5e">rojo</span> son PUTs. La fila amarilla es el precio spot actual (ATM).</p>
+<h2>Principios de operación</h2>
 <ul>
-  <li><strong>Click izquierdo</strong> en una celda → agrega esa opción como BUY a las patas</li>
-  <li><strong>Shift + Click</strong> → agrega como SELL</li>
-  <li>Selecciona el vencimiento con el desplegable</li>
+  <li><b>Riesgo antes que retorno.</b> MAX LOSS, margen, concentración y liquidez tienen prioridad sobre Max Profit o PoP.</li>
+  <li><b>Datos verificables antes que precisión aparente.</b> N/D, MODEL, UNVERIFIED o STALE son estados válidos; inventar una cifra no lo es.</li>
+  <li><b>Separar análisis de ejecución.</b> Un candidato atractivo no es una orden. La orden se aprueba sólo cuando sus datos de ejecución están verificados.</li>
+  <li><b>Riesgo definido.</b> Cuando una estructura usa wings de protección, un ajuste debe preservar la protección.</li>
+  <li><b>Human-in-the-loop.</b> El Bot V5 puede detectar, calcular y proponer; los rolls requieren aprobación humana explícita.</li>
+  <li><b>Track record limpio.</b> Sólo operaciones PRODUCTION afectan las métricas oficiales. TEST, PAPER y LEGACY quedan fuera.</li>
 </ul>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<h2 id="cadena"><span class="section-icon">📋</span>3. Cadena de opciones</h2>
-
-<p>Página dedicada a la cadena completa con todas las columnas profesionales.</p>
-
+<h2>Estados de calidad de datos</h2>
 <table>
-  <tr><th>Columna</th><th>Descripción</th></tr>
-  <tr><td>Vol</td><td>Volumen de contratos negociados en las últimas 24 horas</td></tr>
-  <tr><td>OI</td><td>Open Interest — contratos abiertos actualmente. Mayor OI = más liquidez</td></tr>
-  <tr><td>IV%</td><td>Volatilidad implícita de esa opción específica</td></tr>
-  <tr><td>Bid</td><td>Precio de compra (lo que te pagan si vendes)</td></tr>
-  <tr><td>Ask</td><td>Precio de venta (lo que pagas si compras)</td></tr>
-  <tr><td>Δ Delta</td><td>Sensibilidad al precio. CALL ATM ≈ 0.50, muy OTM ≈ 0.10</td></tr>
-  <tr><td>Strike</td><td>Precio de ejercicio. La fila amarilla es el ATM (precio actual)</td></tr>
+<tr><th>Estado</th><th>Significado</th><th>Acción</th></tr>
+<tr><td><span class="tag live">LIVE / VERIFIED</span></td><td>Dato proveniente de mercado, Bybit/Deribit, Bot V5 o fuente histórica validada.</td><td>Puede utilizarse para decisión y ejecución según el resto de gates.</td></tr>
+<tr><td><span class="tag model">MODEL</span></td><td>Estimación matemática o candidato construido por el front.</td><td>Útil para comparar; no se trata como precio ejecutable.</td></tr>
+<tr><td><span class="tag warn">UNVERIFIED</span></td><td>Dato esperado pero no confirmado por la fuente operativa.</td><td>No ejecutar si el dato afecta margen, precio o riesgo material.</td></tr>
+<tr><td><span class="tag bad">STALE / N/D</span></td><td>Dato viejo, incompleto o ausente.</td><td>Actualizar o detener el flujo de decisión.</td></tr>
+</table>
+</article>
+<article id="sec-workflow" class="manual-section"><div class="section-kicker">01 · FLUJO OPERATIVO</div>
+<h1>Flujo operativo completo</h1>
+<p class="lead">Toda operación debe recorrer la misma secuencia. Saltarse etapas convierte un proceso institucional en una decisión discrecional difícil de auditar.</p>
+
+<div class="flow-cards">
+  <div class="flow"><b>1 · Volatilidad</b><span>¿Qué régimen existe y dónde está la ventaja?</span></div>
+  <div class="flow"><b>2 · Cadena</b><span>¿Qué vencimiento y strikes tienen mercado real?</span></div>
+  <div class="flow"><b>3 · Analizador</b><span>¿Qué estructura ofrece el mejor perfil de riesgo?</span></div>
+  <div class="flow"><b>4 · Ejecución</b><span>¿La orden es ejecutable con precio, margen y protección confirmados?</span></div>
+  <div class="flow"><b>5 · Riesgo</b><span>¿Qué exposición ya existe y qué necesita atención?</span></div>
+  <div class="flow"><b>6 · Ajuste / Roll</b><span>¿Intervenir mejora realmente el perfil?</span></div>
+  <div class="flow"><b>7 · Cierre</b><span>¿La tesis terminó, el riesgo cambió o el objetivo se cumplió?</span></div>
+  <div class="flow"><b>8 · Diario</b><span>¿El resultado provino de buen proceso o de suerte?</span></div>
+</div>
+
+<h2>Gate 1 — Régimen de volatilidad</h2>
+<p>Abra primero <b>Volatilidad</b>. Identifique IVR 52W, IV Percentile 52W, ATM IV, skew, term structure, Expected Move y liquidez. No seleccione una estrategia sólo porque “parece rentable”. La estructura debe responder al régimen.</p>
+<div class="gate"><span>PASS</span><p>Datos frescos, régimen entendido, liquidez suficiente y una hipótesis clara sobre volatilidad.</p></div>
+
+<h2>Gate 2 — Selección de contratos</h2>
+<p>En <b>Cadena</b>, seleccione expiry y strikes. El orden visual Calls–Strike–Puts permite leer bid/ask desde el centro hacia afuera. Priorice contratos con spreads razonables, OI/volumen útiles y DTE coherente con la tesis.</p>
+<div class="gate"><span>PASS</span><p>Las patas elegidas corresponden a contratos reales y tienen liquidez suficiente para entrar y salir.</p></div>
+
+<h2>Gate 3 — Validación de estructura</h2>
+<p>Transfiera las patas al <b>Analizador</b>. Compare Max Profit, MAX LOSS, Break-even, PoP, R:R, payoff, Greeks y contexto de volatilidad. El Analizador no debe empezar por “Call o Put”; empieza por ventaja de volatilidad, prima disponible y riesgo.</p>
+
+<h2>Gate 4 — Ejecución</h2>
+<p>Antes de enviar una orden, compruebe tamaño, riesgo máximo, protección, precio ejecutable, margen, TP/SL o plan de salida y ausencia de conflicto con posiciones existentes. Si una cifra crítica es MODEL o UNVERIFIED, la orden permanece bloqueada.</p>
+
+<h2>Gate 5 — Gestión</h2>
+<p>Una vez abierta, la operación pasa a <b>Riesgo & Posiciones</b>. Desde ese momento la pregunta cambia: ya no es “¿qué quiero abrir?”, sino “¿qué riesgo tengo ahora?”. Monitoree PnL canónico, MAX LOSS, margin buffer, Delta, Theta, Vega, Gamma, distancia a shorts y escenarios.</p>
+
+<h2>Gate 6 — Ajuste</h2>
+<p>No se ajusta por incomodidad. Se abre <b>Ajuste / Roll</b> cuando existe una señal defensiva o una necesidad real de reestructuración. Compare CURRENT vs PROPOSED, costes, MAX LOSS, PoP y R:R. Un aumento de PoP no compensa automáticamente un deterioro de MAX LOSS y R:R.</p>
+
+<h2>Gate 7 — Cierre</h2>
+<p>El cierre es una decisión de riesgo, no un castigo. Puede ocurrir por captura de prima, deterioro de tesis, DTE crítico, pérdida definida, ruptura estructural, evento de liquidez o decisión explícita de reducción de exposición.</p>
+
+<h2>Gate 8 — Revisión</h2>
+<p>El <b>Diario</b> separa resultado de proceso. Registre PLAN vs EXECUTION, motivo de salida, disciplina y lección. Sólo PRODUCTION entra en el track record oficial.</p>
+
+<div class="callout bad"><b>Secuencia prohibida</b><p>Elegir primero una estructura, buscar después una justificación de IVR y finalmente intentar encajar el riesgo. Esa secuencia produce sesgo de confirmación.</p></div>
+</article>
+<article id="sec-plan" class="manual-section"><div class="section-kicker">02 · PLAN DE TRADING</div>
+<h1>Plan de Trading Institucional</h1>
+<p class="lead">Este plan es el marco de gobernanza del desk. Define qué se puede operar, cómo se decide, cuánto riesgo se acepta, cuándo se interviene y cómo se evalúa el proceso.</p>
+
+<h2>1. Mandato</h2>
+<p><b>Objetivo primario:</b> preservar capital y generar retorno mediante opciones BTC/ETH con énfasis en volatilidad, prima y estructuras de riesgo definido. El sistema evita depender de predicciones direccionales como fuente principal de ventaja.</p>
+<p><b>Objetivo secundario:</b> producir un track record reproducible y auditable que permita saber qué estrategias, regímenes y condiciones aportan edge.</p>
+
+<h2>2. Universo autorizado</h2>
+<table>
+<tr><th>Activo</th><th>Uso</th><th>Condición</th></tr>
+<tr><td>BTC</td><td>Opciones y derivados del desk</td><td>Liquidez, IV y riesgo verificados</td></tr>
+<tr><td>ETH</td><td>Opciones y derivados del desk</td><td>Liquidez, IV y riesgo verificados</td></tr>
+<tr><td>Otros activos</td><td>No forman parte del mandato principal</td><td>Requieren cambio explícito del playbook</td></tr>
 </table>
 
-<div class="tip">Las celdas sombreadas en verde son ITM (In The Money) para calls, en rojo son ITM para puts. Las opciones ITM tienen mayor valor intrínseco.</div>
+<h2>3. Estrategias autorizadas</h2>
+<div class="strategy-grid">
+  <div><b>Iron Condor</b><p>Venta de rango con riesgo definido. Útil cuando la prima y el régimen permiten monetizar volatilidad sin concentrar el riesgo en un solo lado.</p></div>
+  <div><b>Iron Butterfly</b><p>Mayor concentración de prima alrededor del strike central. Exige vigilancia de gamma y distancia al centro.</p></div>
+  <div><b>Credit Spread</b><p>Riesgo definido direccional o sesgado. Se utiliza cuando el skew/estructura favorece un lado y el riesgo compensa.</p></div>
+  <div><b>Calendar Spread</b><p>Exposición a term structure y diferencia temporal de volatilidad. Debe evaluarse como estructura de vega/tiempo, no sólo por payoff al expiry corto.</p></div>
+  <div><b>Diagonal</b><p>Variante temporal y de strikes. Requiere justificar simultáneamente skew, term y riesgo de dirección.</p></div>
+  <div><b>Cubiertas</b><p>Sólo cuando exista el subyacente/colateral y el perfil agregado siga siendo comprensible.</p></div>
+</div>
 
-<p>El panel lateral derecho muestra:</p>
+<h2>4. Mapa de IVR del Bot V5</h2>
+<p>La configuración actual del Bot V5 utiliza <b>Deribit DVOL 52W</b> como benchmark de IV Rank. Los rangos son reglas operativas configuradas, no leyes universales de mercado.</p>
+<table>
+<tr><th>IVR_DVOL 52W</th><th>Lectura actual del Bot</th><th>Uso</th></tr>
+<tr><td>≤ 5%</td><td>Debit Spread / baja IV</td><td>Prima barata; evitar vender volatilidad sin compensación.</td></tr>
+<tr><td>15%–35%</td><td>Calendar</td><td>Evaluar term structure y diferencia de IV entre vencimientos.</td></tr>
+<tr><td>35%–65%</td><td>Iron Condor</td><td>Venta selectiva de rango con wings.</td></tr>
+<tr><td>≥ 65%</td><td>Iron Butterfly</td><td>Mayor prima; exige control de distancia y gamma.</td></tr>
+<tr><td>≥ 95%</td><td>Credit Spread</td><td>Zona extrema; la estructura depende también de skew, liquidez y sesgo.</td></tr>
+</table>
+<div class="callout warn"><b>No usar IVR aislado</b><p>El IVR clasifica el régimen relativo. La operación también debe validar IV Percentile, ATM IV, skew, term structure, Expected Move, spread, OI/volumen y riesgo de cartera.</p></div>
+
+<h2>5. Presupuesto de riesgo</h2>
+<p>El desk trabaja con <b>MAX LOSS</b>, no con “capital invertido” como sustituto del riesgo. Para estructuras de riesgo definido, MAX LOSS debe ser conocido antes de ejecutar.</p>
+<table>
+<tr><th>Nivel</th><th>Guía de gobernanza</th><th>Acción</th></tr>
+<tr><td>Normal</td><td>Riesgo por trade contenido y coherente con equity.</td><td>Puede continuar si el resto de gates pasa.</td></tr>
+<tr><td>Alerta</td><td>Concentración relevante por activo, expiry o estrategia.</td><td>Reducir tamaño o rechazar nueva exposición correlacionada.</td></tr>
+<tr><td>Bloqueo</td><td>MAX LOSS, margen o liquidez no verificados.</td><td>No ejecutar.</td></tr>
+</table>
+<p class="note">Como marco conservador de gobernanza puede utilizarse una banda objetivo de riesgo definido por trade de aproximadamente 1%–3% del equity y requerir aprobación excepcional por encima de esa zona. El límite definitivo debe configurarse de acuerdo con el capital real y la tolerancia del operador.</p>
+
+<h2>6. Concentración</h2>
 <ul>
-  <li><strong>Expected Move ±</strong> — rango de precio esperado hasta el vencimiento basado en la IV</li>
-  <li><strong>Patas seleccionadas</strong> — las opciones que has clickeado</li>
-  <li><strong>Mini gráfica de payoff</strong> — preview de la estrategia armada</li>
+<li>No acumular múltiples estructuras que expresen esencialmente el mismo riesgo.</li>
+<li>Evaluar BTC y ETH como exposiciones correlacionadas durante eventos de mercado amplios.</li>
+<li>Evitar que un solo expiry concentre una fracción desproporcionada del MAX LOSS total.</li>
+<li>Antes de abrir otra venta de prima, revisar Vega, Gamma, Theta y $Delta agregados.</li>
 </ul>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<h2 id="posiciones"><span class="section-icon">📊</span>4. Posiciones abiertas</h2>
+<h2>7. Liquidez y ejecución</h2>
+<ul>
+<li>No utilizar un mid teórico como precio ejecutable si Bid/Ask no lo respalda.</li>
+<li>Spreads amplios deben reducir tamaño, cambiar strikes o cancelar la operación.</li>
+<li>El coste de cerrar también importa: una estructura “barata de abrir” puede ser cara de deshacer.</li>
+<li>Slippage y fees deben registrarse cuando la fuente los proporcione; no inventarlos.</li>
+</ul>
 
-<p>Muestra todas las posiciones que gestiona el Bot V5 en tiempo real.</p>
+<h2>8. Reglas de entrada</h2>
+<div class="checklist">
+<label>□ Régimen de volatilidad validado</label><label>□ IVR / IVP entendidos</label><label>□ ATM IV y Expected Move revisados</label>
+<label>□ Expiry y DTE adecuados</label><label>□ Bid/Ask y liquidez aceptables</label><label>□ Strikes coherentes</label>
+<label>□ MAX LOSS conocido</label><label>□ R:R aceptable</label><label>□ PoP interpretada correctamente</label>
+<label>□ Margen confirmado</label><label>□ Riesgo de cartera compatible</label><label>□ Plan de salida definido</label>
+</div>
 
+<h2>9. Gestión de posiciones</h2>
+<p>Una operación abierta se administra por riesgo actual. No se modifica simplemente porque el PnL fluctúe. Se observa la relación entre Delta, distancia al short, DTE, PnL, Expected Move y calidad de mercado.</p>
+
+<h3>Política de roll actual</h3>
 <table>
-  <tr><th>Columna</th><th>Descripción</th></tr>
-  <tr><td>Estrategia</td><td>Tipo: IC, IB, CAL, CS, DS</td></tr>
-  <tr><td>DTE</td><td>Días restantes hasta vencimiento. Rojo = urgente (&lt;3 días)</td></tr>
-  <tr><td>Crédito</td><td>Prima total cobrada al entrar. Es tu ganancia máxima posible</td></tr>
-  <tr><td>PnL $</td><td>Ganancia/pérdida actual en dólares</td></tr>
-  <tr><td>% Capturado</td><td>Qué porcentaje del crédito máximo ya capturaste. A 50% se recomienda cerrar</td></tr>
-  <tr><td>PoP</td><td>Probabilidad de éxito restante. Si cae mucho, considera cerrar</td></tr>
-  <tr><td>Prob. Toque</td><td>Probabilidad de que el precio toque el strike corto antes del vencimiento</td></tr>
-  <tr><td>Rango Precio</td><td>Barra visual de dónde está el precio en el rango histórico</td></tr>
+<tr><th>Señal</th><th>Estado</th><th>Interpretación</th></tr>
+<tr><td>raw |Δ| &lt; 0.35</td><td>NORMAL</td><td>Sin gatillo defensivo por delta.</td></tr>
+<tr><td>0.35 ≤ raw |Δ| &lt; 0.45</td><td>WATCH</td><td>Vigilar; delta aislada no justifica roll.</td></tr>
+<tr><td>raw |Δ| ≥ 0.45</td><td>CONFIRM</td><td>Se exige segunda confirmación: distancia corta o drawdown material.</td></tr>
+<tr><td>raw |Δ| ≥ 0.55</td><td>CRITICAL REVIEW</td><td>Generar propuesta defensiva.</td></tr>
+<tr><td>DTE ≤ 3</td><td>CLOSE / RESTRUCTURE</td><td>Gamma y ejecución dominan; evaluar cierre o nueva estructura.</td></tr>
+<tr><td>Strike breach</td><td>DEFENSE REVIEW</td><td>Comparar alternativas antes de aprobar.</td></tr>
 </table>
 
-<div class="tip">Haz click en cualquier posición para ver el detalle completo en el panel derecho, incluyendo las griegas, expected move, break-evens y una gráfica de payoff estimada.</div>
+<h2>10. Política de ajustes</h2>
+<ul>
+<li>El Bot V5 <b>propone</b>; el humano <b>aprueba</b>.</li>
+<li>Un roll protegido mueve short + wing juntos. No se debe desnudar una pata defensiva por comodidad.</li>
+<li>Un ajuste se rechaza si compra una pequeña mejora de PoP a cambio de deterioro material de MAX LOSS y R:R.</li>
+<li>ROLL OUT se trata como una nueva operación: más tiempo también significa más exposición.</li>
+</ul>
 
-<div class="warning">El botón de cerrar posición ejecuta el cierre directamente en Bybit via el bot. Confirma siempre antes de cerrar.</div>
+<h2>11. Reglas de cierre</h2>
+<ul>
+<li>Objetivo de captura de prima alcanzado según el plan.</li>
+<li>MAX LOSS o pérdida aceptada según el plan pre-trade.</li>
+<li>Deterioro estructural que invalida la tesis.</li>
+<li>DTE crítico o gamma no deseada.</li>
+<li>Liquidez deteriorada o evento de riesgo que cambia el marco original.</li>
+<li>Reducción deliberada de concentración.</li>
+</ul>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<h2 id="iv"><span class="section-icon">🌊</span>5. IV & Mercado</h2>
+<h2>12. Conductas prohibidas</h2>
+<div class="callout bad">
+<ul>
+<li>Aumentar riesgo para “recuperar” una pérdida.</li>
+<li>Convertir una estructura definida en riesgo desnudo sin una nueva decisión completa.</li>
+<li>Ejecutar con margin impact UNVERIFIED.</li>
+<li>Confundir MODEL con EXECUTABLE.</li>
+<li>Reclasificar un trade TEST/LEGACY como PRODUCTION para mejorar estadísticas.</li>
+<li>Cambiar las reglas después de ver el resultado del trade.</li>
+</ul>
+</div>
 
-<p>Panel de análisis profundo de volatilidad. Usa esto antes de decidir qué estrategia abrir.</p>
+<h2>13. Evaluación del proceso</h2>
+<p>Un buen trade puede perder y un mal trade puede ganar. El Diario debe valorar separadamente: calidad del plan, calidad de ejecución, disciplina y resultado financiero. El objetivo institucional es elevar la consistencia del proceso, no maximizar el porcentaje de trades ganadores.</p>
+</article>
+<article id="sec-volatility" class="manual-section"><div class="section-kicker">03 · VOLATILIDAD</div>
+<h1>Volatilidad — “¿Cómo está el mercado de volatilidad?”</h1>
+<p class="lead">Esta pestaña determina el contexto. No abre operaciones; clasifica el entorno y cuantifica la relación entre volatilidad actual, historia, skew, term structure y distribución implícita.</p>
 
+<h2>Métricas principales</h2>
 <table>
-  <tr><th>Sección</th><th>Qué muestra</th><th>Cómo interpretarlo</th></tr>
-  <tr><td>IV Rank (IVR)</td><td>Percentil de la IV actual vs los últimos 52 semanas</td><td>≥65% = vender. ≤35% = comprar. 35-65% = neutral</td></tr>
-  <tr><td>Expected Move</td><td>Rango de precio esperado con 68% (1σ) y 95% (2σ) de probabilidad</td><td>Coloca los strikes de IC/IB fuera del EM para PoP mayor a 68%</td></tr>
-  <tr><td>Volatility Skew</td><td>Diferencia de IV entre strikes. Muestra si el mercado teme más caídas que subidas</td><td>Skew pronunciado hacia puts = mercado bajista/miedoso</td></tr>
-  <tr><td>Term Structure</td><td>IV por vencimiento. Normal = vencimientos lejanos tienen más IV</td><td>Backwardation (invertida) = pánico. Evita Calendar Spreads en backwardation</td></tr>
-  <tr><td>Probabilidades</td><td>Distribución log-normal del precio al vencimiento</td><td>Muestra la probabilidad de alza, baja y permanecer en rango</td></tr>
+<tr><th>Métrica</th><th>Qué significa</th><th>Cómo usarla</th></tr>
+<tr><td>IV ATM de referencia</td><td>Volatilidad implícita alrededor del strike ATM para el tenor elegido.</td><td>Referencia actual de precio de volatilidad.</td></tr>
+<tr><td>IV Rank 52W</td><td>Posición de la IV actual entre mínimo y máximo de 52 semanas.</td><td>Indica si la volatilidad está relativamente baja o alta en su propio historial.</td></tr>
+<tr><td>IV Percentile 52W</td><td>Porcentaje de observaciones históricas por debajo de la IV actual.</td><td>Complementa IVR; reduce dependencia de extremos aislados.</td></tr>
+<tr><td>Skew 25Δ</td><td>Diferencia relativa entre IV de puts/calls fuera del dinero.</td><td>Identifica demanda asimétrica de protección o upside.</td></tr>
+<tr><td>Term Structure</td><td>IV ATM a través de distintos DTE.</td><td>Detecta contango/backwardation y oportunidades temporales.</td></tr>
+<tr><td>Expected Move</td><td>Movimiento aproximado implícito por IV y tiempo.</td><td>Contextualiza strikes, short distance y rango esperado.</td></tr>
 </table>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<h2 id="ajuste"><span class="section-icon">🔧</span>6. Calculadora de ajuste / Roll</h2>
+<h2>Fuente de IVR</h2>
+<p>El benchmark histórico para IVR/IVP es <b>Deribit DVOL</b>. La IV ATM actual puede provenir del venue seleccionado. No confundir volatilidad histórica realizada con una serie histórica de IV.</p>
 
-<p>Úsala cuando una posición se mueve en tu contra y necesitas decidir qué hacer.</p>
+<h2>Term Structure</h2>
+<p>Una curva ascendente suele indicar IV más alta a plazos largos; una inversión puede reflejar evento o tensión de corto plazo. Para Calendars/Diagonals, la forma de la curva es tan importante como el nivel absoluto de IVR.</p>
 
-<div class="step">
-  <div class="step-num">1</div>
-  <div class="step-content">
-    <div class="step-title">Cargar posición actual</div>
-    <div class="step-desc">Click en <code>📂 Cargar desde analizador</code> o rellena los campos manualmente con los datos de la posición problemática.</div>
-  </div>
+<h2>Smile / Skew</h2>
+<p>La sonrisa muestra cómo cambia la IV por strike. Un put skew pronunciado puede encarecer protección bajista; un call skew puede reflejar demanda de upside. La pestaña debe utilizarse para decidir <i>dónde</i> está cara la volatilidad, no sólo si el promedio está alto.</p>
+
+<h2>Distribución risk-neutral</h2>
+<p>Las probabilidades RN derivadas de opciones son probabilidades implícitas bajo precios de mercado, no pronósticos físicos. Úselas para comparar estructuras y zonas de precio, no como “probabilidad real” garantizada.</p>
+
+<h2>Rango histórico de precio</h2>
+<p>El bloque de 6m/12m contextualiza dónde se encuentra el spot dentro de su rango reciente. Es contexto, no señal. Un precio cerca de máximos no implica por sí solo vender calls; primero revise volatilidad, skew y estructura.</p>
+
+<h2>Checklist de salida de la pestaña</h2>
+<div class="checklist">
+<label>□ IVR 52W disponible</label><label>□ IVP 52W disponible</label><label>□ ATM IV actual válida</label>
+<label>□ Skew entendido</label><label>□ Term structure revisada</label><label>□ Expected Move anotado</label>
+<label>□ Liquidez suficiente</label><label>□ Régimen definido</label>
 </div>
-<div class="step">
-  <div class="step-num">2</div>
-  <div class="step-content">
-    <div class="step-title">Ver el estado actual</div>
-    <div class="step-desc">El panel derecho muestra el PnL no realizado, delta actual, theta restante y probabilidad de éxito. Aquí decides si actuar.</div>
-  </div>
-</div>
-<div class="step">
-  <div class="step-num">3</div>
-  <div class="step-content">
-    <div class="step-title">Evaluar las opciones de roll</div>
-    <div class="step-desc">La calculadora te presenta 4 opciones: roll hacia afuera (más tiempo), roll hacia arriba/abajo (strike diferente), roll diagonal (ambos) o cerrar ahora.</div>
-  </div>
-</div>
-<div class="step">
-  <div class="step-num">4</div>
-  <div class="step-content">
-    <div class="step-title">Comparar en la gráfica</div>
-    <div class="step-desc">La gráfica compara el PnL de mantener vs hacer roll. Elige la opción que mejor proteja tu capital.</div>
-  </div>
-</div>
+</article>
+<article id="sec-chain" class="manual-section"><div class="section-kicker">04 · CADENA</div>
+<h1>Cadena — “¿Qué contratos existen y cuáles son ejecutables?”</h1>
+<p class="lead">La Cadena traduce una idea de volatilidad en contratos reales. Su función es seleccionar expiry, strikes y lados con información de Bid/Ask, IV, Delta, OI y volumen.</p>
 
-<div class="warning">Regla de oro: nunca hagas roll por más de lo que cobras. Si el roll cuesta más crédito del que genera, es mejor cerrar la posición.</div>
+<h2>Lectura de la tabla</h2>
+<p>Calls se muestran a la izquierda, Strike en el centro y Puts a la derecha. Los precios Bid/Ask se leen desde el centro hacia afuera para reducir errores de lado. La terminal distingue ITM, ATM y OTM.</p>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<h2 id="diario"><span class="section-icon">📓</span>7. Diario de trades</h2>
-
-<p>Registro completo de todos tus trades para análisis estadístico y mejora continua.</p>
-
-<h3>Campos a registrar</h3>
 <table>
-  <tr><th>Campo</th><th>Descripción</th><th>Importancia</th></tr>
-  <tr><td>Contrato</td><td>Nombre exacto del contrato del exchange</td><td>Para rastrear posiciones específicas</td></tr>
-  <tr><td>Estrategia</td><td>IC, IB, Straddle, etc.</td><td>Para analizar qué estrategias funcionan mejor</td></tr>
-  <tr><td>Prima Entrada/Salida</td><td>Precio al que entraste y saliste</td><td>El PnL se calcula automáticamente</td></tr>
-  <tr><td>DTE entrada</td><td>Días hasta vencimiento cuando entraste</td><td>Para optimizar el tiempo óptimo de entrada</td></tr>
-  <tr><td>IVR al entrar</td><td>El IVR que había cuando abriste la posición</td><td>Para confirmar que entras en condiciones favorables</td></tr>
-  <tr><td>Motivo cierre</td><td>Take Profit, Stop Loss, Roll, Vencimiento</td><td>Para identificar patrones en tus salidas</td></tr>
+<tr><th>Campo</th><th>Lectura</th></tr>
+<tr><td>Bid</td><td>Mejor precio comprador. En el ticket, hacer clic en Bid implica intención SELL.</td></tr>
+<tr><td>Ask</td><td>Mejor precio vendedor. Hacer clic en Ask implica intención BUY.</td></tr>
+<tr><td>IV</td><td>Volatilidad implícita del contrato.</td></tr>
+<tr><td>Delta</td><td>Sensibilidad del precio de la opción al subyacente; también ayuda a contextualizar moneyness.</td></tr>
+<tr><td>OI</td><td>Open Interest. No garantiza liquidez, pero ayuda a identificar concentración de interés.</td></tr>
+<tr><td>Vol</td><td>Volumen negociado. Complementa OI y spread.</td></tr>
 </table>
 
-<h3>Métricas del diario</h3>
+<h2>Expiry y ventana</h2>
+<p>Seleccione un DTE coherente con la estrategia. La ventana ±6/±10/±16 strikes controla densidad visual, no cambia el mercado. Para una estructura, todas las patas deben verificarse antes de enviar al Analizador.</p>
+
+<h2>Contract Inspector</h2>
+<p>Resume expiry, DTE, ATM IV, 25Δ skew, OI, volumen y liquidez. Si estas métricas contradicen la hipótesis creada en Volatilidad, vuelva atrás.</p>
+
+<h2>Selección de patas</h2>
+<p>El buffer Cadena → Analizador reemplaza las patas del Analizador para evitar duplicados accidentales. Antes de transferir, confirme side, strike y prima de cada pata.</p>
+
+<div class="callout warn"><b>Error común</b><p>Elegir strikes sólo por Delta y olvidar el spread. Una Delta “perfecta” en un contrato ilíquido puede producir peor ejecución que un strike ligeramente distinto con mercado profundo.</p></div>
+
+<h2>Gate para pasar al Analizador</h2>
+<div class="checklist">
+<label>□ Expiry seleccionado</label><label>□ DTE correcto</label><label>□ Todas las patas reales</label>
+<label>□ Bid/Ask visibles</label><label>□ Spreads aceptables</label><label>□ OI/Vol revisados</label>
+<label>□ Side BUY/SELL confirmado</label><label>□ No hay patas duplicadas</label>
+</div>
+</article>
+<article id="sec-analyzer" class="manual-section"><div class="section-kicker">05 · ANALIZADOR Y EJECUCIÓN</div>
+<h1>Analizador — “¿Qué estructura vale la pena abrir?”</h1>
+<p class="lead">El Analizador convierte contratos en una decisión de estructura. Su lógica institucional no empieza por dirección: empieza por edge de volatilidad, prima disponible y riesgo.</p>
+
+<h2>Secuencia de decisión interna</h2>
+<div class="sequence compact"><div>VENTAJA IV</div><i>→</i><div>PRIMA</div><i>→</i><div>RIESGO</div><i>→</i><div>MEJOR ESTRUCTURA</div></div>
+
+<h2>Contexto</h2>
+<ul>
+<li><b>IV actual / IVR / IVP:</b> determina el precio relativo de volatilidad.</li>
+<li><b>Market Regime:</b> etiqueta operativa del entorno.</li>
+<li><b>Term / Skew:</b> evita elegir una estructura que contradiga la superficie.</li>
+<li><b>Liquidity:</b> condiciona si el edge teórico puede convertirse en ejecución real.</li>
+<li><b>Precio en rango 12M:</b> contexto de localización del spot, no señal independiente.</li>
+</ul>
+
+<h2>Métricas de estructura</h2>
 <table>
-  <tr><th>Métrica</th><th>Qué mide</th><th>Objetivo</th></tr>
-  <tr><td>Win Rate</td><td>% de trades ganadores</td><td>Para venta de opciones: busca ≥ 65%</td></tr>
-  <tr><td>Profit Factor</td><td>Ganancias totales / Pérdidas totales</td><td>≥ 1.5 es bueno. ≥ 2.0 es excelente</td></tr>
-  <tr><td>Max Drawdown</td><td>Mayor caída desde el pico de capital</td><td>Mantén por debajo del 15-20% del capital</td></tr>
-  <tr><td>Sharpe Ratio</td><td>Retorno ajustado por riesgo</td><td>≥ 1.0 es aceptable. ≥ 2.0 es muy bueno</td></tr>
-  <tr><td>Gan. Promedio</td><td>Ganancia media por trade ganador</td><td>Debe ser mayor que la pérdida promedio</td></tr>
+<tr><th>Métrica</th><th>Uso</th></tr>
+<tr><td>Máx. Ganancia</td><td>Límite teórico de beneficio de la estructura bajo el modelo de payoff.</td></tr>
+<tr><td>Máx. Pérdida</td><td>Riesgo definido. Debe evaluarse frente a equity y cartera.</td></tr>
+<tr><td>PoP</td><td>Probabilidad modelada de beneficio; no sustituye R:R.</td></tr>
+<tr><td>Break-even</td><td>Niveles aproximados donde payoff al vencimiento cambia de signo.</td></tr>
+<tr><td>R:R</td><td>Relación entre potencial de ganancia y pérdida; debe interpretarse junto a PoP.</td></tr>
+<tr><td>Greeks</td><td>Delta, Gamma, Theta y Vega del perfil actual/modelado.</td></tr>
 </table>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<h2 id="bot"><span class="section-icon">🤖</span>8. Conexión con el Bot V5</h2>
+<h2>Payoff</h2>
+<p>Zona verde = resultado positivo; zona roja = resultado negativo. Las líneas de spot, break-even, strikes y expected move permiten verificar si la distribución de riesgo coincide con la tesis.</p>
 
-<h3>Configuración inicial</h3>
-<div class="step">
-  <div class="step-num">1</div>
-  <div class="step-content">
-    <div class="step-title">Abrir configuración del bot</div>
-    <div class="step-desc">Click en el botón <code>⚙️ Bot</code> en la barra de navegación superior.</div>
-  </div>
-</div>
-<div class="step">
-  <div class="step-num">2</div>
-  <div class="step-content">
-    <div class="step-title">Ingresar URL y token</div>
-    <div class="step-desc">URL: <code>https://bot-bybit-opciones.onrender.com</code> — Token: el valor de <code>API_TOKEN</code> que configuraste en Render.</div>
-  </div>
-</div>
-<div class="step">
-  <div class="step-num">3</div>
-  <div class="step-content">
-    <div class="step-title">Probar conexión</div>
-    <div class="step-desc">Click en <code>🔌 Probar</code>. Debe mostrar "Conectado" con el estado actual del bot.</div>
-  </div>
-</div>
+<h2>Modalidades</h2>
+<p><b>Chain Active:</b> estructura proveniente de la Cadena. <b>Analyzer recommendations:</b> alternativas construidas por el motor. La fuente debe estar siempre visible para evitar confundir una recomendación modelada con patas seleccionadas manualmente.</p>
 
-<h3>Flujo de operación con el bot</h3>
-<div class="card">
-  <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Tú analizas y armas la estrategia</div><div class="step-desc">Usas el Analizador o la Cadena para construir el IC, IB o cualquier estrategia.</div></div></div>
-  <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Click en 🚀 Ejecutar en Bot</div><div class="step-desc">Aparece solo cuando el bot está conectado y hay patas armadas. Define TP% y SL%.</div></div></div>
-  <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">El bot ejecuta y gestiona</div><div class="step-desc">El bot envía las órdenes a Bybit y adopta la posición. Gestiona TP, SL, rolls y delta hedging automáticamente.</div></div></div>
-  <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Monitoreas desde el teléfono</div><div class="step-desc">Accede a <code>https://bot-bybit-opciones.onrender.com/mobile</code> para ver el estado y cerrar posiciones desde cualquier lugar.</div></div></div>
-</div>
+<h2>Ejecución con Bot V5</h2>
+<p>El botón de ejecución abre una revisión antes de enviar órdenes reales. El operador debe validar TP/SL o plan de salida, tamaño y estructura completa. El Bot V5 conserva la lógica de ejecución ya probada; el front no debe reemplazar silenciosamente sus controles.</p>
 
-<div class="danger">El botón "EJECUTAR REAL" envía órdenes reales a Bybit. Siempre usa "Simular" primero para verificar que la estrategia llega correctamente al bot.</div>
+<div class="callout bad"><b>No ejecutar si...</b><p>MAX LOSS no está claro, las patas no coinciden, el precio es MODEL, el margen es N/D, la liquidez es insuficiente o la estructura contradice el régimen de volatilidad.</p></div>
+</article>
+<article id="sec-risk" class="manual-section"><div class="section-kicker">06 · RIESGO & POSICIONES</div>
+<h1>Riesgo & Posiciones — “¿Qué riesgo ya tengo?”</h1>
+<p class="lead">Esta pestaña administra exposición existente. No es un segundo Analizador. Una vez ejecutado el trade, el centro de gravedad pasa de la oportunidad al riesgo.</p>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<h2 id="conceptos"><span class="section-icon">📚</span>9. Conceptos clave</h2>
-
-<h3>Griegas</h3>
+<h2>Portfolio Strip</h2>
 <table>
-  <tr><th>Griega</th><th>Qué mide</th><th>Impacto en IC/IB</th></tr>
-  <tr><td>Delta Δ</td><td>Cambio en el precio de la opción por cada $1 que sube el activo</td><td>Busca delta cercano a 0 para posición neutral</td></tr>
-  <tr><td>Theta Θ</td><td>Cuánto pierde la opción de valor por cada día que pasa</td><td>Positivo al vender prima. Tu aliado en IC/IB</td></tr>
-  <tr><td>Vega ν</td><td>Sensibilidad a cambios en la volatilidad implícita</td><td>Negativo al vender. Te perjudica si la IV sube</td></tr>
-  <tr><td>Gamma Γ</td><td>Velocidad de cambio del Delta</td><td>Alto gamma cerca del vencimiento = más riesgo</td></tr>
+<tr><th>Métrica</th><th>Interpretación</th></tr>
+<tr><td>Balance / Equity</td><td>Base económica de la cuenta.</td></tr>
+<tr><td>Disponible / Buying Power</td><td>Capacidad restante; no debe confundirse con balance.</td></tr>
+<tr><td>Initial Margin</td><td>Margen inicial reportado por la fuente canónica.</td></tr>
+<tr><td>MAX LOSS PORTFOLIO</td><td>Suma/estimación de riesgo definido agregado de las estructuras conocidas.</td></tr>
+<tr><td>Margin Buffer</td><td>Colchón disponible respecto a balance/equity.</td></tr>
+<tr><td>Global Risk</td><td>Estado agregado del desk.</td></tr>
 </table>
 
-<h3>Estrategias disponibles</h3>
+<h2>PnL canónico</h2>
+<p>Para las patas Bybit, el Bot V5 reconstruye el PnL desde <b>avgPrice + markPrice + size + side</b>. Si falta un dato necesario, el resultado debe ser N/D. No se utiliza una cifra stale como confirmación defensiva.</p>
+
+<h2>Greeks</h2>
+<ul>
+<li><b>Delta / $Delta:</b> sensibilidad direccional agregada.</li>
+<li><b>Theta/día:</b> carry temporal aproximado.</li>
+<li><b>Vega:</b> sensibilidad a cambios de IV.</li>
+<li><b>Gamma:</b> velocidad de cambio de Delta; se vuelve especialmente importante cerca de expiry.</li>
+</ul>
+
+<h2>Payoff Focus Risk vs Full</h2>
+<p><b>FOCUS RISK</b> centra la vista en la zona económicamente relevante. <b>FULL</b> muestra el rango completo del modelo. Las zonas positivas y negativas están sombreadas para reconocer rápidamente exposición.</p>
+
+<h2>Stress Test</h2>
+<p>Los escenarios permiten estimar cómo cambia el PnL ante movimientos del spot, IV y paso del tiempo. Son modelos; no son promesas de ejecución ni sustituyen quotes reales.</p>
+
+<h2>Concentración</h2>
+<p>Revise exposición por activo, expiry, estrategia y tipo de Greek. Dos operaciones “distintas” pueden ser la misma apuesta de volatilidad o dirección en términos de riesgo agregado.</p>
+
+<h2>Cuándo pasar a Ajuste</h2>
+<p>Use Ajuste / Roll cuando exista una señal objetiva: short delta elevada, distancia crítica, strike breach, drawdown relevante, DTE crítico o necesidad deliberada de reestructurar. Si el riesgo está normal, la acción correcta puede ser NO ACTION.</p>
+</article>
+<article id="sec-adjust" class="manual-section"><div class="section-kicker">07 · AJUSTE / ROLL</div>
+<h1>Ajuste / Roll — “¿Intervenir mejora el riesgo?”</h1>
+<p class="lead">El Adjustment Desk separa detección, diagnóstico, comparación, validación y aprobación. La intervención no es automática.</p>
+
+<div class="sequence compact"><div>DETECT</div><i>→</i><div>DIAGNOSE</div><i>→</i><div>COMPARE</div><i>→</i><div>VALIDATE</div><i>→</i><div>APPROVE</div></div>
+
+<h2>Current vs Proposed</h2>
+<p>La estructura actual utiliza datos LIVE cuando están disponibles. La propuesta puede ser MODEL. Compare:</p>
+<ul>
+<li>MAX LOSS</li><li>Max Profit</li><li>PoP RN</li><li>Break-even</li><li>R:R</li><li>Delta / Theta / Vega</li>
+</ul>
+
+<h2>Payoff comparativo</h2>
+<p>La línea CURRENT muestra el perfil vigente y AFTER la alternativa. Zona verde y zona roja identifican ganancias/pérdidas modeladas. Spot, ±1σ Expected Move, shorts y break-even permiten ver qué riesgo se desplaza con el ajuste.</p>
+
+<h2>Candidatos</h2>
 <table>
-  <tr><th>Estrategia</th><th>Estructura</th><th>Cuándo usarla</th><th>IVR ideal</th></tr>
-  <tr><td>🦅 Iron Condor (IC)</td><td>4 patas: 2 puts + 2 calls OTM</td><td>Mercado lateral, rango definido</td><td><span class="badge badge-green">≥ 35%</span></td></tr>
-  <tr><td>🦋 Iron Butterfly (IB)</td><td>4 patas: vender ATM, comprar wings</td><td>Mercado muy lateral, máxima theta</td><td><span class="badge badge-green">≥ 65%</span></td></tr>
-  <tr><td>🔰 Broken Wing (BWC)</td><td>IC asimétrico, ala más ancha de un lado</td><td>Sesgo direccional moderado</td><td><span class="badge badge-green">≥ 50%</span></td></tr>
-  <tr><td>📈 Bull Call Spread (BCS)</td><td>Comprar call + vender call superior</td><td>Alcista moderado</td><td><span class="badge badge-amber">35-65%</span></td></tr>
-  <tr><td>📉 Bear Put Spread (BPS)</td><td>Comprar put + vender put inferior</td><td>Bajista moderado</td><td><span class="badge badge-amber">35-65%</span></td></tr>
-  <tr><td>⚡ Straddle</td><td>Comprar call + put ATM</td><td>Esperas movimiento grande, dirección incierta</td><td><span class="badge badge-red">≤ 35%</span></td></tr>
-  <tr><td>🌊 Strangle</td><td>Comprar call + put OTM</td><td>Movimiento grande esperado, más barato que straddle</td><td><span class="badge badge-red">≤ 35%</span></td></tr>
+<tr><th>Candidato</th><th>Uso</th></tr>
+<tr><td>NO ACTION</td><td>Mantener cuando no existe un motivo defensivo suficiente.</td></tr>
+<tr><td>ROLL CALL SIDE AWAY</td><td>Mover short call + wing call juntos.</td></tr>
+<tr><td>ROLL PUT SIDE AWAY</td><td>Mover short put + wing put juntos.</td></tr>
+<tr><td>ROLL OUT</td><td>Extender vencimiento; evaluar como nueva exposición.</td></tr>
 </table>
 
-<h3>IVR — IV Rank</h3>
-<div class="card">
-  <p>El IVR mide dónde está la volatilidad actual respecto a su rango del último año:</p>
-  <p><strong>Fórmula:</strong> IVR = (IV actual - IV mínima 52w) / (IV máxima 52w - IV mínima 52w) × 100</p>
-  <p>Un IVR de 80% significa que la volatilidad actual es más alta que el 80% del tiempo del último año. Momento ideal para vender opciones.</p>
+<h2>Institutional Verdict</h2>
+<ul>
+<li><b>RISK IMPROVED:</b> MAX LOSS/R:R mejoran sin deterioro material de PoP.</li>
+<li><b>TRADE-OFF · REVIEW:</b> hay compensaciones mixtas; exige juicio.</li>
+<li><b>TRADE-OFF NEGATIVE:</b> el intercambio deteriora métricas dominantes.</li>
+<li><b>RISK WORSE · REJECT ADJUSTMENT:</b> aumento material de MAX LOSS y deterioro de R:R, aunque mejore PoP.</li>
+</ul>
+
+<h2>Execution Economics</h2>
+<p>Close Current puede ser EXECUTABLE si se construye con Bid/Ask reales. Open Proposed y Net Roll permanecen MODEL hasta que exista preview verificable. Margin Impact nunca se inventa.</p>
+
+<h2>Approval Gate</h2>
+<p>Data freshness, conexión del bot, current quote, proposed quote, MAX LOSS, liquidez, margen y aprobación humana deben ser evaluados. Si proposed quote o margin están UNVERIFIED, el botón de ejecución debe permanecer bloqueado.</p>
+
+<div class="callout key"><b>Regla de protección</b><p>Una estructura definida debe seguir definida después del ajuste. Short y wing defensiva se mueven juntas.</p></div>
+</article>
+<article id="sec-close" class="manual-section"><div class="section-kicker">08 · CIERRE</div>
+<h1>Protocolo de cierre</h1>
+<p class="lead">Cerrar es una decisión estratégica. El objetivo es terminar la exposición cuando el trade ha cumplido su función o cuando el riesgo ya no compensa permanecer.</p>
+
+<h2>Motivos válidos</h2>
+<ul>
+<li><b>Target capturado:</b> la prima/beneficio alcanzó el objetivo predefinido.</li>
+<li><b>Stop / pérdida definida:</b> se alcanzó el límite aceptado.</li>
+<li><b>DTE crítico:</b> gamma y ejecución ya no justifican la exposición.</li>
+<li><b>Tesis invalidada:</b> la superficie de volatilidad o el contexto cambió de forma material.</li>
+<li><b>Riesgo de cartera:</b> concentración o margen exige reducción.</li>
+<li><b>Manual / externo:</b> cierre deliberado que debe registrarse con causa explícita.</li>
+</ul>
+
+<h2>Antes de cerrar</h2>
+<div class="checklist">
+<label>□ Confirmar todas las patas</label><label>□ Verificar tamaño real</label><label>□ Revisar Bid/Ask</label>
+<label>□ Estimar slippage</label><label>□ Confirmar que no queda una pata desnuda</label><label>□ Registrar motivo</label>
 </div>
 
-<h3>Expected Move (EM)</h3>
-<div class="card">
-  <p>El movimiento esperado es el rango de precio donde el mercado estima que estará el activo al vencimiento con 68% de probabilidad (1 desviación estándar).</p>
-  <p><strong>Fórmula:</strong> EM = Precio × IV × √(DTE/365)</p>
-  <p>Para un IC, coloca los strikes cortos justo fuera del EM para tener PoP ≥ 68%.</p>
+<h2>Después de cerrar</h2>
+<p>El cierre debe llegar al Journal_Institucional y luego al Diario. Si el trade es PRODUCTION, entra en el track record oficial. Si fue prueba, PAPER o LEGACY, debe quedar excluido.</p>
+</article>
+<article id="sec-journal" class="manual-section"><div class="section-kicker">09 · DIARIO</div>
+<h1>Diario — “¿Dónde está el edge y cómo ejecutamos?”</h1>
+<p class="lead">El Diario es el sistema de memoria institucional. Google Sheets es el histórico maestro persistente; Bot V5/Bybit alimenta estado LIVE. La DB efímera de Render no es autoridad histórica.</p>
+
+<h2>Track Record</h2>
+<table>
+<tr><th>Estado</th><th>En KPIs oficiales</th><th>Uso</th></tr>
+<tr><td>PRODUCTION</td><td>Sí</td><td>Operativa real bajo el playbook actual.</td></tr>
+<tr><td>PAPER</td><td>No</td><td>Simulación/documentación.</td></tr>
+<tr><td>TEST</td><td>No</td><td>Desarrollo técnico.</td></tr>
+<tr><td>LEGACY</td><td>No</td><td>Histórico pre-producción o esquema incompleto.</td></tr>
+</table>
+
+<h2>KPIs</h2>
+<ul>
+<li><b>Net PnL:</b> resultado acumulado de trades cerrados filtrados.</li>
+<li><b>Win Rate:</b> porcentaje de trades positivos.</li>
+<li><b>Profit Factor:</b> gross wins / gross losses.</li>
+<li><b>Expectancy:</b> PnL promedio por trade.</li>
+<li><b>Max Drawdown:</b> caída máxima desde un pico de equity de la serie.</li>
+<li><b>Avg Winner / Avg Loser:</b> tamaño medio de ganadores y perdedores.</li>
+</ul>
+
+<h2>Equity Curve y PnL por estrategia</h2>
+<p>La curva de equity ayuda a evaluar estabilidad, drawdown y cambios de régimen del sistema. PnL by Strategy y Edge Map permiten detectar qué estructuras aportan retorno y con qué muestra.</p>
+
+<h2>PLAN vs EXECUTION</h2>
+<p>El análisis correcto separa el plan de entrada del resultado. Un trade se evalúa en cuatro dimensiones: <b>plan, ejecución, disciplina y resultado</b>. El campo “Lección” debe producir una regla o aprendizaje accionable, no una explicación retrospectiva vaga.</p>
+
+<h2>Persistencia</h2>
+<p><b>Journal_Institucional</b> recibe el nuevo esquema. La hoja histórica anterior se conserva como LEGACY_PARTIAL. Un reinicio de Render puede vaciar la DB local, pero no debe borrar el histórico de Google Sheets.</p>
+
+<h2>Regla de muestra</h2>
+<p>No cambie estrategia basándose en 1–3 trades. La terminal debe mostrar tamaño de muestra junto con PnL y win rate. Un resultado sin muestra suficiente no constituye edge estadístico.</p>
+</article>
+<article id="sec-governance" class="manual-section"><div class="section-kicker">10 · GOBERNANZA</div>
+<h1>Gobernanza, continuidad y control de cambios</h1>
+
+<h2>Fuentes de verdad</h2>
+<table>
+<tr><th>Dominio</th><th>Fuente preferida</th></tr>
+<tr><td>Posiciones / precios operativos</td><td>Exchange correspondiente + Bot V5</td></tr>
+<tr><td>IVR / IVP histórico</td><td>Deribit DVOL 52W</td></tr>
+<tr><td>IV ATM actual</td><td>Venue seleccionado</td></tr>
+<tr><td>Portfolio / margen</td><td>Campos canónicos del exchange</td></tr>
+<tr><td>Histórico cerrado</td><td>Google Sheets · Journal_Institucional</td></tr>
+<tr><td>DB Render</td><td>Estado operativo efímero; nunca histórico maestro</td></tr>
+</table>
+
+<h2>Anti-amnesia</h2>
+<p>Si Render reinicia y la DB está vacía, el Bot V5 reconstruye posiciones abiertas desde Bybit. El Diario no debe interpretar DB vacía como “histórico vacío”.</p>
+
+<h2>Control de cambios</h2>
+<ul>
+<li>Una modificación de lógica de estrategia debe registrarse con fecha/versión.</li>
+<li>No mezclar resultados de reglas antiguas con un track record nuevo sin etiquetarlos.</li>
+<li>Cambios en thresholds de roll, IVR o riesgo deben documentarse antes de medir desempeño posterior.</li>
+<li>Conservar nombres de archivos y contratos API cuando sea posible para reducir riesgo operacional.</li>
+</ul>
+
+<h2>Incidentes</h2>
+<p>Ante desconexión, datos stale, discrepancia de PnL o posiciones no reconocidas: detener nuevas entradas, sincronizar exchange, comprobar Bot V5, verificar patas y sólo después reactivar ejecución. La prioridad es reconciliar estado, no “seguir operando”.</p>
+</article>
+<article id="sec-checklists" class="manual-section"><div class="section-kicker">11 · CHECKLISTS</div>
+<h1>Checklists operativas</h1>
+
+<h2>Pre-trade</h2>
+<div class="checklist one">
+<label>□ Fuente de datos LIVE y fresca</label><label>□ Régimen de volatilidad definido</label><label>□ IVR / IVP / ATM IV revisados</label>
+<label>□ Term structure y skew revisados</label><label>□ Expiry y DTE correctos</label><label>□ Strikes y side confirmados</label>
+<label>□ Bid/Ask aceptables</label><label>□ MAX LOSS conocido</label><label>□ R:R y PoP aceptables</label>
+<label>□ Margin impact verificado</label><label>□ Concentración de cartera revisada</label><label>□ Plan de salida definido</label>
+<label>□ Trade etiquetado PRODUCTION si corresponde</label>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<h2 id="flujo"><span class="section-icon">⚡</span>10. Flujo de trabajo recomendado</h2>
-
-<div class="card">
-  <h3>Antes de abrir una posición</h3>
-  <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Revisar IV & Mercado</div><div class="step-desc">Ve a la página IV & Mercado. Confirma que el IVR está en zona favorable para tu estrategia.</div></div></div>
-  <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Revisar el rango histórico de precio</div><div class="step-desc">¿El precio está en zona alta, media o baja del año? Esto afecta dónde colocar los strikes.</div></div></div>
-  <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Verificar la estructura temporal</div><div class="step-desc">Si hay backwardation (IV corto plazo > largo plazo), evita Calendar Spreads.</div></div></div>
-  <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Armar la estrategia en el Analizador</div><div class="step-desc">Selecciona la plantilla, ajusta los strikes y verifica que el PoP sea ≥ 60% para ventas de prima.</div></div></div>
-  <div class="step"><div class="step-num">5</div><div class="step-content"><div class="step-title">Verificar el crédito neto</div><div class="step-desc">Para IC/IB, el crédito debe ser al menos 1/3 de la anchura del spread para que el ratio riesgo/beneficio sea favorable.</div></div></div>
+<h2>Durante el trade</h2>
+<div class="checklist one">
+<label>□ PnL canónico disponible</label><label>□ Short raw Delta vigilada</label><label>□ Distancia a short revisada</label>
+<label>□ DTE actualizado</label><label>□ Greeks agregados revisados</label><label>□ Margin buffer sano</label>
+<label>□ No hay strike breach no atendido</label><label>□ No se ha deteriorado liquidez</label>
 </div>
 
-<div class="card">
-  <h3>Durante la posición</h3>
-  <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Monitorear desde el teléfono</div><div class="step-desc">Abre la interfaz móvil del bot regularmente para ver el PnL actualizado.</div></div></div>
-  <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Cerrar al 50% del crédito</div><div class="step-desc">Cuando hayas capturado el 50% del crédito máximo, considera cerrar. Es la regla de TastyTrade.</div></div></div>
-  <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Ajustar si el precio se acerca al strike</div><div class="step-desc">Si el precio toca el 80% de la distancia al strike corto, evalúa hacer roll en la calculadora de Ajuste.</div></div></div>
+<h2>Antes de un roll</h2>
+<div class="checklist one">
+<label>□ Existe gatillo defensivo real</label><label>□ CURRENT verificado</label><label>□ PROPOSED claramente etiquetado</label>
+<label>□ MAX LOSS actual vs propuesto comparado</label><label>□ R:R comparado</label><label>□ PoP comparada</label>
+<label>□ Wing de protección preservada</label><label>□ Coste de cierre verificable</label><label>□ Precio propuesto verificable</label>
+<label>□ Margin impact verificado</label><label>□ Aprobación humana explícita</label>
 </div>
 
-<div class="card">
-  <h3>Al cerrar</h3>
-  <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Registrar en el Diario</div><div class="step-desc">Registra el trade con todos los datos. Incluye el IVR al entrar y el motivo de cierre.</div></div></div>
-  <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Analizar las métricas</div><div class="step-desc">Revisa tu Win Rate, Profit Factor y Max Drawdown periódicamente para optimizar tu estrategia.</div></div></div>
+<h2>Post-trade</h2>
+<div class="checklist one">
+<label>□ Cierre completo confirmado</label><label>□ PnL final registrado</label><label>□ Motivo de salida correcto</label>
+<label>□ Slippage/fees revisados si existen</label><label>□ PLAN vs EXECUTION comparado</label><label>□ Disciplina evaluada</label>
+<label>□ Lección documentada</label><label>□ Track status correcto</label>
 </div>
 
-<hr>
-<p style="text-align:center;color:#334155;font-size:11px;padding:20px 0">CriptoOpciones Lab — Terminal institucional de opciones cripto<br>Desarrollado para operación en Bybit, Binance y Deribit</p>
-
+<h2>Weekly / Monthly Review</h2>
+<div class="checklist one">
+<label>□ Equity curve</label><label>□ Max Drawdown</label><label>□ Profit Factor</label><label>□ Expectancy</label>
+<label>□ PnL por estrategia</label><label>□ PnL BTC vs ETH</label><label>□ Resultados por IVR/DTE</label><label>□ Errores de ejecución</label>
+<label>□ Muestra suficiente antes de cambiar reglas</label>
 </div>
-</body>
-</html>
+</article>
+<article id="sec-glossary" class="manual-section"><div class="section-kicker">12 · GLOSARIO</div>
+<h1>Glosario institucional</h1>
+<div class="glossary">
+<dt>ATM</dt><dd>At The Money. Strike cercano al precio actual del subyacente.</dd>
+<dt>Bid / Ask</dt><dd>Mejor precio comprador / vendedor. Determinan la ejecución real y el spread.</dd>
+<dt>Break-even (BE)</dt><dd>Nivel donde el payoff modelado cambia de pérdida a ganancia al vencimiento.</dd>
+<dt>Credit Spread</dt><dd>Spread vertical que recibe crédito inicial y limita riesgo mediante una opción larga.</dd>
+<dt>Delta (Δ)</dt><dd>Cambio aproximado del valor de la opción por cambio unitario del subyacente.</dd>
+<dt>$Delta</dt><dd>Traducción monetaria de la exposición Delta agregada.</dd>
+<dt>DTE</dt><dd>Days To Expiration. Días restantes hasta vencimiento.</dd>
+<dt>DVOL</dt><dd>Índice de volatilidad implícita de Deribit utilizado como benchmark histórico del desk.</dd>
+<dt>Expected Move (EM)</dt><dd>Movimiento aproximado implícito por volatilidad y tiempo. No es un límite.</dd>
+<dt>Gamma (Γ)</dt><dd>Cambio de Delta ante cambios del subyacente. Aumenta la sensibilidad cerca del vencimiento.</dd>
+<dt>Iron Butterfly</dt><dd>Estructura de cuatro patas con shorts concentrados en el centro y wings protectoras.</dd>
+<dt>Iron Condor</dt><dd>Estructura de cuatro patas que vende un rango y limita pérdidas en ambos lados.</dd>
+<dt>IV</dt><dd>Implied Volatility. Volatilidad implícita extraída del precio de opciones.</dd>
+<dt>IV Percentile (IVP)</dt><dd>Porcentaje del historial con IV inferior a la actual.</dd>
+<dt>IV Rank (IVR)</dt><dd>Posición de IV actual entre mínimo y máximo de un período.</dd>
+<dt>Mark Price</dt><dd>Precio de referencia del venue. No es necesariamente el precio de ejecución.</dd>
+<dt>MAX LOSS</dt><dd>Pérdida máxima modelada de una estructura de riesgo definido.</dd>
+<dt>Max Profit</dt><dd>Beneficio máximo modelado bajo las condiciones del payoff.</dd>
+<dt>OI</dt><dd>Open Interest. Contratos abiertos existentes.</dd>
+<dt>PoP</dt><dd>Probability of Profit modelada. Depende del modelo y no garantiza resultado.</dd>
+<dt>Profit Factor</dt><dd>Suma de ganancias brutas dividida entre pérdidas brutas.</dd>
+<dt>R:R</dt><dd>Relación riesgo/retorno. Debe leerse junto con PoP.</dd>
+<dt>Risk-neutral probability</dt><dd>Distribución implícita consistente con precios de opciones bajo medida neutral al riesgo; no equivale a probabilidad física.</dd>
+<dt>Roll</dt><dd>Cierre/modificación de una exposición y apertura de otra para cambiar strikes, expiry o riesgo.</dd>
+<dt>Short distance</dt><dd>Distancia porcentual entre spot y el strike short relevante.</dd>
+<dt>Skew</dt><dd>Diferencia de IV entre strikes/deltas, reflejando demanda asimétrica.</dd>
+<dt>Slippage</dt><dd>Diferencia entre precio esperado y precio efectivamente ejecutado.</dd>
+<dt>Term Structure</dt><dd>Relación de IV entre diferentes vencimientos.</dd>
+<dt>Theta (Θ)</dt><dd>Sensibilidad al paso del tiempo, manteniendo otras variables constantes.</dd>
+<dt>Vega (ν)</dt><dd>Sensibilidad del precio de la opción a cambios de volatilidad implícita.</dd>
+<dt>Wing</dt><dd>Opción larga que limita el riesgo de una pata short en estructuras definidas.</dd>
+</div>
+
+<div class="callout key"><b>Interpretación final</b><p>Ninguna métrica debe utilizarse de forma aislada. IVR sin liquidez, PoP sin R:R, Delta sin distancia o MAX LOSS sin equity producen decisiones incompletas.</p></div>
+</article></main>
+</div>
+<div class="footer"><span>CriptoOpciones LAB · Institutional Operating Manual</span><span class="sp"></span><span>BTC / ETH · Human-in-the-loop</span></div>
+<script>
+let current='overview';
+function showSection(id){
+  current=id;
+  document.querySelectorAll('.manual-section').forEach(x=>x.classList.toggle('active',x.id==='sec-'+id));
+  document.querySelectorAll('.toc-item').forEach(x=>x.classList.toggle('active',x.dataset.id===id));
+  document.querySelector('.content').scrollTop=0;
+}
+function printFull(){
+  document.body.classList.remove('print-section');
+  document.querySelectorAll('.manual-section').forEach(x=>x.classList.remove('print-target'));
+  window.print();
+}
+function printSection(){
+  document.body.classList.add('print-section');
+  document.querySelectorAll('.manual-section').forEach(x=>x.classList.toggle('print-target',x.id==='sec-'+current));
+  window.print();
+  setTimeout(()=>document.body.classList.remove('print-section'),300);
+}
+window.addEventListener('load',()=>showSection('overview'));
+</script>
+</body></html>

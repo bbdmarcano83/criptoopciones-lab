@@ -676,7 +676,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;letter-spacing:.01em}
     </div>
     <div class="exec-summary" id="exec-summary"></div>
     <div class="exec-btns">
-      <button class="btn-exec-real" onclick="confirmarEjecucion(false)">🚀 EJECUTAR REAL</button>
+      <button class="btn-exec-real" disabled title="Bloqueado hasta disponer de margen real Bybit VERIFIED">🔒 EJECUCIÓN REAL BLOQUEADA</button>
       <button class="btn-exec-dry" onclick="confirmarEjecucion(true)">🔍 Simular</button>
       <button class="btn-exec-cancel" onclick="closeExecModal()">✕</button>
     </div>
@@ -950,6 +950,13 @@ function inferStrategyCode(ls){
 
 async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100,dryRun=false){
   if(!legs?.length){alert('No hay patas armadas');return;}
+  // Safety gate institucional: mientras el backend no entregue un preview de margen
+  // VERIFIED y una operación transaccional execute+adopt, el Analyzer sólo simula.
+  // Esto evita dejar órdenes reales abiertas si la adopción posterior falla.
+  if(!dryRun){
+    alert('Ejecución REAL bloqueada en Analyzer: margen Bybit y execute+adopt transaccional aún no están VERIFIED. Usa Simular o ejecuta desde el flujo operativo seguro.');
+    return;
+  }
   const inferred=inferStrategyCode(legs);
   if(inferred&&inferred!==estrategia){
     console.warn(`Strategy normalization: UI=${estrategia} → legs=${inferred}`);
@@ -1845,13 +1852,11 @@ async function refreshPortfolio(){
   }
 }
 
-async function closePosFromApp(label){
-  if(!confirm(`¿Cerrar posición ${label}?`))return;
-  try{
-    const r=await BotAPI.closePosition(label,'manual_app');
-    alert(`✅ Cerrado | PnL: ${fmt(r.pnl||0)}`);
-    refreshPortfolio();
-  }catch(e){alert('❌ '+e.message);}
+function closePosFromApp(label){
+  // El Analyzer no ejecuta cierres. La gestión de posiciones vive en Risk Desk,
+  // donde existen ownership, freshness y safety gates específicos.
+  try{ localStorage.setItem('co_focus_position', String(label||'')); }catch(e){}
+  location.href='positions.html';
 }
 
 // ── Modal Ejecutar ─────────────────────────────────────────────────────────
