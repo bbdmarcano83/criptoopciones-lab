@@ -42,6 +42,21 @@ The migration branch currently contains the audited candidate blobs:
 
 The common engines on the branch are the exact authoritative project versions: `exchange_engine.js` 8027 bytes, `iv_engine.js` 12277 bytes, `market_engine.js` 5361 bytes and `co_shared.js` 10783 bytes (Git blob `170a0649328b777e775f89baea6974460bc1ef08`).
 
+## Local acceptance gate
+
+Status: **PASS — confirmed by the owner on 2026-08-29.**
+
+The complete local acceptance checklist was reported successful:
+
+- Seven-page visual/layout review.
+- BTC and ETH market data on Bybit and Deribit.
+- Deribit DVOL 52W IVR/IVP.
+- Read-only Bot V5 connection.
+- Chain → Analyzer state transfer.
+- Positions → Adjustment state transfer and safety gates.
+- Diario default and KPIs in PRODUCTION ONLY.
+- Manual section and full-manual print/print-to-PDF.
+
 ## Promotion rule
 
-`main` remains untouched. This validation is sufficient to open a **draft PR for review**, but not to merge automatically. Promotion to `main` remains a separate explicit action after reviewing the PR diff and, ideally, one visual/browser smoke in the user's normal local terminal environment. No bot backend or bot `main.py` change is part of this frontend terminal validation.
+`main` remains untouched. Static, integration and local acceptance gates are complete. The pull request may be marked **ready for review**, but it must not merge automatically. Promotion to `main` remains a separate explicit action by the owner. No bot backend or bot `main.py` change is part of this frontend terminal validation.
