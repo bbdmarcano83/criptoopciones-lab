@@ -2,7 +2,16 @@ import argparse, base64, gzip, hashlib, pathlib
 
 TARGET = 'index.html'
 EXPECTED = 'c4026e999bff73eabe2c8c260fb16758e5b13552d80a438ea11a8cd05144d085'
-PARTS = [pathlib.Path(f'scripts/payload_parts/part{i:02d}.txt') for i in range(1, 8)]
+PARTS = [
+    pathlib.Path('scripts/payload_parts/part01.txt'),
+    pathlib.Path('scripts/payload_parts/part02.txt'),
+    pathlib.Path('scripts/payload_parts/part03.txt'),
+    pathlib.Path('scripts/payload_parts/part04.txt'),
+    pathlib.Path('scripts/payload_parts/part05a.txt'),
+    pathlib.Path('scripts/payload_parts/part05b.txt'),
+    pathlib.Path('scripts/payload_parts/part06.txt'),
+    pathlib.Path('scripts/payload_parts/part07.txt'),
+]
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
