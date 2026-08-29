@@ -428,6 +428,7 @@ async function botFetch(path,opts={},retries=3){
 const BotAPI={
   async status(){return botFetch('/status')},
   async portfolio(){return botFetch('/portfolio')},
+  async live(){return botFetch('/live')},
   async mercado(asset){return botFetch(`/mercado/${asset}`)},
   async pause(){return botFetch('/pause',{method:'POST'})},
   async resume(){return botFetch('/resume',{method:'POST'})},
@@ -1068,7 +1069,7 @@ async function testBotFromModal(){
   }catch(e){msg.textContent='❌ '+e.message;msg.style.color='#f43f5e';}
 }
 
-// ── Portfolio en sidebar ───────────────────────────────────────────────────
+// ── Portfolio en sidebar ── usa /live para PnL real desde Bybit ───────────
 async function refreshPortfolio(){
   const mini=document.getElementById('portfolio-mini');
   const status=document.getElementById('bot-conn-status');
@@ -1079,16 +1080,19 @@ async function refreshPortfolio(){
     return;
   }
   try{
-    const data=await BotAPI.portfolio();
+    const data=await BotAPI.live();
+    const posiciones=data.estrategias||[];
+    const pnlTotal=data.pnl_total||0;
     status.className='bot-status';
-    status.innerHTML=`<div class="live-dot"></div><span>Conectado | PnL: <b style="color:${data.pnl_total>=0?'#10b981':'#f43f5e'}">${fmt(data.pnl_total)}</b></span>`;
-    if(!data.posiciones?.length){
+    status.innerHTML=`<div class="live-dot"></div><span>Conectado | PnL: <b style="color:${pnlTotal>=0?'#10b981':'#f43f5e'}">${fmt(pnlTotal)}</b></span>`;
+    if(!posiciones.length){
       mini.innerHTML='<div style="font-size:10px;color:#64748b;text-align:center;padding:6px">Sin posiciones abiertas</div>';
     }else{
-      mini.innerHTML=data.posiciones.map(p=>`
+      mini.innerHTML=posiciones.map(p=>`
         <div class="portfolio-item">
           <span class="portfolio-item pi-close" onclick="closePosFromApp('${p.label}')">✕</span>
           <span class="pi-strat">${p.estrategia}</span> ${p.asset}
+          <div style="font-size:9px;color:#64748b">${p.expiry} | Cr:${fmt(p.credito_entrada)}</div>
           <div class="pi-pnl" style="color:${p.pnl>=0?'#10b981':'#f43f5e'}">${fmt(p.pnl)} (${p.pnl_pct}%)</div>
         </div>`).join('');
     }

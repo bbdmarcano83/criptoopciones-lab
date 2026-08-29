@@ -387,20 +387,38 @@ async function loadAll(){
       document.getElementById('nav-price').textContent='BTC $'+spotPrices.BTC.toLocaleString();
     }catch{}
 
-    // Portfolio del bot
-    const data=await botFetch('/portfolio');
-    const greeks=await botFetch('/greeks').catch(()=>({}));
-    greeksData=greeks;
+    // Portfolio del bot — usa /live para PnL real desde Bybit
+    const data=await botFetch('/live');
+    greeksData=data.greeks||{};
 
-    allPositions=data.posiciones||[];
+    // /live devuelve {estrategias:[...], pnl_total, credito_total, greeks}
+    // Mapear al formato que espera renderTable()
+    allPositions=(data.estrategias||[]).map(p=>({
+      label:         p.label,
+      estrategia:    p.estrategia,
+      asset:         p.asset,
+      expiry:        p.expiry,
+      credito_entrada: p.credito_entrada,
+      pnl:           p.pnl,
+      pnl_pct:       p.pnl_pct,
+      entry_time:    p.entry_time,
+      iv_rank_entry: p.iv_rank_entry,
+      legs:          p.legs||[],
+      // Greeks sumados de las patas
+      delta: (p.legs||[]).reduce((s,l)=>s+(l.delta||0),0),
+      theta: (p.legs||[]).reduce((s,l)=>s+(l.theta||0),0),
+      vega:  (p.legs||[]).reduce((s,l)=>s+(l.vega||0),0),
+      gamma: (p.legs||[]).reduce((s,l)=>s+(l.gamma||0),0),
+    }));
 
     document.getElementById('bot-status-badge').innerHTML=
       `<span style="color:#10b981">● Conectado</span> — ${allPositions.length} posición(es)`;
 
     // Métricas resumen
     const pnlTotal=data.pnl_total||0;
-    const credTotal=allPositions.reduce((s,p)=>s+(p.credito_entrada||0),0);
+    const credTotal=data.credito_total||0;
     const pctCapt=credTotal>0?(pnlTotal/credTotal*100):0;
+    const greeks=data.greeks||{};
     const thetaTotal=Object.values(greeks).reduce((s,g)=>s+(g?.theta||0),0);
     const deltaTotal=Object.values(greeks).reduce((s,g)=>s+(g?.delta||0),0);
 
