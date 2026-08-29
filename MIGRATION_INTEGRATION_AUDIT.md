@@ -20,6 +20,7 @@ Scope: `migration-local-institutional-20260828` only. Production `main` is not m
 4. Analyzer must not perform a non-transactional real `execute` followed by a separate `adopt`.
 5. Position management/close belongs to Risk & Positions, where ownership/freshness safety gates exist.
 6. Frontend navigation uses local project pages/engines only; no missing PDF files are required by the manual candidate.
+7. `co_shared.js` contains no unreachable initializer after `navHTML()` returns; this cleanup does not alter trading behavior.
 
 ## Candidate fingerprints after audit
 
