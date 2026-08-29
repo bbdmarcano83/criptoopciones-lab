@@ -1184,31 +1184,6 @@ async function loadAll(){
       botCapabilities=st?.capabilities||st?.features||{};
     }catch(capErr){botCapabilities={};}
 
-<<<<<<< HEAD
-    // Portfolio del bot — usa /live para PnL real desde Bybit
-    const data=await botFetch('/live');
-    greeksData=data.greeks||{};
-
-    // /live devuelve {estrategias:[...], pnl_total, credito_total, greeks}
-    // Mapear al formato que espera renderTable()
-    allPositions=(data.estrategias||[]).map(p=>({
-      label:         p.label,
-      estrategia:    p.estrategia,
-      asset:         p.asset,
-      expiry:        p.expiry,
-      credito_entrada: p.credito_entrada,
-      pnl:           p.pnl,
-      pnl_pct:       p.pnl_pct,
-      entry_time:    p.entry_time,
-      iv_rank_entry: p.iv_rank_entry,
-      legs:          p.legs||[],
-      // Greeks sumados de las patas
-      delta: (p.legs||[]).reduce((s,l)=>s+(l.delta||0),0),
-      theta: (p.legs||[]).reduce((s,l)=>s+(l.theta||0),0),
-      vega:  (p.legs||[]).reduce((s,l)=>s+(l.vega||0),0),
-      gamma: (p.legs||[]).reduce((s,l)=>s+(l.gamma||0),0),
-    }));
-=======
     // Account/portfolio snapshot: prefer dedicated endpoint when available.
     // /live is used for positions; /portfolio is the preferred source for wallet/margin.
     try{
@@ -1221,7 +1196,6 @@ async function loadAll(){
     const data=await botFetch('/live');
     lastBotData=data||{};
     botFetchedAt=Date.now();
->>>>>>> b0936695516f9c638eab92611b235913ac98c292
 
     accountSnapshot=resolveAccountSnapshot(lastPortfolioData,lastBotData);
     allPositions=(data.estrategias||[]).map(p=>({
@@ -1234,13 +1208,6 @@ async function loadAll(){
 
     // Update topbar
     const pnlTotal=data.pnl_total||0;
-<<<<<<< HEAD
-    const credTotal=data.credito_total||0;
-    const pctCapt=credTotal>0?(pnlTotal/credTotal*100):0;
-    const greeks=data.greeks||{};
-    const thetaTotal=Object.values(greeks).reduce((s,g)=>s+(g?.theta||0),0);
-    const deltaTotal=Object.values(greeks).reduce((s,g)=>s+(g?.delta||0),0);
-=======
     el('tb-pnl').textContent=fmt(pnlTotal);
     el('tb-pnl').className='tsv '+(pnlTotal>=0?'g':'r');
     const acc=accountSnapshot;
@@ -1261,7 +1228,6 @@ async function loadAll(){
       el('sb-ivr-txt').textContent='IVR 52W: sin datos';
     }
     el('tb-time').textContent=new Date().toLocaleTimeString('es');
->>>>>>> b0936695516f9c638eab92611b235913ac98c292
 
     // Status bar
     el('sb-bot-dot').style.background='#10b981';
