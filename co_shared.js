@@ -166,7 +166,6 @@ function navHTML(activePage){
     <span class="nav-ivr badge" id="nav-ivr">IVR --</span>
     <button class="nav-btn" onclick="navRefresh()">⟳</button>
   </nav>`;
-  setTimeout(_initNav, 0);
 }
 
 // Auto-init nav prices y active link sin sobrescribir el spot activo
