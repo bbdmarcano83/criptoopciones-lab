@@ -19,9 +19,9 @@ function fmtPct(v,d=1){return v.toFixed(d)+'%'}
 
 // Estado global persistente entre páginas
 const COState={
-  get exchange(){return localStorage.getItem('co_exchange')||'Bybit'},
+  get exchange(){const v=localStorage.getItem('co_exchange')||'Bybit';return ['Bybit','Deribit'].includes(v)?v:'Bybit'},
   set exchange(v){localStorage.setItem('co_exchange',v)},
-  get activo(){return localStorage.getItem('co_activo')||'BTC'},
+  get activo(){const v=localStorage.getItem('co_activo')||'BTC';return ['BTC','ETH'].includes(v)?v:'BTC'},
   set activo(v){localStorage.setItem('co_activo',v)},
   get spot(){return parseFloat(localStorage.getItem('co_spot')||'77000')},
   set spot(v){localStorage.setItem('co_spot',v)},
@@ -34,59 +34,59 @@ const COState={
   get rfr(){return parseFloat(localStorage.getItem('co_rfr')||'5')/100},
 };
 
-// Rangos históricos de IV por activo (52 semanas aproximados)
-const IV_RANGES = {
-  BTC: {min: 38, max: 120},
-  ETH: {min: 30, max: 110},
-  SOL: {min: 45, max: 180},
-  BNB: {min: 25, max: 90},
-};
-
-// Calcular IVR correcto usando histórico conocido
+// ── Volatilidad unificada ──────────────────────────────────────────────────
+// IV Rank/Percentile oficiales viven en iv_engine.js. Esta función queda solo
+// por compatibilidad con código antiguo: devuelve el IVR 52w persistido, o NaN
+// mientras el histórico real todavía se está construyendo.
 function calcIVR(ivActual, activo){
-  const range = IV_RANGES[activo] || {min:30, max:120};
-  const ivr = ((ivActual - range.min) / (range.max - range.min)) * 100;
-  return Math.max(0, Math.min(100, ivr));
+  const st=(typeof IVEngine!=='undefined')?IVEngine.get(activo):null;
+  return st && Number.isFinite(st.ivRank52w) ? st.ivRank52w : NaN;
 }
 
-// Fetch precio
+async function getUnifiedVolState(activo, spot, targetDTE=7){
+  if(typeof IVEngine==='undefined') throw new Error('IVEngine no cargado');
+  return IVEngine.update({exchange:COState.exchange,asset:activo,spot,targetDTE});
+}
+
+function volStateLabel(st){
+  if(!st) return 'Sin datos';
+  return st.ready ? '52W READY' : `Construyendo ${Math.floor(st.historyDays||0)}/365d`;
+}
+
+
+// Extractor unificado de IV ATM del primer vencimiento
+function obtenerIVATM(opts, spot) {
+  if (!opts || !opts.length) return COState.iv || 48.5;
+  const validas = opts.filter(o => o.iv > 5 && o.iv < 300);
+  if (!validas.length) return COState.iv || 48.5;
+
+  const expiries = [...new Set(validas.map(o => o.expiry))].sort((a,b) => parseExpiryDate(a) - parseExpiryDate(b));
+  const frontOpts = validas.filter(o => o.expiry === expiries[0]);
+
+  const atmOpt = frontOpts.reduce((prev, curr) => 
+    Math.abs(curr.strike - spot) < Math.abs(prev.strike - spot) ? curr : prev, frontOpts[0]);
+
+  return +(atmOpt ? atmOpt.iv : 48.5).toFixed(1);
+}
+
+// Fetch precio — adaptador normalizado Bybit / Deribit
 async function fetchSpot(exchange,activo){
   try{
-    if(exchange==='Bybit'){
-      const r=await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${activo}USDT`);
-      return parseFloat((await r.json()).result.list[0].lastPrice);
-    }else{
-      const r=await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${activo}USDT`);
-      return parseFloat((await r.json()).price);
+    if(typeof ExchangeEngine!=='undefined' && ExchangeEngine.EXCHANGES.includes(exchange)){
+      return (await ExchangeEngine.getSpot(exchange,activo)).price;
     }
-  }catch{return null;}
+    throw new Error('ExchangeEngine no cargado o exchange no soportado');
+  }catch(e){console.warn('fetchSpot:',e);return null;}
 }
 
-// Fetch opciones
+// Fetch opciones — schema normalizado común.
 async function fetchOptions(exchange,activo){
   try{
-    if(exchange==='Bybit'){
-      const r=await fetch(`https://api.bybit.com/v5/market/tickers?category=option&baseCoin=${activo}`);
-      const list=(await r.json()).result?.list||[];
-      return list.map(o=>{
-        const p=o.symbol.split('-');
-        return{symbol:o.symbol,expiry:p[1],strike:+p[2],tipo:p[3]==='C'?'call':'put',
-          delta:+o.delta||0,iv:+(o.markIv||0)*100,bid:+(o.bid1Price||0),ask:+(o.ask1Price||0),
-          mark:+(o.markPrice||0),volume:+(o.volume24h||0),oi:+(o.openInterest||0),
-          theta:+(o.theta||0),vega:+(o.vega||0),gamma:+(o.gamma||0)};
-      });
-    }else{
-      const r=await fetch(`https://eapi.binance.com/eapi/v1/ticker?symbol=${activo}USDT`);
-      const list=await r.json();
-      return (Array.isArray(list)?list:[]).map(o=>{
-        const p=o.symbol.split('-');
-        return{symbol:o.symbol,expiry:p[0],strike:+p[1],tipo:p[2]==='C'?'call':'put',
-          delta:+o.delta||0,iv:+(o.impliedVolatility||0)*100,bid:+(o.bidPrice||0),ask:+(o.askPrice||0),
-          mark:+(o.markPrice||0),volume:+(o.volume||0),oi:+(o.openInterest||0),
-          theta:0,vega:0,gamma:0};
-      });
+    if(typeof ExchangeEngine!=='undefined' && ExchangeEngine.EXCHANGES.includes(exchange)){
+      return await ExchangeEngine.getOptions(exchange,activo);
     }
-  }catch{return[];}
+    throw new Error('ExchangeEngine no cargado o exchange no soportado');
+  }catch(e){console.warn('fetchOptions:',e);return [];}
 }
 
 // Expected Move
@@ -113,7 +113,7 @@ nav{background:#13131f;border-bottom:1px solid #1e2035;padding:0;display:flex;al
 .nav-link:hover{color:#94a3b8;background:#0d0d14}
 .nav-link.active{color:#38bdf8;border-bottom-color:#38bdf8;font-weight:600}
 .nav-spacer{flex:1}
-.nav-price{padding:0 10px;font-size:12px;color:#38bdf8;font-weight:600;border-left:1px solid #1e2035}
+.nav-price{padding:0 10px;font-size:12px;color:#38bdf8;font-weight:600;border-left:1px solid #1e2035;display:flex;align-items:center;gap:6px}
 .nav-ivr{padding:0 10px;font-size:11px;border-left:1px solid #1e2035}
 .nav-exchange{padding:0 10px;font-size:11px;color:#475569;border-left:1px solid #1e2035}
 .nav-btn{margin:0 8px;background:#1a1a2e;border:1px solid #2a2a45;border-radius:4px;padding:4px 10px;font-size:11px;color:#64748b;cursor:pointer}
@@ -144,11 +144,12 @@ button.btn.danger{background:#1f0a0a;border-color:#7f1d1d;color:#ef4444}
 function navHTML(activePage){
   const pages=[
     {href:'index.html',icon:'📈',label:'Analizador'},
-    {href:'positions.html',icon:'📊',label:'Posiciones'},
+    {href:'positions.html',icon:'🛡️',label:'Riesgo & Posiciones'},
     {href:'chain.html',icon:'📋',label:'Cadena'},
-    {href:'iv.html',icon:'🌊',label:'IV & Mercado'},
-    {href:'ajuste.html',icon:'🔧',label:'Ajuste'},
+    {href:'iv.html',icon:'🌊',label:'Volatilidad'},
+    {href:'ajuste.html',icon:'🔧',label:'Ajuste / Roll'},
     {href:'diario.html',icon:'📓',label:'Diario'},
+    {href:'manual.html',icon:'📖',label:'Manual'},
   ];
   return `<nav>
     <div class="nav-logo"><span class="c">Cripto</span><span class="o">Opciones</span><span class="l"> LAB</span></div>
@@ -157,8 +158,38 @@ function navHTML(activePage){
     </div>
     <div class="nav-spacer"></div>
     <span class="nav-exchange" id="nav-exchange">${COState.exchange}</span>
-    <span class="nav-price" id="nav-price">$${COState.spot.toLocaleString()}</span>
+    <span class="nav-price" id="nav-price" style="display:flex;align-items:center;gap:6px;min-width:220px">
+      <span id="np-btc" style="color:#f7931a;font-weight:700">BTC $--</span>
+      <span style="color:#334155">|</span>
+      <span id="np-eth" style="color:#8b9cf7;font-weight:700">ETH $--</span>
+    </span>
     <span class="nav-ivr badge" id="nav-ivr">IVR --</span>
     <button class="nav-btn" onclick="navRefresh()">⟳</button>
   </nav>`;
+}
+
+// Auto-init nav prices y active link sin sobrescribir el spot activo
+async function _loadNavPrices(){
+  try{
+    const ex=COState.exchange;
+    const [rb,re]=await Promise.all([ExchangeEngine.getSpot(ex,'BTC'),ExchangeEngine.getSpot(ex,'ETH')]);
+    const btc=rb.price,eth=re.price;
+    const nb=document.getElementById('np-btc'),ne=document.getElementById('np-eth');
+    if(nb)nb.textContent='BTC $'+btc.toLocaleString('es',{maximumFractionDigits:0});
+    if(ne)ne.textContent='ETH $'+eth.toLocaleString('es',{maximumFractionDigits:0});
+    const spotActivo=COState.activo==='BTC'?btc:eth;if(spotActivo)COState.spot=spotActivo;
+  }catch(e){}
+}
+
+function _setActiveNav(){
+  const cur=location.pathname.split('/').pop()||'index.html';
+  document.querySelectorAll('.nav-link').forEach(function(a){
+    a.classList.toggle('active',a.getAttribute('href')===cur);
+  });
+}
+
+function _initNav(){
+  _setActiveNav();
+  _loadNavPrices();
+  setInterval(_loadNavPrices,30000);
 }

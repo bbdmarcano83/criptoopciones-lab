@@ -1,290 +1,1281 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>CriptoOpciones Lab — IV & Mercado</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CriptoOpciones LAB — Volatilidad</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
-<script src="co_shared.js"></script>
-<style id="shared-css"></style>
-<style>
-.iv-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:16px;flex:1;overflow:auto}
-.iv-card{background:#13131f;border:1px solid #1e2035;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
-.iv-card h3{font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:1px}
-.big-metric{text-align:center;padding:8px 0}
-.big-metric .val{font-size:36px;font-weight:700}
-.big-metric .sub{font-size:11px;color:#475569;margin-top:4px}
-.ivr-gauge{position:relative;height:8px;background:#1e2035;border-radius:4px;margin:8px 0;overflow:hidden}
-.ivr-gauge-fill{height:100%;border-radius:4px;transition:width 0.5s}
-.ivr-labels{display:flex;justify-content:space-between;font-size:9px;color:#334155}
-.strat-rec{background:#0c1422;border:1px solid #1e3a5f;border-radius:6px;padding:10px;text-align:center}
-.strat-rec .sr-label{font-size:9px;color:#334155;margin-bottom:4px}
-.strat-rec .sr-val{font-size:13px;font-weight:600;color:#38bdf8}
-.em-box{background:#052e16;border:1px solid #166534;border-radius:6px;padding:10px;text-align:center}
-.em-box .em-val{font-size:24px;font-weight:700;color:#22c55e}
-.em-box .em-range{font-size:11px;color:#4ade80;margin-top:4px}
-.skew-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #1e2035}
-.skew-row:last-child{border:none}
-.term-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 0;border-bottom:1px solid #1e2035}
-.term-row:last-child{border:none}
-.term-bar{height:4px;border-radius:2px;background:#38bdf8;transition:width 0.3s}
+<script src="exchange_engine.js"></script><script src="iv_engine.js"></script><script src="market_engine.js"></script><script src="co_shared.js"></script>
+<style id="shared-css">
+/* ===== HISTORICAL PRICE RANGE / HD ===== */
+html,body{
+  text-rendering:optimizeLegibility!important;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+.regime-strategy{
+  margin-top:5px;
+  padding:5px 6px;
+  border:1px solid #2f425d;
+  background:#0b1521;
+  border-radius:4px;
+  color:#58c9ff;
+  font-size:8.5px;
+  font-weight:900;
+  line-height:1.25;
+  text-align:center;
+}
+.price-range-panel{display:flex;flex-direction:column}
+.pr-current{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  border-bottom:1px solid #2f3c54;padding:2px 1px 5px;margin-bottom:5px
+}
+.pr-current span{
+  color:#8da2ba;font-size:7px;text-transform:uppercase;letter-spacing:.7px;font-weight:900
+}
+.pr-current b{
+  color:#f6faff;font-size:15px;font-weight:900
+}
+.pr-window{
+  background:#0b111b;border:1px solid #2d3d56;border-radius:5px;
+  padding:5px 6px;margin-bottom:5px
+}
+.pr-head,.pr-values,.pr-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:6px
+}
+.pr-head b{font-size:7px;color:#9eb3ca;letter-spacing:.7px}
+.pr-head span{font-size:8.5px;color:#ffd166;font-weight:900}
+.pr-values{margin-top:3px;font-size:8.5px;color:#d8e4f1;font-weight:800}
+.pr-track{
+  position:relative;height:7px;margin:6px 0 3px;
+  border-radius:4px;background:#1a2738;border:1px solid #30425d;overflow:visible
+}
+.pr-fill{
+  height:100%;width:0;border-radius:4px;background:#2fb8ff;
+  transition:width .25s ease
+}
+.pr-dot{
+  position:absolute;top:50%;left:0;transform:translate(-50%,-50%);
+  width:8px;height:8px;border-radius:50%;background:#f6fbff;
+  border:2px solid #2fb8ff;box-shadow:0 0 0 2px rgba(47,184,255,.12);
+  transition:left .25s ease
+}
+.pr-foot{font-size:6.3px;color:#6f849e;text-transform:uppercase;font-weight:800}
+.pr-note{
+  margin-top:auto;color:#72879f;font-size:6.7px;line-height:1.3
+}
+
+
+/* ===== PRICE RANGE LEGACY + PROBABILITY MAP ===== */
+.price-range-legacy{display:flex;flex-direction:column}
+.pr-rows{display:flex;flex-direction:column;gap:2px;border-bottom:1px solid #2f3c54;padding-bottom:6px;margin-bottom:6px}
+.pr-row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:9px;line-height:1.2}
+.pr-row span{color:#aabbd0;font-weight:700}
+.pr-row b{font-size:9.5px;font-weight:900}
+.pr-position{margin-top:1px}
+.pr-position-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.pr-position-top span{color:#9fb1c8;font-size:8px;text-transform:uppercase;letter-spacing:.7px;font-weight:800}
+.pr-position-top b{font-size:13px;font-weight:900;color:#ffd166}
+.pr-track-legacy{position:relative;height:8px;border-radius:999px;border:1px solid #30425d;background:#121d2d;overflow:hidden}
+.pr-mid-zone{position:absolute;left:35%;width:30%;top:0;bottom:0;background:rgba(47,184,255,.18);border-left:1px dashed rgba(132,197,255,.35);border-right:1px dashed rgba(132,197,255,.35)}
+.pr-dot-legacy{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;background:#f8fbff;border:2px solid #2fb8ff;box-shadow:0 0 0 2px rgba(47,184,255,.12)}
+.pr-scale,.pr-axis{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.pr-scale{color:#7790ac;font-size:6.9px;font-weight:800}
+.pr-axis{color:#8b9cb3;font-size:7px;font-weight:800}
+.pr-mini-6m{margin-top:7px;padding-top:6px;border-top:1px solid #2f3c54}
+.pr-track-mini{height:7px;border-radius:999px;border:1px solid #30425d;background:#121d2d;overflow:hidden}
+.pr-mini-fill{height:100%;width:0;border-radius:999px;background:#34bfff}
+.prob-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:5px}
+.prob-stat{background:#0b1521;border:1px solid #2d405a;border-radius:4px;padding:4px 5px;min-height:32px}
+.prob-stat span{display:block;color:#8ea2bb;font-size:6.9px;text-transform:uppercase;letter-spacing:.55px;font-weight:800}
+.prob-stat b{display:block;margin-top:2px;font-size:11px;font-weight:900}
+#prob-chart{height:calc(100% - 82px)!important;min-height:92px!important}
+#prob-rows .row{font-size:8.6px}
+#prob-rows .row span{font-weight:700}
+
+
+/* ===== FINAL RANGE BAR VISIBILITY ===== */
+.pr-track-legacy{
+  position:relative!important;
+  display:block!important;
+  width:100%!important;
+  height:12px!important;
+  margin:6px 0 4px!important;
+  border-radius:999px!important;
+  border:1px solid #4a5e7a!important;
+  background:linear-gradient(
+    90deg,
+    rgba(244,63,94,.55) 0%,
+    rgba(245,158,11,.50) 35%,
+    rgba(56,189,248,.45) 50%,
+    rgba(16,185,129,.50) 65%,
+    rgba(16,185,129,.65) 100%
+  )!important;
+  overflow:visible!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)!important;
+}
+.pr-mid-zone{
+  position:absolute!important;
+  left:35%!important;
+  width:30%!important;
+  top:-1px!important;
+  bottom:-1px!important;
+  background:rgba(255,255,255,.035)!important;
+  border-left:1px dashed rgba(214,226,240,.45)!important;
+  border-right:1px dashed rgba(214,226,240,.45)!important;
+  pointer-events:none!important;
+}
+.pr-dot-legacy{
+  position:absolute!important;
+  top:50%!important;
+  left:0;
+  transform:translate(-50%,-50%)!important;
+  width:13px!important;
+  height:13px!important;
+  border-radius:50%!important;
+  background:#f8fbff!important;
+  border:3px solid #2fb8ff!important;
+  box-shadow:0 0 0 3px rgba(47,184,255,.16),0 0 8px rgba(47,184,255,.35)!important;
+  z-index:5!important;
+}
+.pr-position-top b{
+  font-size:14px!important;
+}
+.pr-scale,.pr-axis{
+  margin-top:5px!important;
+}
+
 </style>
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:#080b12;
+  color:#eef4ff;
+  font-family:"Segoe UI Variable","Segoe UI",Arial,sans-serif;
+  text-rendering:geometricPrecision;
+}
+body{
+  font-size:11px;
+  font-weight:500;
+}
+.toolbar{
+  height:32px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:2px 9px;
+  border-bottom:1px solid #34425c;
+  background:#0c111b;
+}
+.toolbar select{
+  height:24px;
+  font-size:8.5px;
+  font-weight:700;
+  color:#f2f6fd;
+  border:1px solid #3b4a67;
+  background:#0d1420;
+}
+.toolbar .btn{
+  height:25px;
+  padding:3px 8px;
+  font-size:9px;
+  font-weight:800;
+}
+.workspace{
+  flex:1;
+  overflow:auto;
+  padding:6px;
+}
+.hero{
+  display:grid;
+  grid-template-columns:1.2fr 1fr 1fr 1fr;
+  gap:5px;
+  margin-bottom:5px;
+}
+.hero .card{
+  min-height:58px;
+  padding:6px 9px;
+  background:#101521;
+  border:1px solid #34425c;
+  box-shadow:0 0 0 1px rgba(255,255,255,.025) inset;
+}
+.k{
+  font-size:7.5px;
+  color:#a0b2c9;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  font-weight:800;
+}
+.v{
+  font-size:18px;
+  font-weight:900;
+  margin-top:4px;
+  line-height:1.06;
+  color:#f7fbff;
+}
+.sub{
+  font-size:8.5px;
+  color:#a9b8ca;
+  margin-top:4px;
+  line-height:1.35;
+  font-weight:600;
+}
+.grid{
+  display:grid;
+  grid-template-columns:1.15fr 1.15fr .8fr;
+  gap:5px;
+}
+.panel{
+  background:#101521;
+  border:1px solid #34425c;
+  border-radius:8px;
+  padding:6px;
+  min-height:168px;
+  box-shadow:0 0 0 1px rgba(255,255,255,.02) inset;
+}
+.panel h3{
+  font-size:8.5px;
+  color:#9fb7d3;
+  text-transform:uppercase;
+  letter-spacing:1.15px;
+  margin:0 0 5px;
+  font-weight:900;
+}
+.rows{
+  display:flex;
+  flex-direction:column;
+}
+.row{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:3px 0;
+  border-bottom:1px solid #2f3c54;
+  font-size:9px;
+}
+.row span{
+  color:#b0bed0;
+  font-weight:600;
+}
+.row b{
+  color:#f6f9fe;
+  font-weight:800;
+}
+.row:last-child{
+  border:0;
+}
+.regime-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px;
+}
+.tag{
+  background:#0a0f18;
+  border:1px solid #3a4965;
+  border-radius:4px;
+  padding:5px;
+}
+.tag b{
+  display:block;
+  font-size:9px;
+  margin-top:1px;
+  color:#ffffff;
+  font-weight:900;
+}
+.tag span{
+  font-size:6.5px;
+  color:#9aacc3;
+  text-transform:uppercase;
+  font-weight:800;
+}
+.score{
+  font-size:28px;
+  font-weight:900;
+  text-align:center;
+  margin:5px 0;
+  letter-spacing:-.7px;
+}
+.venue-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:9px;
+}
+.venue-table th,
+.venue-table td{
+  padding:3px 4px;
+  border-bottom:1px solid #2f3c54;
+  text-align:right;
+}
+.venue-table th{
+  color:#a9b8ca;
+  font-weight:800;
+}
+.venue-table td{
+  color:#f5f8fc;
+  font-weight:700;
+}
+.venue-table th:first-child,
+.venue-table td:first-child{
+  text-align:left;
+}
+.status{
+  padding:3px 7px;
+  border-radius:4px;
+  font-size:8px;
+  border:1px solid #3b4a67;
+  color:#f0f5fb;
+  font-weight:800;
+}
+.badge.green{
+  color:#35e66f!important;
+  border-color:#1b7f3a!important;
+  background:#062c15!important;
+}
+.loading{
+  opacity:.55;
+}
+nav{
+  border-bottom-color:#34425c!important;
+}
+.nav-link{
+  color:#72859f!important;
+  font-weight:600!important;
+}
+.nav-link.active{
+  color:#4ec7ff!important;
+  font-weight:800!important;
+}
+.nav-logo{
+  font-weight:800!important;
+}
+.nav-price{
+  font-weight:800!important;
+}
+.nav-ivr{
+  font-weight:800!important;
+}
+
+nav{height:38px!important}
+.nav-logo{padding:0 10px!important;font-size:12px!important}
+.nav-link{padding:0 9px!important;font-size:9.5px!important}
+.nav-price{padding:0 7px!important;font-size:10.5px!important}
+.nav-exchange,.nav-ivr{padding:0 7px!important;font-size:9.5px!important}
+.nav-btn{margin:0 5px!important;padding:3px 8px!important;font-size:10px!important}
+
+
+.panel-bottom{
+  min-height:205px;
+  padding:9px;
+}
+.panel-bottom h3{
+  font-size:9px;
+  margin-bottom:7px;
+}
+.panel-bottom .venue-table{
+  font-size:9.5px;
+}
+.panel-bottom .venue-table th,
+.panel-bottom .venue-table td{
+  padding:4px 5px;
+}
+.panel-bottom .row{
+  padding:4px 0;
+  font-size:9.5px;
+}
+.panel-bottom .sub{
+  font-size:8.5px;
+}
+
+@media(max-width:1180px){
+  .hero{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr 1fr}
+  .workspace{overflow:auto}
+}
+@media(max-width:760px){
+  .hero{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .workspace{overflow:auto}
+  body{overflow:auto}
+}
+
+/* ===== CALIBRACIÓN FINAL 1366x768 / VIEWPORT DESK ===== */
+html,body{
+  width:100%;
+  height:100%;
+}
+body{
+  height:100vh;
+  min-height:100vh;
+  overflow:hidden;
+}
+
+/* Shared nav is 38px in this build; toolbar 32px. */
+.workspace{
+  flex:none;
+  height:calc(100vh - 70px);
+  min-height:0;
+  overflow:hidden;
+  padding:6px;
+  display:flex;
+  flex-direction:column;
+}
+
+.hero{
+  flex:0 0 62px;
+  min-height:62px;
+  gap:6px;
+  margin-bottom:6px;
+}
+.hero .card{
+  min-height:0;
+  height:62px;
+  padding:6px 9px;
+}
+
+.grid{
+  flex:1 1 auto;
+  min-height:0;
+  height:auto;
+  display:grid;
+  grid-template-columns:1.15fr 1.15fr .80fr;
+  grid-template-rows:minmax(0,1.12fr) minmax(0,.96fr);
+  gap:6px;
+}
+
+.panel,
+.panel-bottom{
+  min-height:0;
+  height:auto;
+  overflow:hidden;
+  padding:7px;
+}
+
+.panel h3,
+.panel-bottom h3{
+  margin:0 0 5px;
+}
+
+/* Gráficos: ocupan el panel, no una altura fija arbitraria. */
+#term-chart,
+#skew-chart{
+  height:calc(100% - 18px)!important;
+  min-height:0!important;
+}
+
+#prob-chart{
+  height:calc(100% - 82px)!important;
+  min-height:92px!important;
+}
+
+/* Parte inferior: legible, sin “vacío” ni desbordamiento. */
+.panel-bottom{
+  padding:7px 8px;
+}
+.panel-bottom .venue-table{
+  font-size:9px;
+}
+.panel-bottom .venue-table th,
+.panel-bottom .venue-table td{
+  padding:3px 4px;
+}
+.panel-bottom .row{
+  padding:3px 0;
+  font-size:9px;
+}
+.panel-bottom .sub{
+  font-size:8px;
+}
+
+/* Regime y lectura: densidad de terminal, no dashboard gigante. */
+.regime-grid{
+  gap:4px;
+}
+.tag{
+  padding:5px 6px;
+}
+.score{
+  font-size:29px;
+  margin:5px 0 3px;
+}
+
+/* En monitores un poco más bajos, recorta mínimamente sin perder lectura. */
+@media (max-height:700px){
+  .workspace{height:calc(100vh - 68px);padding:5px}
+  .hero{flex-basis:58px;min-height:58px;margin-bottom:5px}
+  .hero .card{height:58px;padding:5px 8px}
+  .v{font-size:17px}
+  .sub{font-size:8px}
+  .grid{gap:5px;grid-template-rows:minmax(0,1.08fr) minmax(0,.92fr)}
+  .panel,.panel-bottom{padding:6px}
+  .score{font-size:27px}
+}
+
+/* En pantallas más altas gana aire proporcionalmente. */
+@media (min-height:850px){
+  .workspace{padding:8px}
+  .hero{flex-basis:70px;min-height:70px;margin-bottom:8px}
+  .hero .card{height:70px;padding:8px 10px}
+  .grid{gap:8px;grid-template-rows:minmax(0,1.15fr) minmax(0,1fr)}
+  .panel,.panel-bottom{padding:9px}
+  .score{font-size:32px}
+}
+
+</style>
+
+<style id="iv-final-range-css">
+/* ===== PERMANENT RANGE BAR — NOT OVERWRITTEN BY CO_CSS ===== */
+.price-range-legacy{
+  display:flex!important;
+  flex-direction:column!important;
+}
+.pr-position{
+  display:block!important;
+  margin-top:5px!important;
+}
+.pr-position-top{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+  gap:8px!important;
+  margin-bottom:5px!important;
+}
+.pr-position-top span{
+  color:#9fb1c8!important;
+  font-size:8px!important;
+  text-transform:uppercase!important;
+  letter-spacing:.65px!important;
+  font-weight:800!important;
+}
+.pr-position-top b{
+  color:#ffd166!important;
+  font-size:13px!important;
+  font-weight:900!important;
+}
+.pr-track-legacy{
+  position:relative!important;
+  display:block!important;
+  visibility:visible!important;
+  width:100%!important;
+  height:12px!important;
+  min-height:12px!important;
+  margin:5px 0 5px!important;
+  border-radius:999px!important;
+  border:1px solid #506681!important;
+  background:
+    linear-gradient(90deg,
+      #5f1f2b 0%,
+      #8c5a19 35%,
+      #164966 50%,
+      #17613d 65%,
+      #11683a 100%)!important;
+  overflow:visible!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)!important;
+  z-index:2!important;
+}
+.pr-mid-zone{
+  position:absolute!important;
+  display:block!important;
+  left:35%!important;
+  width:30%!important;
+  top:-1px!important;
+  bottom:-1px!important;
+  background:rgba(68,192,255,.20)!important;
+  border-left:1px dashed rgba(198,225,246,.55)!important;
+  border-right:1px dashed rgba(198,225,246,.55)!important;
+  pointer-events:none!important;
+  z-index:3!important;
+}
+.pr-dot-legacy{
+  position:absolute!important;
+  display:block!important;
+  visibility:visible!important;
+  top:50%!important;
+  left:0;
+  transform:translate(-50%,-50%)!important;
+  width:13px!important;
+  height:13px!important;
+  min-width:13px!important;
+  min-height:13px!important;
+  border-radius:50%!important;
+  background:#ffffff!important;
+  border:3px solid #34c3ff!important;
+  box-shadow:0 0 0 3px rgba(52,195,255,.18),0 0 9px rgba(52,195,255,.42)!important;
+  z-index:10!important;
+}
+.pr-scale,.pr-axis{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+  width:100%!important;
+}
+.pr-scale{
+  margin-top:4px!important;
+  color:#8398b1!important;
+  font-size:6.8px!important;
+  font-weight:800!important;
+}
+.pr-axis{
+  margin-top:3px!important;
+  color:#a0b0c3!important;
+  font-size:7px!important;
+  font-weight:800!important;
+}
+.pr-mini-6m{
+  margin-top:7px!important;
+  padding-top:6px!important;
+  border-top:1px solid #2f3c54!important;
+}
+.pr-track-mini{
+  display:block!important;
+  height:7px!important;
+  min-height:7px!important;
+  border-radius:999px!important;
+  border:1px solid #40536d!important;
+  background:#121d2d!important;
+  overflow:hidden!important;
+}
+.pr-mini-fill{
+  display:block!important;
+  height:100%!important;
+  min-height:100%!important;
+  width:0;
+  border-radius:999px!important;
+  background:#34bfff!important;
+}
+</style>
+
+
+<style id="iv-rnd-css">
+.prob-model-line{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-top:3px;color:#71859d;font-size:6.8px;line-height:1.2
+}
+.prob-quality{
+  flex:0 0 auto;border:1px solid #41526b;border-radius:8px;
+  padding:1px 5px;font-weight:900;letter-spacing:.35px;color:#a8bad0
+}
+.prob-quality.good{color:#45df82;border-color:#287b47;background:#082716}
+.prob-quality.watch{color:#ffd166;border-color:#765d25;background:#241b08}
+.prob-quality.fallback{color:#ff8d98;border-color:#7d3440;background:#270d12}
+</style>
+
+
+<style id="iv-final-prob-polish">
+.prob-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:8px!important;
+  margin-bottom:3px!important;
+}
+.prob-head h3{
+  margin:0!important;
+}
+.prob-head .prob-quality{
+  display:inline-flex!important;
+  align-items:center!important;
+  height:17px!important;
+  padding:0 6px!important;
+  font-size:6.7px!important;
+  letter-spacing:.35px!important;
+}
+.prob-rn68{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  margin-top:4px;
+  padding:4px 6px;
+  border:1px solid #31506d;
+  background:#0a1724;
+  border-radius:4px;
+}
+.prob-rn68 span{
+  color:#8fa7c0;
+  font-size:6.9px;
+  text-transform:uppercase;
+  font-weight:900;
+  letter-spacing:.55px;
+}
+.prob-rn68 b{
+  color:#79d7ff;
+  font-size:9.5px;
+  font-weight:900;
+}
+.prob-stats{
+  gap:4px!important;
+  margin-top:3px!important;
+}
+.prob-stat{
+  min-height:29px!important;
+  padding:3px 5px!important;
+}
+.prob-stat span{font-size:6.4px!important}
+.prob-stat b{font-size:10.5px!important}
+#prob-chart{
+  height:calc(100% - 106px)!important;
+  min-height:82px!important;
+}
+#prob-rows .row{
+  padding:2px 0!important;
+  font-size:8px!important;
+}
+.prob-model-line{
+  margin-top:2px!important;
+  font-size:6.5px!important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+</style>
+
+
+<style id="iv-final-5pct-polish">
+/* Probability block: final readability pass */
+.prob-stat span{
+  font-size:7.2px!important;
+}
+.prob-stat b{
+  font-size:11.8px!important;
+  line-height:1.05!important;
+}
+.prob-rn68 span{
+  font-size:7.2px!important;
+}
+.prob-rn68 b{
+  font-size:10.2px!important;
+}
+#prob-rows .row{
+  font-size:8.6px!important;
+  padding:2.5px 0!important;
+}
+#prob-rows .row span{
+  color:#a9b9cc!important;
+}
+#prob-rows .row b{
+  color:#f1f6fb!important;
+}
+.prob-model-line{
+  font-size:6.9px!important;
+  color:#8397af!important;
+}
+</style>
+
 </head>
 <body>
 <div id="nav-placeholder"></div>
-
-<div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid #1e2035;background:#111120">
-  <select id="ex" onchange="COState.exchange=this.value;loadIV()">
-    <option value="Bybit">Bybit</option><option value="Binance">Binance</option>
-  </select>
-  <select id="act" onchange="COState.activo=this.value;loadIV()">
-    <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="SOL">SOL</option>
-  </select>
-  <button class="btn primary" onclick="loadIV()">⟳ Actualizar</button>
-  <span style="font-size:11px;color:#334155;margin-left:8px">Última actualización: <span id="last-update" class="acc">--</span></span>
+<div class="toolbar">
+  <select id="ex"><option>Bybit</option><option>Deribit</option></select>
+  <select id="act"><option>BTC</option><option>ETH</option></select>
+  <span class="k">Tenor IV</span><select id="tenor"><option value="7">7D</option><option value="14">14D</option><option value="30" selected>30D</option><option value="60">60D</option></select>
+  <button class="btn primary" id="refresh">⟳ Actualizar</button><span class="badge" id="status">Esperando</span>
+  <div style="flex:1"></div><span class="k" style="color:#9fb7d3">Fuente: ATM mark IV del venue · IVR 52W / Percentile: Deribit DVOL</span>
 </div>
-
-<div class="iv-grid">
-
-  <!-- IVR Card -->
-  <div class="iv-card">
-    <h3>IV Rank (IVR) — 52 semanas</h3>
-    <div class="big-metric">
-      <div class="val warn" id="ivr-val">--%</div>
-      <div class="sub">Percentil de volatilidad actual</div>
-    </div>
-    <div class="ivr-gauge"><div class="ivr-gauge-fill" id="ivr-fill" style="width:0%;background:#f59e0b"></div></div>
-    <div class="ivr-labels"><span>0% Baja</span><span>35%</span><span>65%</span><span>Alta 100%</span></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      <div class="card" style="text-align:center;padding:6px">
-        <div style="font-size:9px;color:#334155">IV Actual</div>
-        <div style="font-size:16px;font-weight:600;color:#38bdf8" id="iv-actual">--%</div>
+<div class="workspace" id="workspace">
+  <div class="hero">
+    <div class="card"><div class="k">IV ATM de referencia</div><div class="v acc" id="h-iv">--</div><div class="sub" id="h-ref">--</div></div>
+    <div class="card"><div class="k">IV Rank 52W</div><div class="v warn" id="h-ivr">--</div><div class="sub" id="h-history">Histórico pendiente</div></div>
+    <div class="card"><div class="k">Skew 25Δ</div><div class="v" id="h-skew">--</div><div class="sub" id="h-skew-l">--</div></div>
+    <div class="card"><div class="k">Term Structure</div><div class="v" id="h-term">--</div><div class="sub" id="h-liq">Liquidez --</div></div>
+  </div>
+  <div class="grid">
+    <div class="panel"><h3>Estructura temporal ATM IV</h3><div id="term-chart" style="height:140px"></div></div>
+    <div class="panel"><h3>Smile / Skew — vencimiento de referencia</h3><div id="skew-chart" style="height:140px"></div></div>
+    <div class="panel"><h3>Market Regime</h3><div class="regime-grid" id="regime"></div><div class="score" id="sell-score">--</div><div style="text-align:center;font-size:8px;color:#879bb2">Entorno para venta selectiva de prima</div><div class="regime-strategy" id="strategy">--</div></div>
+    <div class="panel panel-bottom"><h3>Comparación de venues</h3><table class="venue-table"><thead><tr><th>Métrica</th><th>Bybit</th><th>Deribit</th></tr></thead><tbody id="venue-body"></tbody></table><div class="sub" id="venue-note"></div></div>
+    <div class="panel panel-bottom">
+      <div class="prob-head"><h3>Distribución implícita risk-neutral · Smile/Skew</h3><span id="prob-quality-top" class="prob-quality">QUALITY --</span></div>
+      <div id="prob-chart" style="height:135px"></div>
+      <div class="prob-stats">
+        <div class="prob-stat"><span>Prob. Alza (+5%)</span><b class="pos" id="prob-up">--</b></div>
+        <div class="prob-stat"><span>Prob. Baja (-5%)</span><b class="neg" id="prob-down">--</b></div>
+        <div class="prob-stat"><span>Prob. en rango ±5%</span><b class="acc" id="prob-in">--</b></div>
       </div>
-      <div class="card" style="text-align:center;padding:6px">
-        <div style="font-size:9px;color:#334155">Min / Max 52w</div>
-        <div style="font-size:12px;font-weight:600;color:#475569" id="iv-range">-- / --</div>
-      </div>
-    </div>
-    <div class="strat-rec">
-      <div class="sr-label">Estrategia recomendada</div>
-      <div class="sr-val" id="strat-rec">--</div>
-    </div>
-  </div>
-
-  <!-- Expected Move -->
-  <div class="iv-card">
-    <h3>Expected Move (EM)</h3>
-    <div class="em-box">
-      <div style="font-size:11px;color:#4ade80;margin-bottom:6px">Movimiento esperado 1σ (68%)</div>
-      <div class="em-val" id="em-1s">±$--</div>
-      <div class="em-range" id="em-range-1s">-- / --</div>
-    </div>
-    <div style="background:#1c1200;border:1px solid #92400e;border-radius:6px;padding:10px;text-align:center">
-      <div style="font-size:11px;color:#fbbf24;margin-bottom:6px">Movimiento esperado 2σ (95%)</div>
-      <div style="font-size:20px;font-weight:700;color:#f59e0b" id="em-2s">±$--</div>
-      <div style="font-size:11px;color:#fbbf24;margin-top:4px" id="em-range-2s">-- / --</div>
-    </div>
-    <div id="em-chart" style="height:160px"></div>
-  </div>
-
-  <!-- Volatility Skew -->
-  <div class="iv-card">
-    <h3>Skew de volatilidad</h3>
-    <div id="skew-chart" style="height:200px"></div>
-    <div id="skew-rows"></div>
-  </div>
-
-  <!-- Term Structure -->
-  <div class="iv-card">
-    <h3>Estructura temporal de IV</h3>
-    <div id="term-chart" style="height:180px"></div>
-    <div id="term-rows"></div>
-  </div>
-
-  <!-- Probabilidades -->
-  <div class="iv-card">
-    <h3>Mapa de probabilidades</h3>
-    <div id="prob-chart" style="height:200px"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
-      <div style="text-align:center">
-        <div style="font-size:9px;color:#334155">Prob. Alza (+5%)</div>
-        <div style="font-size:16px;font-weight:600;color:#22c55e" id="p-up">--%</div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:9px;color:#334155">Prob. Baja (-5%)</div>
-        <div style="font-size:16px;font-weight:600;color:#ef4444" id="p-down">--%</div>
+      <div class="prob-rn68"><span>68% RN</span><b id="prob-rn68">--</b></div><div class="rows" id="prob-rows"></div>
+      <div class="prob-model-line">
+        <span id="prob-method">Modelo: --</span>
       </div>
     </div>
-  </div>
-
-  <!-- Resumen de mercado -->
-  <div class="iv-card">
-    <h3>Resumen de mercado</h3>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="skew-row"><span style="color:#475569">Precio spot</span><span class="acc" id="sum-spot">$--</span></div>
-      <div class="skew-row"><span style="color:#475569">IV actual</span><span class="warn" id="sum-iv">--%</span></div>
-      <div class="skew-row"><span style="color:#475569">IVR (52w)</span><span id="sum-ivr">--%</span></div>
-      <div class="skew-row"><span style="color:#475569">EM ±1σ (DTE 7)</span><span class="pos" id="sum-em7">±$--</span></div>
-      <div class="skew-row"><span style="color:#475569">EM ±1σ (DTE 30)</span><span class="pos" id="sum-em30">±$--</span></div>
-      <div class="skew-row"><span style="color:#475569">Prob. permanecer en rango ±5%</span><span class="acc" id="sum-range">--%</span></div>
-      <div class="skew-row"><span style="color:#475569">Strikes disponibles</span><span id="sum-strikes">--</span></div>
-      <div class="skew-row"><span style="color:#475569">Vencimientos disponibles</span><span id="sum-exp">--</span></div>
+    <div class="panel panel-bottom price-range-legacy">
+      <h3>Rango histórico de precio</h3>
+      <div class="pr-rows">
+        <div class="pr-row"><span>Actual</span><b class="acc" id="pr-current">--</b></div>
+        <div class="pr-row"><span>Min 6m</span><b class="neg" id="pr6-min">--</b></div>
+        <div class="pr-row"><span>Max 6m</span><b class="pos" id="pr6-max">--</b></div>
+        <div class="pr-row"><span>Min 12m</span><b class="neg" id="pr12-min">--</b></div>
+        <div class="pr-row"><span>Max 12m</span><b class="pos" id="pr12-max">--</b></div>
+      </div>
+      <div class="pr-position">
+        <div class="pr-position-top">
+          <span>Posición en rango</span>
+          <b id="pr12-pos">--</b>
+        </div>
+        <div class="pr-track-legacy">
+          <div class="pr-mid-zone"></div>
+          <div class="pr-dot-legacy" id="pr12-dot"></div>
+        </div>
+        <div class="pr-scale">
+          <span>0% Baja</span>
+          <span>35%</span>
+          <span>65%</span>
+          <span>Alta 100%</span>
+        </div>
+        <div class="pr-axis">
+          <span>Min</span>
+          <span>→ Medio</span>
+          <span>Max</span>
+        </div>
+      </div>
+      <div class="pr-mini-6m">
+        <div class="pr-position-top">
+          <span>Posición 6m</span>
+          <b id="pr6-pos">--</b>
+        </div>
+        <div class="pr-track-mini">
+          <div class="pr-mini-fill" id="pr6-fill"></div>
+        </div>
+      </div>
+      <div class="pr-note" id="pr-note">Fuente: CoinGecko · cierre diario</div>
     </div>
-    <div class="strat-rec" style="margin-top:8px">
-      <div class="sr-label">Contexto de mercado</div>
-      <div class="sr-val" id="market-context" style="font-size:11px">--</div>
-    </div>
   </div>
-
 </div>
-
 <script>
-document.getElementById('shared-css').textContent=CO_CSS;
-document.getElementById('nav-placeholder').innerHTML=navHTML('iv.html');
-document.getElementById('act').value=COState.activo;
-document.getElementById('ex').value=COState.exchange;
+document.getElementById('shared-css').textContent=CO_CSS;document.getElementById('nav-placeholder').innerHTML=navHTML('iv.html');
+const ex=document.getElementById('ex'),act=document.getElementById('act'),tenor=document.getElementById('tenor');ex.value=ExchangeEngine.EXCHANGES.includes(COState.exchange)?COState.exchange:'Bybit';act.value=COState.activo;
+const DARK={paper_bgcolor:'transparent',plot_bgcolor:'transparent',font:{family:'Segoe UI,Arial,sans-serif',size:10,color:'#a9b8ca'},margin:{l:38,r:8,t:5,b:25},xaxis:{gridcolor:'#33415b',zerolinecolor:'#3d4c68',tickfont:{size:10,color:'#afbdd0'},titlefont:{size:10,color:'#c1cede'}},yaxis:{gridcolor:'#33415b',zerolinecolor:'#3d4c68',tickfont:{size:10,color:'#afbdd0'},titlefont:{size:10,color:'#c1cede'}}};
+const money=x=>'$'+Number(x||0).toLocaleString('es',{maximumFractionDigits:0});const fp=x=>Number.isFinite(Number(x))?Number(x).toFixed(1)+'%':'--';
+function row(label,a,b){return `<tr><td>${label}</td><td>${a}</td><td>${b}</td></tr>`}
+function setLoading(on,msg=''){document.getElementById('workspace').classList.toggle('loading',on);const s=document.getElementById('status');s.textContent=msg||(on?'Cargando…':'LIVE');s.className=on?'badge':'badge green';}
 
-const DARK={template:'plotly_dark',paper_bgcolor:'transparent',plot_bgcolor:'transparent',margin:{l:40,r:10,t:10,b:35},font:{family:'Segoe UI,system-ui',size:10}};
+function erf(x){
+  const sign=x<0?-1:1; x=Math.abs(x);
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const t=1/(1+p*x);
+  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return sign*y;
+}
+function normCdf(x){return 0.5*(1+erf(x/Math.SQRT2));}
+function normalPdf(z){return Math.exp(-0.5*z*z)/Math.sqrt(2*Math.PI);}
 
-async function loadIV(){
-  const act=document.getElementById('act').value;
-  const ex=document.getElementById('ex').value;
-  COState.activo=act;COState.exchange=ex;
-
-  const [spot,opts]=await Promise.all([fetchSpot(ex,act),fetchOptions(ex,act)]);
-  if(spot)COState.spot=spot;
-  const S=COState.spot;
-
-  document.getElementById('sum-spot').textContent='$'+S.toLocaleString('es',{minimumFractionDigits:2});
-  document.getElementById('nav-price').textContent='$'+S.toLocaleString();
-
-  if(!opts.length){document.getElementById('last-update').textContent='Sin datos';return;}
-
-  // IVR
-  const ivs=opts.map(o=>o.iv).filter(v=>v>5&&v<300);
-  if(ivs.length){
-    const ivActual=+(ivs.reduce((a,b)=>a+b,0)/ivs.length).toFixed(1);
-    const ivMin=+Math.min(...ivs).toFixed(1),ivMax=+Math.max(...ivs).toFixed(1);
-    const ivr=+calcIVR(ivActual, act).toFixed(1);
-    COState.iv=ivActual;
-
-    document.getElementById('ivr-val').textContent=ivr.toFixed(1)+'%';
-    document.getElementById('iv-actual').textContent=ivActual+'%';
-    document.getElementById('iv-range').textContent=ivMin+'% / '+ivMax+'%';
-    document.getElementById('ivr-fill').style.width=Math.min(100,ivr)+'%';
-    document.getElementById('ivr-fill').style.background=ivr>=65?'#22c55e':ivr>=35?'#f59e0b':'#ef4444';
-    document.getElementById('sum-iv').textContent=ivActual+'%';
-    document.getElementById('sum-ivr').textContent=ivr.toFixed(1)+'%';
-    document.getElementById('sum-ivr').className=ivr>=65?'pos':ivr<35?'neg':'warn';
-    document.getElementById('nav-ivr').textContent='IVR '+ivr.toFixed(0)+'%';
-
-    const stratRec=ivr>=65?'🦅 Iron Condor / 🦋 Iron Butterfly — Vender prima':ivr>=35?'📆 Calendar Spread — Posición neutral':'⚡ Straddle / Debit Spread — Comprar opciones';
-    document.getElementById('strat-rec').textContent=stratRec;
-
-    const ctx=ivr>=65?'IV alta → Prima cara → Momento de VENDER opciones':ivr>=35?'IV media → Considerar Calendar Spreads o IC':'IV baja → Prima barata → Momento de COMPRAR opciones (Straddle, DS)';
-    document.getElementById('market-context').textContent=ctx;
-
-    // Expected Move
-    const rfr=COState.rfr;
-    const iv0=ivActual/100;
-    for(const[dte,suffix] of [[7,'7'],[30,'30']]){
-      const T=dte/365;
-      const em=expectedMove(S,ivActual,T);
-      document.getElementById(`sum-em${dte}`).textContent='±$'+em.toLocaleString('es',{maximumFractionDigits:0});
-    }
-    const em1=expectedMove(S,ivActual,7/365);
-    const em2=em1*2;
-    document.getElementById('em-1s').textContent='±$'+em1.toLocaleString('es',{maximumFractionDigits:0});
-    document.getElementById('em-range-1s').textContent='$'+(S-em1).toLocaleString('es',{maximumFractionDigits:0})+' — $'+(S+em1).toLocaleString('es',{maximumFractionDigits:0});
-    document.getElementById('em-2s').textContent='±$'+em2.toLocaleString('es',{maximumFractionDigits:0});
-    document.getElementById('em-range-2s').textContent='$'+(S-em2).toLocaleString('es',{maximumFractionDigits:0})+' — $'+(S+em2).toLocaleString('es',{maximumFractionDigits:0});
-
-    // Probabilidades
-    const T7=7/365;
-    const mu=Math.log(S)+(rfr-0.5*iv0*iv0)*T7;
-    const sig=iv0*Math.sqrt(T7);
-    const pUp=(1-normCDF((Math.log(S*1.05)-mu)/sig))*100;
-    const pDown=normCDF((Math.log(S*0.95)-mu)/sig)*100;
-    const pRange=(normCDF((Math.log(S*1.05)-mu)/sig)-normCDF((Math.log(S*0.95)-mu)/sig))*100;
-    document.getElementById('p-up').textContent=pUp.toFixed(1)+'%';
-    document.getElementById('p-down').textContent=pDown.toFixed(1)+'%';
-    document.getElementById('sum-range').textContent=pRange.toFixed(1)+'%';
-
-    // Gráfica de probabilidad
-    const N=200;
-    const lo=S*0.6,hi=S*1.4;
-    const xs=Array.from({length:N},(_,i)=>lo+(hi-lo)*i/(N-1));
-    const ys=xs.map(x=>{const z=(Math.log(x/S)-mu)/sig;return normPDF(z)/(x*sig);});
-    Plotly.react('prob-chart',[
-      {x:xs,y:ys,mode:'lines',line:{color:'#38bdf8',width:2},fill:'tozeroy',fillcolor:'rgba(56,189,248,0.08)',name:'Distribución'},
-      {x:xs.filter(x=>x>=S*0.95&&x<=S*1.05),y:xs.filter(x=>x>=S*0.95&&x<=S*1.05).map(x=>{const z=(Math.log(x/S)-mu)/sig;return normPDF(z)/(x*sig);}),mode:'lines',line:{color:'#22c55e',width:0},fill:'tozeroy',fillcolor:'rgba(34,197,94,0.2)',name:'Rango ±5%'},
-    ],{...DARK,xaxis:{tickformat:'$,.0f',gridcolor:'#1e2035'},yaxis:{gridcolor:'#1e2035',showticklabels:false},showlegend:false,shapes:[{type:'line',x0:S,x1:S,y0:0,y1:1,yref:'paper',line:{color:'#38bdf8',width:1.5,dash:'dot'}}]},{responsive:true,displayModeBar:false});
-
-    // EM chart
-    const dtes=[1,3,7,14,21,30,45,60];
-    const ems=dtes.map(d=>expectedMove(S,ivActual,d/365));
-    Plotly.react('em-chart',[
-      {x:dtes,y:ems.map(e=>S+e),mode:'lines',line:{color:'#22c55e',width:1.5,dash:'dash'},name:'+1σ'},
-      {x:dtes,y:ems.map(e=>S-e),mode:'lines',line:{color:'#ef4444',width:1.5,dash:'dash'},name:'-1σ'},
-      {x:dtes,y:new Array(dtes.length).fill(S),mode:'lines',line:{color:'#38bdf8',width:1},name:'Spot'},
-    ],{...DARK,xaxis:{title:'DTE',gridcolor:'#1e2035'},yaxis:{tickformat:'$,.0f',gridcolor:'#1e2035'},showlegend:false},{responsive:true,displayModeBar:false});
+function bsCallPrice(S,K,T,r,sigma){
+  if(!(S>0&&K>0&&T>0&&sigma>0))return Math.max(0,S-K);
+  const st=sigma*Math.sqrt(T);
+  const d1=(Math.log(S/K)+(r+0.5*sigma*sigma)*T)/st;
+  const d2=d1-st;
+  return S*normCdf(d1)-K*Math.exp(-r*T)*normCdf(d2);
+}
+function interpLinear(points,x){
+  if(!points.length)return null;
+  if(x<=points[0].x)return points[0].y;
+  if(x>=points[points.length-1].x)return points[points.length-1].y;
+  let lo=0,hi=points.length-1;
+  while(hi-lo>1){
+    const mid=(lo+hi)>>1;
+    if(points[mid].x<=x)lo=mid;else hi=mid;
   }
-
-  // Skew (IV por strike para el primer vencimiento)
-  const expiries=[...new Set(opts.map(o=>o.expiry))].sort();
-  document.getElementById('sum-exp').textContent=expiries.length;
-  
-  if(expiries.length>0){
-    const firstExp=expiries[0];
-    const expOpts=opts.filter(o=>o.expiry===firstExp&&o.iv>5);
-    const callOpts=expOpts.filter(o=>o.tipo==='call').sort((a,b)=>a.strike-b.strike);
-    const putOpts=expOpts.filter(o=>o.tipo==='put').sort((a,b)=>a.strike-b.strike);
-    document.getElementById('sum-strikes').textContent=[...new Set(expOpts.map(o=>o.strike))].length;
-
-    if(callOpts.length>1||putOpts.length>1){
-      Plotly.react('skew-chart',[
-        {x:callOpts.map(o=>o.strike),y:callOpts.map(o=>o.iv),mode:'lines+markers',line:{color:'#38bdf8',width:2},marker:{size:4},name:'CALL IV'},
-        {x:putOpts.map(o=>o.strike),y:putOpts.map(o=>o.iv),mode:'lines+markers',line:{color:'#fb923c',width:2},marker:{size:4},name:'PUT IV'},
-      ],{...DARK,xaxis:{tickformat:'$,.0f',gridcolor:'#1e2035'},yaxis:{title:'IV %',gridcolor:'#1e2035'},shapes:[{type:'line',x0:COState.spot,x1:COState.spot,y0:0,y1:1,yref:'paper',line:{color:'#38bdf8',width:1,dash:'dot'}}],legend:{font:{size:9}}},{responsive:true,displayModeBar:false});
-
-      // Skew rows
-      const atmStrike=callOpts.reduce((prev,curr)=>Math.abs(curr.strike-S)<Math.abs(prev.strike-S)?curr:prev).strike;
-      const atmCall=callOpts.find(o=>o.strike===atmStrike);
-      const otmCallP10=callOpts.find(o=>o.strike>=S*1.10);
-      const otmPutP10=putOpts.find(o=>o.strike<=S*0.90);
-      document.getElementById('skew-rows').innerHTML=`
-        <div class="skew-row"><span style="color:#475569">ATM IV (${atmStrike})</span><span class="warn">${atmCall?atmCall.iv.toFixed(1):'--'}%</span></div>
-        <div class="skew-row"><span style="color:#475569">OTM Call +10%</span><span class="call-v">${otmCallP10?otmCallP10.iv.toFixed(1):'--'}%</span></div>
-        <div class="skew-row"><span style="color:#475569">OTM Put -10%</span><span class="put-v">${otmPutP10?otmPutP10.iv.toFixed(1):'--'}%</span></div>`;
-    }
-
-    // Term structure
-    const termData=expiries.map(exp=>{
-      const expOpts2=opts.filter(o=>o.expiry===exp&&o.iv>5);
-      if(!expOpts2.length)return null;
-      const avgIV=expOpts2.reduce((s,o)=>s+o.iv,0)/expOpts2.length;
-      return{exp,iv:+avgIV.toFixed(1)};
-    }).filter(Boolean);
-
-    if(termData.length>1){
-      Plotly.react('term-chart',[
-        {x:termData.map(d=>d.exp),y:termData.map(d=>d.iv),mode:'lines+markers',line:{color:'#a78bfa',width:2},marker:{color:'#a78bfa',size:5},name:'IV promedio'},
-      ],{...DARK,xaxis:{gridcolor:'#1e2035'},yaxis:{title:'IV %',gridcolor:'#1e2035'}},{responsive:true,displayModeBar:false});
-
-      const maxIV=Math.max(...termData.map(d=>d.iv));
-      document.getElementById('term-rows').innerHTML=termData.slice(0,4).map(d=>`
-        <div class="term-row">
-          <span style="color:#64748b">${d.exp}</span>
-          <div style="flex:1;margin:0 8px"><div class="term-bar" style="width:${(d.iv/maxIV*100).toFixed(0)}%"></div></div>
-          <span class="warn">${d.iv}%</span>
-        </div>`).join('');
-    }
+  const a=points[lo],b=points[hi];
+  const w=(x-a.x)/(b.x-a.x);
+  return a.y+(b.y-a.y)*w;
+}
+function smoothArray(arr,window=5){
+  const half=Math.floor(window/2),out=new Array(arr.length);
+  for(let i=0;i<arr.length;i++){
+    let s=0,n=0;
+    for(let j=Math.max(0,i-half);j<=Math.min(arr.length-1,i+half);j++){s+=arr[j];n++;}
+    out[i]=n?s/n:arr[i];
   }
-
-  document.getElementById('last-update').textContent=new Date().toLocaleTimeString('es');
+  return out;
+}
+function integrateTrap(xs,ys,a=null,b=null){
+  let s=0;
+  for(let i=1;i<xs.length;i++){
+    const x0=xs[i-1],x1=xs[i];
+    if(a!==null&&x1<=a)continue;
+    if(b!==null&&x0>=b)continue;
+    const L=a===null?x0:Math.max(x0,a);
+    const R=b===null?x1:Math.min(x1,b);
+    if(R<=L)continue;
+    const tL=(L-x0)/(x1-x0),tR=(R-x0)/(x1-x0);
+    const yL=ys[i-1]+(ys[i]-ys[i-1])*tL;
+    const yR=ys[i-1]+(ys[i]-ys[i-1])*tR;
+    s+=(yL+yR)*0.5*(R-L);
+  }
+  return s;
+}
+function quantileFromDensity(xs,pdf,q){
+  let acc=0;
+  const total=integrateTrap(xs,pdf);
+  if(!(total>0))return null;
+  const target=q*total;
+  for(let i=1;i<xs.length;i++){
+    const area=(pdf[i-1]+pdf[i])*0.5*(xs[i]-xs[i-1]);
+    if(acc+area>=target){
+      const remain=target-acc;
+      const frac=area>0?remain/area:0;
+      return xs[i-1]+(xs[i]-xs[i-1])*Math.max(0,Math.min(1,frac));
+    }
+    acc+=area;
+  }
+  return xs.at(-1);
 }
 
-async function navRefresh(){await loadIV();}
-window.addEventListener('load',()=>{loadIV();setInterval(loadIV,15000);});
+function robustMedian(vals){
+  const a=vals.filter(Number.isFinite).sort((x,y)=>x-y);
+  if(!a.length)return null;
+  const m=Math.floor(a.length/2);
+  return a.length%2?a[m]:(a[m-1]+a[m])/2;
+}
+function smoothSmileSigma(points,K,spot){
+  // Gaussian kernel in log-moneyness. Bandwidth adapts to strike density.
+  // This smooths the smile BEFORE Breeden-Litzenberger differentiation.
+  const logs=points.map(p=>Math.log(p.x/spot)).sort((a,b)=>a-b);
+  const gaps=[];
+  for(let i=1;i<logs.length;i++)if(logs[i]>logs[i-1])gaps.push(logs[i]-logs[i-1]);
+  const medGap=robustMedian(gaps) || 0.02;
+  const bw=Math.max(0.035,Math.min(0.11,medGap*2.8));
+  const x=Math.log(K/spot);
+
+  let sw=0,sy=0;
+  for(const p of points){
+    const u=(Math.log(p.x/spot)-x)/bw;
+    const w=Math.exp(-0.5*u*u);
+    sw+=w; sy+=w*p.y;
+  }
+  const raw=sw>0?sy/sw:interpLinear(points,K);
+
+  // Blend a little toward linear interpolation to preserve broad smile shape.
+  const lin=interpLinear(points,K);
+  return Math.max(0.03,Math.min(3,0.82*raw+0.18*lin));
+}
+function buildSmileRND(options,expiry,spot,dte){
+  const rows=(options||[]).filter(o=>
+    o.expiry===expiry &&
+    Number.isFinite(Number(o.strike)) &&
+    Number(o.strike)>0 &&
+    Number.isFinite(Number(o.iv)) &&
+    Number(o.iv)>3 && Number(o.iv)<300
+  );
+  if(rows.length<8)return null;
+
+  const byStrike=new Map();
+  for(const o of rows){
+    const K=Number(o.strike);
+    if(!byStrike.has(K))byStrike.set(K,{call:null,put:null});
+    byStrike.get(K)[o.type]=o;
+  }
+
+  // Use OTM-side IV as the primary smile input; average near ATM.
+  const points=[];
+  for(const [K,pair] of byStrike){
+    let iv=null;
+    const c=Number(pair.call?.iv),p=Number(pair.put?.iv);
+    if(K<spot*0.995 && Number.isFinite(p))iv=p;
+    else if(K>spot*1.005 && Number.isFinite(c))iv=c;
+    else{
+      const vals=[c,p].filter(v=>Number.isFinite(v));
+      if(vals.length)iv=vals.reduce((a,b)=>a+b,0)/vals.length;
+    }
+    if(Number.isFinite(iv)&&iv>3&&iv<300)points.push({x:K,y:iv/100});
+  }
+  points.sort((a,b)=>a.x-b.x);
+  if(points.length<6)return null;
+
+  // Require meaningful strike coverage around ±5%.
+  const minK=points[0].x,maxK=points.at(-1).x;
+  const hasCoverage=minK<=spot*0.95 && maxK>=spot*1.05;
+  if(!hasCoverage)return null;
+
+  // Avoid extrapolating too far beyond listed strikes.
+  const plotLo=Math.max(minK,spot*0.60);
+  const plotHi=Math.min(maxK,spot*1.60);
+  const N=220;
+  const xs=Array.from({length:N},(_,i)=>plotLo+(plotHi-plotLo)*i/(N-1));
+  const T=Math.max(Number(dte)||7,1)/365;
+  const r=0.0;
+  const calls=xs.map(K=>{
+    const sigma=smoothSmileSigma(points,K,spot);
+    return bsCallPrice(spot,K,T,r,sigma);
+  });
+  const h=xs[1]-xs[0];
+
+  let rawNeg=0,rawAbs=0;
+  let pdf=new Array(N).fill(0);
+  for(let i=1;i<N-1;i++){
+    const second=(calls[i+1]-2*calls[i]+calls[i-1])/(h*h);
+    rawAbs+=Math.abs(second);
+    if(second<0)rawNeg+=Math.abs(second);
+    pdf[i]=Math.max(0,Math.exp(r*T)*second);
+  }
+  pdf[0]=pdf[1];pdf[N-1]=pdf[N-2];
+  pdf=smoothArray(pdf,5).map(v=>Math.max(0,v));
+
+  const area=integrateTrap(xs,pdf);
+  if(!(area>0))return null;
+  pdf=pdf.map(v=>v/area);
+
+  const negRatio=rawAbs>0?rawNeg/rawAbs:1;
+  const pDown=integrateTrap(xs,pdf,null,spot*0.95)*100;
+  const pUp=integrateTrap(xs,pdf,spot*1.05,null)*100;
+  const pIn=Math.max(0,100-pDown-pUp);
+  const q16=quantileFromDensity(xs,pdf,.16);
+  const q50=quantileFromDensity(xs,pdf,.50);
+  const q84=quantileFromDensity(xs,pdf,.84);
+
+  const coverage=(maxK-minK)/spot;
+  const quality=
+    points.length>=14 && negRatio<0.06 && coverage>=0.20 ? 'GOOD' :
+    points.length>=9  && negRatio<0.16 && coverage>=0.13 ? 'WATCH' : 'FALLBACK';
+
+  return {
+    xs,pdf,pUp,pDown,pIn,q16,q50,q84,
+    smilePoints:points.length,
+    negRatio,
+    coverage,
+    quality,
+    method:'SMILE RND'
+  };
+}
+
+function renderProbabilityMap(spot,ivPct,dte,options=[],expiry=''){
+  const days=Math.max(Number(dte)||7,1);
+  const T=days/365;
+  const rnd=buildSmileRND(options,expiry,spot,days);
+
+  let xs=[],pdf=[],pUp,pDown,pIn,q16,q50,q84,method,quality,detail;
+
+  if(rnd){
+    ({xs,pdf,pUp,pDown,pIn,q16,q50,q84}=rnd);
+    method='Smile/Skew RND';
+    quality=rnd.quality;
+    detail=`${rnd.smilePoints} smile pts · convexity ${(100*(1-rnd.negRatio)).toFixed(0)}% · coverage ${(rnd.coverage*100).toFixed(0)}%`;
+  }else{
+    // Transparent fallback if the reference expiry does not have enough
+    // strike coverage / smile quality.
+    const sigma=Math.max(Number(ivPct)||0,0.01)/100;
+    const mu=-0.5*sigma*sigma*T;
+    const volT=sigma*Math.sqrt(T);
+    const lo=spot*Math.exp(mu-3.2*volT),hi=spot*Math.exp(mu+3.2*volT);
+    const N=180;
+    let ymax=0;
+    for(let i=0;i<N;i++){
+      const x=lo+(hi-lo)*i/(N-1);
+      const z=(Math.log(x/spot)-mu)/volT;
+      const y=(1/(x*volT*Math.sqrt(2*Math.PI)))*Math.exp(-.5*z*z);
+      xs.push(x);pdf.push(y);if(y>ymax)ymax=y;
+    }
+    const area=integrateTrap(xs,pdf);pdf=pdf.map(v=>v/area);
+    pDown=integrateTrap(xs,pdf,null,spot*.95)*100;
+    pUp=integrateTrap(xs,pdf,spot*1.05,null)*100;
+    pIn=Math.max(0,100-pDown-pUp);
+    q16=quantileFromDensity(xs,pdf,.16);
+    q50=quantileFromDensity(xs,pdf,.50);
+    q84=quantileFromDensity(xs,pdf,.84);
+    method='ATM lognormal fallback';
+    quality='FALLBACK';
+    detail='Smile insuficiente / cobertura de strikes incompleta';
+  }
+
+  const ymax=Math.max(...pdf);
+  const band=pdf.map((y,i)=>xs[i]>=q16&&xs[i]<=q84?y:0);
+
+  Plotly.react('prob-chart',[
+    {x:xs,y:band,type:'scatter',mode:'lines',line:{width:0},fill:'tozeroy',
+     fillcolor:'rgba(61,220,151,.27)',hoverinfo:'skip',showlegend:false},
+    {x:xs,y:pdf,type:'scatter',mode:'lines',line:{color:'#2fb8ff',width:2.25},
+     hovertemplate:'%{x:$,.0f}<br>Densidad risk-neutral %{y:.7f}<extra></extra>',showlegend:false},
+    {x:[spot,spot],y:[0,ymax*1.02],type:'scatter',mode:'lines',
+     line:{color:'#7dd3fc',width:1.5,dash:'dot'},hoverinfo:'skip',showlegend:false},
+    {x:[q50,q50],y:[0,ymax*.92],type:'scatter',mode:'lines',
+     line:{color:'#ffd166',width:1,dash:'dot'},hoverinfo:'skip',showlegend:false}
+  ],{
+    ...DARK,
+    margin:{l:32,r:8,t:2,b:24},
+    xaxis:{...DARK.xaxis,tickformat:'$,.0f'},
+    yaxis:{...DARK.yaxis,showticklabels:false,title:''},
+    annotations:[
+      {x:spot,y:ymax*1.04,text:'SPOT',showarrow:false,font:{size:8.5,color:'#a7ddff'}},
+      {x:q50,y:ymax*.96,text:'RN MEDIAN',showarrow:false,font:{size:7.5,color:'#ffd166'}}
+    ]
+  },{responsive:true,displayModeBar:false});
+
+  document.getElementById('prob-up').textContent=pUp.toFixed(1)+'%';
+  document.getElementById('prob-down').textContent=pDown.toFixed(1)+'%';
+  document.getElementById('prob-in').textContent=pIn.toFixed(1)+'%';
+  const rn68=document.getElementById('prob-rn68');
+  if(rn68)rn68.textContent=`${money(q16)} — ${money(q84)}`;
+
+  const em=expectedMove(spot,ivPct,T);
+  document.getElementById('prob-rows').innerHTML=
+    `<div class="row"><span>ATM IV / DTE ref</span><b>${fp(ivPct)} · ${days.toFixed(1)} días</b></div>`+
+    `<div class="row"><span>ATM ±1σ referencia</span><b>${money(em)} · ${money(spot-em)} — ${money(spot+em)}</b></div>`;
+
+  const methodEl=document.getElementById('prob-method');
+  const qEl=document.getElementById('prob-quality-top');
+  if(methodEl)methodEl.textContent=`Modelo: ${method} · ${detail}`;
+  if(qEl){
+    qEl.textContent=`QUALITY ${quality}`;
+    qEl.className='prob-quality '+(quality==='GOOD'?'good':quality==='WATCH'?'watch':'fallback');
+  }
+}
+function renderAnalysis(d){
+  COState.exchange=d.exchange;COState.activo=d.asset;COState.spot=d.spot.price;if(d.reference)COState.iv=d.reference.iv;
+  document.getElementById('nav-exchange').textContent=d.exchange;document.getElementById('nav-ivr').textContent=d.historyReady?`IVR ${Math.round(d.ivRank52w)}%`:'IVR N/D';
+  document.getElementById('h-iv').textContent=d.reference?fp(d.reference.iv):'--';document.getElementById('h-ref').textContent=d.reference?`${d.exchange} · ${d.reference.expiry} · ${d.reference.dte.toFixed(1)} DTE · ATM ${money(d.reference.strike)}`:'Sin referencia';
+  document.getElementById('h-ivr').textContent=d.historyReady?fp(d.ivRank52w):'N/D';const vs=IVEngine.get(d.asset,d.exchange);document.getElementById('h-history').textContent=d.historyReady?`IV Percentile ${fp(d.ivPercentile52w)} · Fuente ${vs?.benchmarkSource||'Deribit DVOL'}`:`IVR histórico no disponible · Fuente esperada Deribit DVOL`;
+  document.getElementById('h-skew').textContent=d.skew?.rr25!=null?`${d.skew.rr25>=0?'+':''}${d.skew.rr25.toFixed(1)} vol`:'--';document.getElementById('h-skew-l').textContent=d.skew?.label||'N/D';document.getElementById('h-term').textContent=d.regime.term;document.getElementById('h-liq').textContent=`Liquidez ${d.liquidity.label} · score ${d.liquidity.score}`;
+  Plotly.react('term-chart',[{x:d.term.map(x=>x.dte),y:d.term.map(x=>x.iv),text:d.term.map(x=>x.expiry),mode:'lines+markers',hovertemplate:'%{text}<br>%{x:.1f} DTE<br>IV %{y:.2f}%<extra></extra>',line:{width:3},marker:{size:6}}],{...DARK,xaxis:{...DARK.xaxis,title:'DTE'},yaxis:{...DARK.yaxis,title:'IV %'}},{responsive:true,displayModeBar:false});
+  const rows=d.reference?d.options.filter(o=>o.expiry===d.reference.expiry&&o.iv>0):[];const calls=rows.filter(o=>o.type==='call').sort((a,b)=>a.strike-b.strike),puts=rows.filter(o=>o.type==='put').sort((a,b)=>a.strike-b.strike);
+  Plotly.react('skew-chart',[
+    {x:calls.map(x=>x.strike),y:calls.map(x=>x.iv),mode:'lines+markers',name:'Calls',line:{width:3},marker:{size:5}},
+    {x:puts.map(x=>x.strike),y:puts.map(x=>x.iv),mode:'lines+markers',name:'Puts',line:{width:3},marker:{size:5}}
+  ],{...DARK,xaxis:{...DARK.xaxis,tickformat:'$,.0f'},yaxis:{...DARK.yaxis,title:'IV %'},legend:{orientation:'h',y:1.1}},{responsive:true,displayModeBar:false});
+  const r=d.regime;document.getElementById('regime').innerHTML=[['Trend',r.trend],['IV',r.iv],['Term',r.term],['Skew',r.skew],['Liquidity',r.liquidity],['Venue',d.exchange]].map(x=>`<div class="tag"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');document.getElementById('sell-score').textContent=`${r.sellingScore}/100`;document.getElementById('sell-score').className='score '+(r.sellingScore>=65?'pos':r.sellingScore<40?'neg':'warn');
+  renderProbabilityMap(d.spot.price,d.reference?.iv||COState.iv,d.reference?.dte||7,d.options||[],d.reference?.expiry||'');
+  document.getElementById('strategy').textContent=d.opportunity.strategy;
+  renderHistoricalPriceRange(d.asset,d.spot.price);
+}
+
+const PRICE_RANGE_CACHE='co_price_range_cache_v1';
+function clampRange(v){return Math.max(0,Math.min(100,v))}
+function priceRangePct(S,min,max){
+  return max>min?clampRange((S-min)/(max-min)*100):50;
+}
+function loadPriceRangeCache(asset){
+  try{
+    const c=JSON.parse(localStorage.getItem(PRICE_RANGE_CACHE)||'{}');
+    const x=c[asset];
+    if(x&&Date.now()-Number(x.ts)<6*3600000)return x;
+  }catch{}
+  return null;
+}
+function savePriceRangeCache(asset,data){
+  try{
+    const c=JSON.parse(localStorage.getItem(PRICE_RANGE_CACHE)||'{}');
+    c[asset]={...data,ts:Date.now()};
+    localStorage.setItem(PRICE_RANGE_CACHE,JSON.stringify(c));
+  }catch{}
+}
+async function getHistoricalPriceRange(asset){
+  const cached=loadPriceRangeCache(asset);
+  if(cached)return cached;
+
+  const ids={BTC:'bitcoin',ETH:'ethereum'};
+  const id=ids[asset];
+  if(!id)throw new Error('Activo no soportado');
+
+  const r=await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=365&interval=daily`);
+  if(!r.ok)throw new Error(`CoinGecko HTTP ${r.status}`);
+  const j=await r.json();
+  const points=Array.isArray(j.prices)?j.prices:[];
+  if(points.length<100)throw new Error('Histórico insuficiente');
+
+  const now=Date.now();
+  const all12=points.map(p=>Number(p[1])).filter(v=>v>0);
+  const all6=points.filter(p=>Number(p[0])>=now-180*86400000).map(p=>Number(p[1])).filter(v=>v>0);
+  const data={
+    min6:Math.min(...all6),max6:Math.max(...all6),
+    min12:Math.min(...all12),max12:Math.max(...all12),
+    samples6:all6.length,samples12:all12.length,
+    source:'CoinGecko'
+  };
+  savePriceRangeCache(asset,data);
+  return data;
+}
+function rangeColor(p){
+  return p>=70?'#35d97b':p<=30?'#ff6f7e':'#ffd166';
+}
+async function renderHistoricalPriceRange(asset,spot){
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val};
+  set('pr-current',money(spot));
+
+  try{
+    const d=await getHistoricalPriceRange(asset);
+    const p6=priceRangePct(spot,d.min6,d.max6);
+    const p12=priceRangePct(spot,d.min12,d.max12);
+
+    set('pr6-min',money(d.min6));
+    set('pr6-max',money(d.max6));
+    set('pr12-min',money(d.min12));
+    set('pr12-max',money(d.max12));
+    const p6Raw=(spot-d.min6)/(d.max6-d.min6)*100;
+    const p12Raw=(spot-d.min12)/(d.max12-d.min12)*100;
+
+    const label6=p6Raw>100
+      ? `>100% · SOBRE MAX 6M`
+      : p6Raw<0
+        ? `<0% · BAJO MIN 6M`
+        : `${p6.toFixed(1)}%`;
+
+    const label12=p12Raw>100
+      ? `>100% · SOBRE MAX 12M`
+      : p12Raw<0
+        ? `<0% · BAJO MIN 12M`
+        : `${p12.toFixed(1)}%`;
+
+    set('pr6-pos',label6);
+    set('pr12-pos',label12);
+
+    const dot12=document.getElementById('pr12-dot');
+    const fill6=document.getElementById('pr6-fill');
+    const c12=rangeColor(p12), c6=rangeColor(p6);
+
+    if(dot12){
+      dot12.style.left=p12+'%';
+      dot12.style.borderColor=c12;
+      dot12.title=`Posición 12M: ${label12}`;
+    }
+    if(fill6){
+      fill6.style.width=p6+'%';
+      fill6.style.background=c6;
+      fill6.title=`Posición 6M: ${label6}`;
+    }
+
+    const zone=p12>=65?'zona alta':p12<=35?'zona baja':'zona media';
+
+    let rangeState12='';
+    if(p12Raw>100)rangeState12=' · Spot por encima del máximo 12M';
+    else if(p12Raw<0)rangeState12=' · Spot por debajo del mínimo 12M';
+
+    let rangeState6='';
+    if(p6Raw>100)rangeState6=' · Spot por encima del máximo 6M';
+    else if(p6Raw<0)rangeState6=' · Spot por debajo del mínimo 6M';
+
+    set('pr-note',`Fuente: ${d.source} · cierre diario · ${asset} está en ${zone} de su rango 12M${rangeState12}${rangeState6}.`);
+
+    const posEl=document.getElementById('pr12-pos');
+    const pos6El=document.getElementById('pr6-pos');
+    if(posEl)posEl.style.color=c12;
+    if(pos6El)pos6El.style.color=(p6Raw>100||p6Raw<0)?'#ff9f32':c6;
+  }catch(e){
+    console.warn('Historical price range',e);
+    set('pr-note','Rango histórico no disponible temporalmente.');
+  }
+}
+
+async function load(){
+  setLoading(true);const E=ex.value,A=act.value,T=+tenor.value||30;try{
+    // Precios BTC y ETH siempre visibles en la barra superior.
+    // Se obtienen del venue seleccionado y no dependen del activo en foco.
+    try{
+      const [btcRes,ethRes]=await Promise.allSettled([
+        ExchangeEngine.getSpot(E,'BTC'),
+        ExchangeEngine.getSpot(E,'ETH')
+      ]);
+      const btc=btcRes.status==='fulfilled'?Number(btcRes.value?.price):NaN;
+      const eth=ethRes.status==='fulfilled'?Number(ethRes.value?.price):NaN;
+      const nb=document.getElementById('np-btc');
+      const ne=document.getElementById('np-eth');
+      if(nb&&Number.isFinite(btc)&&btc>0)nb.textContent='BTC '+money(btc);
+      if(ne&&Number.isFinite(eth)&&eth>0)ne.textContent='ETH '+money(eth);
+    }catch(navErr){console.warn('Nav prices',navErr)}
+
+    const other=E==='Bybit'?'Deribit':'Bybit';const primary=await MarketEngine.analyze(E,A,T);renderAnalysis(primary);let secondary=null;try{secondary=await MarketEngine.analyze(other,A,T);}catch(e){console.warn(other,e)}
+    const by=E==='Bybit'?primary:secondary,de=E==='Deribit'?primary:secondary;document.getElementById('venue-body').innerHTML=row('Spot',by?money(by.spot.price):'--',de?money(de.spot.price):'--')+row(`ATM IV ${T}D`,by?.reference?fp(by.reference.iv):'--',de?.reference?fp(de.reference.iv):'--')+row('IVR 52W',by?.historyReady?fp(by.ivRank52w):'N/D',de?.historyReady?fp(de.ivRank52w):'N/D')+row('Liquidity',by?`${by.liquidity.score} · ${by.liquidity.label}`:'--',de?`${de.liquidity.score} · ${de.liquidity.label}`:'--')+row('Opportunity',by?`${by.opportunity.score}/100`:'--',de?`${de.opportunity.score}/100`:'--');
+    if(by&&de&&by.reference&&de.reference){const diff=de.reference.iv-by.reference.iv;document.getElementById('venue-note').textContent=`Deribit − Bybit: ${diff>=0?'+':''}${diff.toFixed(2)} puntos de volatilidad en el tenor seleccionado.`;}else document.getElementById('venue-note').textContent='Comparación parcial: uno de los venues no respondió.';setLoading(false,'LIVE · '+new Date().toLocaleTimeString('es'));
+  }catch(e){console.error(e);setLoading(false,'ERROR');document.getElementById('h-ref').textContent=e.message;}
+}
+async function navRefresh(){ExchangeEngine.clearCache();await load();}
+ex.onchange=load;act.onchange=load;tenor.onchange=load;document.getElementById('refresh').onclick=()=>{ExchangeEngine.clearCache();load()};window.addEventListener('load',load);setInterval(load,60000);
 </script>
-</body>
-</html>
+</body></html>

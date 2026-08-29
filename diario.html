@@ -2,250 +2,320 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>CriptoOpciones Lab — Diario</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>CriptoOpciones LAB — Performance & Trade Review Desk</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
-<script src="co_shared.js"></script>
-<style id="shared-css"></style>
 <style>
-.diario-grid{display:grid;grid-template-columns:320px 1fr;gap:0;flex:1;overflow:hidden}
-.diario-form{background:#111120;border-right:1px solid #1e2035;padding:14px;overflow-y:auto}
-.diario-main{display:flex;flex-direction:column;overflow:hidden}
-.metrics-row{display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid #1e2035;flex-wrap:wrap;flex-shrink:0}
-.metric-d{background:#13131f;border:1px solid #1e2035;border-radius:6px;padding:8px 12px;flex:1;min-width:90px;text-align:center}
-.metric-d .ml{font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.5px}
-.metric-d .mv{font-size:16px;font-weight:600;margin-top:2px}
-.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 16px;flex-shrink:0}
-.trades-table-wrap{flex:1;overflow:auto;padding:0 16px 12px}
-.trades-table{width:100%;border-collapse:collapse;font-size:11px}
-.trades-table th{background:#0a0a14;padding:5px 8px;text-align:left;color:#334155;font-weight:500;position:sticky;top:0;z-index:1;border-bottom:1px solid #1e2035;white-space:nowrap}
-.trades-table td{padding:4px 8px;border-bottom:1px solid #0d0d14;vertical-align:middle}
-.trades-table tr:hover td{background:#0c1422}
-.win-badge{background:#052e16;border:1px solid #166534;color:#22c55e;border-radius:3px;padding:1px 6px;font-size:9px}
-.loss-badge{background:#1f0a0a;border:1px solid #7f1d1d;color:#ef4444;border-radius:3px;padding:1px 6px;font-size:9px}
-.field{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
-.field label{font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.8px}
-.field input,.field select{height:28px;font-size:11px}
-.field textarea{background:#13131f;color:#c8cfe0;border:1px solid #1e2035;border-radius:4px;padding:6px;font-size:11px;resize:vertical;min-height:50px}
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#080c12;--p:#0c121b;--p2:#101823;--b:#1c2a3b;--txt:#dce8f5;--mut:#7388a2;--cyan:#38bdf8;--green:#35d08a;--red:#ff6d7a;--amber:#f6ad42}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;font-size:11px}
+.top{height:36px;background:#0b1017;border-bottom:1px solid var(--b);display:flex;align-items:center}.logo{height:100%;padding:0 14px;border-right:1px solid var(--b);display:flex;align-items:center;font-weight:800;white-space:nowrap}.logo .c{color:var(--cyan)}.logo .o{color:#eef6ff}.logo .l{color:#556b84;font-size:9px;margin-left:2px}.nav{display:flex;height:100%;overflow:hidden}.nav a{display:flex;align-items:center;padding:0 10px;text-decoration:none;color:#586b82;border-bottom:2px solid transparent;white-space:nowrap;font-size:10px}.nav a.active{color:var(--cyan);border-bottom-color:var(--cyan)}.spacer{flex:1}.topstat{height:100%;padding:0 9px;border-left:1px solid var(--b);display:flex;flex-direction:column;justify-content:center;white-space:nowrap}.topstat span{font-size:6px;color:#44556a;text-transform:uppercase}.topstat b{font-size:9px}.g{color:var(--green)!important}.r{color:var(--red)!important}.y{color:var(--amber)!important}.c{color:var(--cyan)!important}
+.app{display:flex;width:100%;height:calc(100vh - 36px - 19px);overflow:hidden}.sidebar{flex:0 0 190px;width:190px;background:#0b1017;border-right:1px solid var(--b);display:flex;flex-direction:column;overflow:hidden}.main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}.detail{flex:0 0 330px;width:330px;background:#0b1017;border-left:1px solid var(--b);display:flex;flex-direction:column;overflow:hidden}.sec-h{height:27px;display:flex;align-items:center;padding:0 8px;border-bottom:1px solid var(--b);background:#0b1119}.sec-h b{font-size:7px;letter-spacing:.9px;color:#657b93;text-transform:uppercase}.sec-h small{margin-left:auto;color:#465a70;font-size:6px}
+.sourcebox{padding:6px;border-bottom:1px solid var(--b)}.source{border:1px solid #25394f;background:#0c151f;border-radius:4px;padding:5px;margin-bottom:4px}.source:last-child{margin:0}.srow{display:flex;justify-content:space-between;gap:5px;font-size:7px}.srow b{font-size:7.5px}.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#5a6979;margin-right:4px}.dot.ok{background:var(--green)}.dot.warn{background:var(--amber)}.dot.err{background:var(--red)}
+.filters{padding:6px;border-bottom:1px solid var(--b)}select,input,textarea{width:100%;background:#0b131d;border:1px solid #24364a;color:#b9c9da;border-radius:3px;padding:4px 5px;font:inherit;outline:none}select{height:26px;margin-bottom:4px}.filtergrid{display:grid;grid-template-columns:1fr 1fr;gap:4px}.btn{height:25px;border:1px solid #2a4058;background:#101925;color:#9bb0c5;border-radius:4px;padding:4px 7px;font-size:7px;font-weight:800;cursor:pointer}.btn:hover{border-color:var(--cyan);color:#e9f7ff}.btn.primary{background:#082538;border-color:#236b8e;color:#6dd7ff}.btn.go{background:#06271d;border-color:#17794f;color:#66e4a8}.btn:disabled{opacity:.35;cursor:not-allowed}
+.kpis-side{padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:4px}.ks{border:1px solid #1d2b3d;background:#0d151f;border-radius:4px;padding:5px}.ks span{display:block;color:#536b83;font-size:6px;text-transform:uppercase}.ks b{font-size:9px}.openlist{flex:1;overflow:auto;padding:5px}.open{border:1px solid #1d2b3d;background:#0d151f;border-radius:4px;padding:5px;margin-bottom:4px}.open .o1{display:flex;justify-content:space-between;font-size:7px}.open .o2{font-size:6.5px;color:#72879e;margin-top:3px}
+.production-summary{height:25px;margin:0;border-radius:0;border-left:0;border-right:0;display:flex;align-items:center;padding:0 8px}.kpibar{height:67px;border-bottom:1px solid var(--b);display:grid;grid-template-columns:repeat(8,1fr);gap:1px;background:#0a1017}.kpi{padding:7px 8px;border-right:1px solid #152233;min-width:0}.kpi span{display:block;color:#53677e;font-size:6px;text-transform:uppercase;letter-spacing:.4px}.kpi b{display:block;font-size:14px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kpi small{font-size:6px;color:#44576d}
+.analytics{height:190px;border-bottom:1px solid var(--b);display:grid;grid-template-columns:1.35fr .8fr .85fr;min-height:0}.panel{position:relative;border-right:1px solid var(--b);overflow:hidden}.panel:last-child{border-right:0}.ph{height:25px;padding:0 7px;display:flex;align-items:center;border-bottom:1px solid #162436;background:#0b1119}.ph b{font-size:7px;color:#657b93;letter-spacing:.7px}.chart{height:calc(100% - 25px);width:100%}.edgegrid{height:calc(100% - 25px);padding:5px;overflow:auto}.edge{display:grid;grid-template-columns:1fr 48px 62px 52px;gap:2px;padding:4px 3px;border-bottom:1px solid #162435;font-size:7px}.edge.h{color:#4d637b;font-size:6px;text-transform:uppercase}.edge b{font-weight:700}
+.tablewrap{flex:1;min-height:0;display:flex;flex-direction:column}.tabletools{height:28px;display:flex;align-items:center;padding:0 7px;border-bottom:1px solid var(--b);background:#0b1119;gap:6px}.tabletools b{font-size:7px;color:#657b93;letter-spacing:.8px}.tabletools span{font-size:6px;color:#50657b}.tabletools .sp{flex:1}.trades{flex:1;overflow:auto}table{width:100%;border-collapse:collapse;font-size:7px;white-space:nowrap}th{position:sticky;top:0;background:#0d151f;color:#536981;font-size:6px;text-transform:uppercase;text-align:left;padding:5px;border-bottom:1px solid #26384c;z-index:2}td{padding:5px;border-bottom:1px solid #142233;color:#a7b8ca}tbody tr{cursor:pointer}tbody tr:hover{background:#0d1824}tbody tr.active{background:#0b2030}td.money{font-weight:800}.badge{display:inline-block;padding:2px 4px;border:1px solid #30455b;border-radius:3px;font-size:6px}.badge.win{color:#54dda0;border-color:#275f49}.badge.loss{color:#ff7d88;border-color:#6a3038}.badge.legacy{color:#f6ad42;border-color:#74571d}
+.detailbody{flex:1;overflow:auto;padding:6px}.dhero{border:1px solid #27415a;background:#0d1722;border-radius:4px;padding:7px;margin-bottom:5px}.dhero .topline{display:flex;justify-content:space-between;gap:5px}.dhero h3{font-size:10px}.dhero p{font-size:6.5px;color:#71859b;margin-top:3px}.dmetrics{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-bottom:5px}.dm{border:1px solid #1d2b3d;background:#0c141d;border-radius:3px;padding:5px}.dm span{display:block;font-size:6px;color:#50647a;text-transform:uppercase}.dm b{font-size:8px}.block{border:1px solid #1d2b3d;background:#0c141d;border-radius:4px;padding:6px;margin-bottom:5px}.block h4{font-size:7px;color:#748aa1;text-transform:uppercase;margin-bottom:4px}.kv{display:grid;grid-template-columns:1fr 1fr;gap:2px 7px;font-size:6.8px}.kv div{padding:2px 0;border-bottom:1px solid #162435}.kv div:nth-child(odd){color:#637890}.kv div:nth-child(even){text-align:right;color:#c7d5e4}.planexec{display:grid;grid-template-columns:1fr 1fr;gap:4px}.pe{border:1px solid #1e3144;background:#0a121b;border-radius:3px;padding:5px}.pe b{font-size:6px;color:#58718a;text-transform:uppercase}.pe p{font-size:6.5px;color:#94a7bb;line-height:1.4;margin-top:3px}textarea{min-height:52px;resize:vertical;margin-top:4px;font-size:7px}.reviewgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px}.foot{height:19px;background:#090e14;border-top:1px solid var(--b);display:flex;align-items:center;padding:0 8px;font-size:6.5px;color:#53667b}.foot .sp{flex:1}.empty{padding:14px;color:#536a82;text-align:center;font-size:8px}
+@media(max-width:1200px){.sidebar{flex-basis:180px;width:180px}.detail{flex-basis:300px;width:300px}.kpibar{grid-template-columns:repeat(4,1fr);height:92px}.analytics{height:178px}}
 </style>
+
+<style id="diario-v2-ux">
+/* Diario V2 — UX: total history vs filtered sample, data coverage, useful empty states */
+.topstat.filtered b{color:#38bdf8}
+.filter-status{
+  margin:4px 0;
+  padding:5px 6px;
+  border:1px solid #1d3043;
+  background:#0b141e;
+  border-radius:4px;
+  font-size:6.5px;
+  line-height:1.35;
+  color:#7890a8;
+}
+.filter-status b{color:#d8e6f4}
+.filter-status.zero{border-color:#61461b;background:#171205;color:#bfa16c}
+.filter-actions{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.coverage{
+  padding:6px;
+  border-bottom:1px solid var(--b);
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px;
+}
+.cov{
+  border:1px solid #1d2b3d;
+  background:#0c141d;
+  border-radius:4px;
+  padding:5px;
+}
+.cov span{display:block;color:#536b83;font-size:6px;text-transform:uppercase}
+.cov b{font-size:9px}
+.cov small{display:block;margin-top:2px;font-size:5.8px;color:#53677d}
+.detail-summary{
+  border:1px solid #28415a;
+  background:#0c1620;
+  border-radius:4px;
+  padding:7px;
+  margin-bottom:5px;
+}
+.detail-summary h3{font-size:9px;margin-bottom:3px}
+.detail-summary p{font-size:6.7px;line-height:1.4;color:#7f94aa}
+.summary-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px;
+  margin-top:6px;
+}
+.summary-cell{
+  border:1px solid #1c2d40;
+  background:#09111a;
+  border-radius:3px;
+  padding:5px;
+}
+.summary-cell span{display:block;font-size:5.8px;color:#50677f;text-transform:uppercase}
+.summary-cell b{font-size:8px}
+.empty-filter{
+  padding:15px 8px;
+  text-align:center;
+  color:#70869c;
+}
+.empty-filter b{display:block;color:#f6ad42;font-size:8px;margin-bottom:4px}
+.empty-filter button{margin-top:7px}
+.tabletools .sample-state{
+  color:#8aa1b8;
+  padding:2px 5px;
+  border:1px solid #22364a;
+  border-radius:3px;
+}
+.tabletools .sample-state.zero{color:#f6ad42;border-color:#63491d}
+</style>
+
+
+<style id="diario-v3-production">
+.envbar{
+  padding:6px;
+  border-bottom:1px solid var(--b);
+}
+.envbadge{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:6px;
+  border:1px solid #22573f;
+  background:#08170f;
+  border-radius:4px;
+  padding:6px;
+  font-size:6.7px;
+}
+.envbadge b{color:#55dda0;font-size:8px}
+.envbadge small{color:#6c8577}
+.legacy-note{
+  margin-top:4px;
+  border:1px solid #5d471d;
+  background:#171205;
+  color:#bda273;
+  border-radius:4px;
+  padding:5px;
+  font-size:6.2px;
+  line-height:1.4;
+}
+.status-prod{color:#55dda0;border-color:#2b6a50!important}
+.status-legacy{color:#f6ad42;border-color:#70551f!important}
+.status-test{color:#9aa6ff;border-color:#4b5278!important}
+.status-paper{color:#38bdf8;border-color:#315c74!important}
+.production-summary{
+  border:1px solid #214f3b;
+  background:#09160f;
+  border-radius:4px;
+  padding:5px;
+  margin-bottom:5px;
+  font-size:6.4px;
+  color:#799987;
+}
+.production-summary b{color:#55dda0}
+</style>
+
 </head>
 <body>
-<div id="nav-placeholder"></div>
-
-<div class="diario-grid">
-
-<div class="diario-form">
-  <div class="section-title">Registrar trade</div>
-
-  <div class="field"><label>Fecha</label><input type="date" id="t-fecha" value=""></div>
-  <div class="field"><label>Activo</label>
-    <select id="t-activo"><option>BTC</option><option>ETH</option><option>SOL</option></select>
-  </div>
-  <div class="field"><label>Contrato</label>
-    <input type="text" id="t-contrato" placeholder="BTC-28AUG26-77000-C-USDT">
-  </div>
-  <div class="field"><label>Estrategia</label>
-    <select id="t-estrategia">
-      <option>Iron Condor</option><option>Iron Butterfly</option><option>Bull Call Spread</option>
-      <option>Bear Put Spread</option><option>Debit Spread</option><option>Straddle</option>
-      <option>Strangle</option><option>Naked Call</option><option>Naked Put</option><option>Otro</option>
-    </select>
-  </div>
-  <div class="field"><label>Dirección</label>
-    <select id="t-dir"><option value="CALL">CALL</option><option value="PUT">PUT</option><option value="NEUTRAL">NEUTRAL</option></select>
-  </div>
-  <div class="field"><label>Prima entrada ($)</label><input type="number" id="t-prima-in" step="0.1" value="0"></div>
-  <div class="field"><label>Prima salida ($)</label><input type="number" id="t-prima-out" step="0.1" value="0"></div>
-  <div class="field"><label>Cantidad</label><input type="number" id="t-qty" step="0.01" value="0.1"></div>
-  <div class="field"><label>DTE entrada</label><input type="number" id="t-dte" value="7" min="0"></div>
-  <div class="field"><label>IVR al entrar (%)</label><input type="number" id="t-ivr" value="50" min="0" max="100"></div>
-  <div class="field"><label>Motivo cierre</label>
-    <select id="t-motivo">
-      <option>Take Profit</option><option>Stop Loss</option><option>Trailing Stop</option>
-      <option>Vencimiento</option><option>Ajuste / Roll</option><option>Manual</option>
-    </select>
-  </div>
-  <div class="field"><label>Duración (minutos)</label><input type="number" id="t-dur" value="0" min="0"></div>
-  <div class="field"><label>Notas</label><textarea id="t-notas" placeholder="Observaciones del trade..."></textarea></div>
-
-  <button class="btn success" style="width:100%;height:32px;margin-bottom:6px" onclick="addTrade()">+ Registrar trade</button>
-  <button class="btn danger" style="width:100%;height:32px" onclick="clearAll()">🗑 Limpiar diario</button>
+<div class="top"><div class="logo"><span class="c">Cripto</span><span class="o">Opciones</span><span class="l">LAB</span></div><div class="nav"><a href="index.html">📈 Analizador</a><a href="positions.html">🛡️ Riesgo & Posiciones</a><a href="chain.html">📋 Cadena</a><a href="iv.html">🌊 Volatilidad</a><a href="ajuste.html">🔧 Ajuste / Roll</a><a class="active" href="diario.html">📓 Diario</a><a href="manual.html">📖 Manual</a></div><div class="spacer"></div><div class="topstat"><span>History</span><b id="top-history">N/D</b></div><div class="topstat"><span>Official</span><b id="top-official">0 PROD</b></div><div class="topstat filtered"><span>Filtered</span><b id="top-filtered">N/D</b></div><div class="topstat"><span>Live</span><b id="top-live">N/D</b></div><div class="topstat"><span>Sync</span><b id="top-sync">--:--</b></div></div>
+<div class="app">
+<aside class="sidebar">
+<div class="sec-h"><b>Data Sources</b><small>PERSISTENCE</small></div><div class="sourcebox"><div class="source"><div class="srow"><span><i class="dot" id="sheet-dot"></i>Google Sheets</span><b id="sheet-state">CHECKING</b></div><div class="srow"><span>Role</span><span>HISTORICAL MASTER</span></div></div><div class="source"><div class="srow"><span><i class="dot" id="bot-dot"></i>Bot V5 / Bybit</span><b id="bot-state">CHECKING</b></div><div class="srow"><span>Role</span><span>LIVE / OPEN</span></div></div><div class="source"><div class="srow"><span><i class="dot warn"></i>Render DB</span><b class="y">EPHEMERAL</b></div><div class="srow"><span>Role</span><span>NOT MASTER</span></div></div></div>
+<div class="sec-h"><b>Official Track Record</b><small>POLICY</small></div>
+<div class="envbar">
+  <div class="envbadge"><span>Default dataset</span><b>PRODUCTION ONLY</b></div>
+  <div class="legacy-note">Los registros legacy/pre-producción permanecen visibles para auditoría, pero quedan excluidos de KPIs, equity curve, edge map y estadísticas oficiales.</div>
 </div>
-
-<div class="diario-main">
-  <div class="metrics-row">
-    <div class="metric-d"><div class="ml">Total trades</div><div class="mv neu" id="d-total">0</div></div>
-    <div class="metric-d"><div class="ml">Win Rate</div><div class="mv pos" id="d-wr">--%</div></div>
-    <div class="metric-d"><div class="ml">PnL neto</div><div class="mv" id="d-pnl">$0.00</div></div>
-    <div class="metric-d"><div class="ml">Profit Factor</div><div class="mv acc" id="d-pf">--</div></div>
-    <div class="metric-d"><div class="ml">Gan. promedio</div><div class="mv pos" id="d-avg-w">$--</div></div>
-    <div class="metric-d"><div class="ml">Pérd. promedio</div><div class="mv neg" id="d-avg-l">$--</div></div>
-    <div class="metric-d"><div class="ml">Max Drawdown</div><div class="mv neg" id="d-dd">$--</div></div>
-    <div class="metric-d"><div class="ml">Sharpe</div><div class="mv acc" id="d-sharpe">--</div></div>
-  </div>
-
-  <div class="charts-row">
-    <div><div class="section-title">Curva de capital</div><div id="chart-equity" style="height:140px"></div></div>
-    <div><div class="section-title">PnL por estrategia</div><div id="chart-strat" style="height:140px"></div></div>
-  </div>
-
-  <div class="trades-table-wrap">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <span class="section-title" style="margin:0">Historial de trades</span>
-      <button class="btn" onclick="exportCSV()">⬇ Exportar CSV</button>
-    </div>
-    <table class="trades-table">
-      <thead><tr>
-        <th>#</th><th>Fecha</th><th>Activo</th><th>Estrategia</th><th>Dir</th>
-        <th>Prima In</th><th>Prima Out</th><th>Qty</th><th>PnL $</th><th>PnL %</th>
-        <th>DTE</th><th>IVR%</th><th>Motivo</th><th>Duración</th><th>W/L</th><th></th>
-      </tr></thead>
-      <tbody id="trades-body"></tbody>
-    </table>
-  </div>
+<div class="sec-h"><b>Filters</b><small id="filter-count">0</small></div><div class="filters"><select id="f-asset" onchange="render()"><option value="">BTC + ETH</option><option>BTC</option><option>ETH</option></select><select id="f-strategy" onchange="render()"><option value="">ALL STRATEGIES</option></select><div class="filtergrid"><select id="f-result" onchange="render()"><option value="">ALL RESULTS</option><option value="WIN">WIN</option><option value="LOSS">LOSS</option></select><select id="f-quality" onchange="render()"><option value="">ALL DATA</option><option value="BOT_VERIFIED">VERIFIED</option><option value="LEGACY_PARTIAL">LEGACY</option></select></div>
+<select id="f-track" onchange="render()"><option value="PRODUCTION">PRODUCTION ONLY</option><option value="ALL">ALL RECORDS</option><option value="LEGACY">LEGACY / PRE-PRODUCTION</option></select><div class="filter-status" id="filter-status">Mostrando todo el histórico.</div><div class="filter-actions"><button class="btn primary" onclick="loadAll()">⟳ SYNC NOW</button><button class="btn" id="clear-filters" onclick="clearFilters()">CLEAR FILTERS</button></div></div>
+<div class="sec-h"><b>Snapshot</b><small>AUTO</small></div><div class="kpis-side"><div class="ks"><span>Closed</span><b id="s-closed">0</b></div><div class="ks"><span>Open</span><b id="s-open">0</b></div><div class="ks"><span>BTC PnL</span><b id="s-btc">$0</b></div><div class="ks"><span>ETH PnL</span><b id="s-eth">$0</b></div></div>
+<div class="sec-h"><b>Data Coverage</b><small>MIGRATION</small></div>
+<div class="coverage">
+  <div class="cov"><span>Institutional</span><b id="cov-inst">0</b><small>BOT_VERIFIED / new schema</small></div>
+  <div class="cov"><span>Legacy</span><b id="cov-legacy">0</b><small>partial historical fields</small></div>
 </div>
+<div class="sec-h"><b>Open Positions</b><small>BOT LIVE</small></div><div class="openlist" id="open-list"><div class="empty">Cargando...</div></div>
+</aside>
+<main class="main">
+<div class="production-summary" id="production-summary"><b>OFFICIAL TRACK RECORD:</b> PRODUCTION ONLY · Legacy excluded from KPIs</div><div class="kpibar"><div class="kpi"><span>Net PnL</span><b id="k-pnl">$0.00</b><small>closed history</small></div><div class="kpi"><span>Win Rate</span><b id="k-wr">0.0%</b><small>wins / closed</small></div><div class="kpi"><span>Profit Factor</span><b id="k-pf">N/D</b><small>gross wins / losses</small></div><div class="kpi"><span>Expectancy</span><b id="k-exp">$0.00</b><small>avg PnL / trade</small></div><div class="kpi"><span>Max Drawdown</span><b id="k-dd">$0.00</b><small>peak-to-trough</small></div><div class="kpi"><span>Avg Winner</span><b id="k-aw">$0.00</b><small>closed winners</small></div><div class="kpi"><span>Avg Loser</span><b id="k-al">$0.00</b><small>closed losers</small></div><div class="kpi"><span>Sample</span><b id="k-n">0</b><small>filtered trades</small></div></div>
+<div class="analytics"><section class="panel"><div class="ph"><b>EQUITY CURVE · GOOGLE SHEETS</b></div><div class="chart" id="equity"></div></section><section class="panel"><div class="ph"><b>PNL BY STRATEGY</b></div><div class="chart" id="strategy-chart"></div></section><section class="panel"><div class="ph"><b>EDGE MAP</b></div><div class="edgegrid" id="edge-grid"></div></section></div>
+<div class="tablewrap"><div class="tabletools"><b>CLOSED TRADES</b><span>Sheets persists even if Render DB resets</span><span class="sp"></span><span class="sample-state" id="sample-state">0 / 0</span><span id="schema-label">schema N/D</span></div><div class="trades"><table><thead><tr><th>Exit UTC</th><th>Track</th><th>Asset</th><th>Strategy</th><th>DTE</th><th>IVR</th><th>Δ entry</th><th>Entry</th><th>Exit</th><th>PnL</th><th>Result</th><th>Reason</th><th>Quality</th></tr></thead><tbody id="tbody"></tbody></table></div></div>
+</main>
+<aside class="detail"><div class="sec-h"><b>Trade Review</b><small>PLAN vs EXECUTION</small></div><div class="detailbody" id="detail-body"><div class="empty">Selecciona un trade cerrado.</div></div></aside>
 </div>
-
+<div class="foot"><span>Performance & Trade Review Desk · Sheets = historical master · Bot = live</span><span class="sp"></span><span id="foot-state">DATA N/D</span></div>
 <script>
-document.getElementById('shared-css').textContent=CO_CSS;
-document.getElementById('nav-placeholder').innerHTML=navHTML('diario.html');
+const $=id=>document.getElementById(id);const BOT={get url(){return localStorage.getItem('co_bot_url')||localStorage.getItem('bot_url')||''},get token(){return localStorage.getItem('co_bot_token')||localStorage.getItem('bot_token')||''}};let history=[],live=[],selectedId=null,schema='N/D';const DARK={paper_bgcolor:'transparent',plot_bgcolor:'transparent',font:{family:'Segoe UI',size:8,color:'#7388a2'},margin:{l:40,r:8,t:8,b:25},showlegend:false};
+async function botFetch(path,opts={}){if(!BOT.url||!BOT.token)throw new Error('Bot no configurado');const r=await fetch(BOT.url+path,{...opts,headers:{'X-Bot-Token':BOT.token,'Content-Type':'application/json',...(opts.headers||{})}});const tx=await r.text();let j={};try{j=tx?JSON.parse(tx):{}}catch{}if(!r.ok)throw new Error(j.detail||tx||r.statusText);return j}
+function num(v){const x=Number(String(v??'').replace('$','').replaceAll(',',''));return Number.isFinite(x)?x:null}function money(v){v=num(v);return v==null?'N/D':'$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}function n(v,d=1){v=num(v);return v==null?'N/D':v.toFixed(d)}function stratName(s){s=String(s||'N/D').toUpperCase();const m={IRON_CONDOR:'IRON CONDOR',IRON_BUTTERFLY:'IRON BUTTERFLY',CALENDAR_SPREAD:'CALENDAR',CALENDAR:'CALENDAR',CREDIT_SPREAD:'CREDIT SPREAD',DEBIT_SPREAD:'DEBIT SPREAD',DIRECTIONAL:'DIRECTIONAL',IC:'IRON CONDOR',IB:'IRON BUTTERFLY',CAL:'CALENDAR',CS:'CREDIT SPREAD',DS:'DEBIT SPREAD'};return m[s]||s.replaceAll('_',' ')}
+function trackStatus(t){
+  const explicit=String(t.track_record_status||t.environment||'').toUpperCase();
+  if(['PRODUCTION','PAPER','TEST','LEGACY'].includes(explicit))return explicit;
+  // Migration rule: everything legacy/partial from the old sheet is pre-production.
+  if(t.data_quality==='LEGACY_PARTIAL'||String(t.source||'').toUpperCase()==='TRADES')return 'LEGACY';
+  // New Journal_Institucional records are considered production unless explicitly tagged otherwise.
+  if(String(t.source||'').toUpperCase()==='JOURNAL_INSTITUCIONAL' || t.data_quality==='BOT_VERIFIED')return 'PRODUCTION';
+  return 'LEGACY';
+}
+function officialHistory(){return history.filter(t=>trackStatus(t)==='PRODUCTION')}
 
-// Fecha de hoy por defecto
-document.getElementById('t-fecha').value=new Date().toISOString().split('T')[0];
-document.getElementById('t-activo').value=COState.activo;
-
-let trades=JSON.parse(localStorage.getItem('co_diario')||'[]');
-
-const DARK={template:'plotly_dark',paper_bgcolor:'transparent',plot_bgcolor:'transparent',margin:{l:45,r:10,t:5,b:35},font:{family:'Segoe UI,system-ui',size:10}};
-
-function calcPnL(primaIn,primaOut,qty,dir){
-  // PnL = (prima_out - prima_in) * qty * 100 para COMPRA
-  // Para opciones vendidas: (prima_in - prima_out) * qty * 100
-  return (primaOut - primaIn) * qty * 100;
+function filtered(){
+  const a=$('f-asset').value,st=$('f-strategy').value,res=$('f-result').value,q=$('f-quality').value,tr=$('f-track').value;
+  return history.filter(t=>{
+    const ts=trackStatus(t);
+    const trackOk=tr==='ALL'||(tr==='LEGACY'?ts!=='PRODUCTION':ts==='PRODUCTION');
+    return trackOk&&(!a||t.asset===a)&&(!st||stratName(t.strategy)===st)&&(!res||(res==='WIN'?num(t.pnl)>0:num(t.pnl)<0))&&(!q||t.data_quality===q);
+  });
+}
+function filterDescription(arr){
+  const a=$('f-asset').value,st=$('f-strategy').value,res=$('f-result').value,q=$('f-quality').value,tr=$('f-track').value;
+  const active=[a,st,res,q,tr==='PRODUCTION'?'PRODUCTION ONLY':tr==='LEGACY'?'LEGACY / PRE-PRODUCTION':tr==='ALL'?'ALL RECORDS':''].filter(Boolean);
+  const el=$('filter-status');
+  $('top-filtered').textContent=`${arr.length} / ${history.length}`;
+  $('filter-count').textContent=`${arr.length} / ${history.length}`;
+  $('sample-state').textContent=`FILTERED ${arr.length} · HISTORY ${history.length}`;
+  $('sample-state').className='sample-state'+(history.length&&arr.length===0?' zero':'');
+  if(!active.length){
+    el.className='filter-status';
+    el.innerHTML=`Mostrando <b>todo el histórico</b>: ${history.length} trades.`;
+  }else if(arr.length===0){
+    el.className='filter-status zero';
+    el.innerHTML=`<b>0 de ${history.length}</b> trades coinciden con ${active.join(' · ')}.`;
+  }else{
+    el.className='filter-status';
+    el.innerHTML=`Mostrando <b>${arr.length} de ${history.length}</b> · ${active.join(' · ')}`;
+  }
+}
+function clearFilters(){
+  $('f-asset').value='';
+  $('f-strategy').value='';
+  $('f-result').value='';
+  $('f-quality').value='';
+  $('f-track').value='PRODUCTION';
+  selectedId=null;
+  render();
+}
+function latestTrade(arr){
+  return [...arr].sort((a,b)=>String(b.exit_utc||'').localeCompare(String(a.exit_utc||'')))[0]||null;
+}
+function ensureSelection(arr){
+  if(!arr.length){selectedId=null;return null}
+  let t=arr.find(x=>String(x.trade_id)===String(selectedId));
+  if(!t){t=latestTrade(arr);selectedId=t?.trade_id||null}
+  return t;
+}
+function renderCoverage(){
+  const inst=history.filter(t=>trackStatus(t)==='PRODUCTION').length;
+  const legacy=history.filter(t=>trackStatus(t)!=='PRODUCTION').length;
+  $('cov-inst').textContent=inst;
+  $('cov-inst').className=inst?'g':'';
+  $('cov-legacy').textContent=legacy;
+  $('cov-legacy').className=legacy?'y':'';
+  $('top-official').textContent=inst+' PROD';
+  $('top-official').className=inst?'g':'y';
 }
 
-function addTrade(){
-  const primaIn=+document.getElementById('t-prima-in').value||0;
-  const primaOut=+document.getElementById('t-prima-out').value||0;
-  const qty=+document.getElementById('t-qty').value||0.1;
-  const pnl=calcPnL(primaIn,primaOut,qty);
-  const trade={
-    id:Date.now(),
-    fecha:document.getElementById('t-fecha').value,
-    activo:document.getElementById('t-activo').value,
-    contrato:document.getElementById('t-contrato').value,
-    estrategia:document.getElementById('t-estrategia').value,
-    dir:document.getElementById('t-dir').value,
-    primaIn,primaOut,qty,pnl:+pnl.toFixed(2),
-    dte:+document.getElementById('t-dte').value,
-    ivr:+document.getElementById('t-ivr').value,
-    motivo:document.getElementById('t-motivo').value,
-    duracion:+document.getElementById('t-dur').value,
-    notas:document.getElementById('t-notas').value,
-    wl:pnl>0?'WIN':pnl<0?'LOSS':'FLAT'
-  };
-  trades.unshift(trade);
-  localStorage.setItem('co_diario',JSON.stringify(trades));
-  // Limpiar campos
-  document.getElementById('t-contrato').value='';
-  document.getElementById('t-prima-in').value='0';
-  document.getElementById('t-prima-out').value='0';
-  document.getElementById('t-notas').value='';
-  renderAll();
+function metrics(arr){const ps=arr.map(t=>num(t.pnl)||0),wins=ps.filter(x=>x>0),loss=ps.filter(x=>x<0);const sw=wins.reduce((a,b)=>a+b,0),sl=Math.abs(loss.reduce((a,b)=>a+b,0)),net=ps.reduce((a,b)=>a+b,0);let eq=0,peak=0,dd=0;[...arr].sort((a,b)=>String(a.exit_utc).localeCompare(String(b.exit_utc))).forEach(t=>{eq+=num(t.pnl)||0;peak=Math.max(peak,eq);dd=Math.max(dd,peak-eq)});return {n:ps.length,net,wr:ps.length?wins.length/ps.length*100:0,pf:sl>0?sw/sl:(sw>0?Infinity:null),exp:ps.length?net/ps.length:0,dd,aw:wins.length?sw/wins.length:0,al:loss.length?loss.reduce((a,b)=>a+b,0)/loss.length:0}}
+function renderKPIs(arr){const m=metrics(arr);$('k-pnl').textContent=money(m.net);$('k-pnl').className=m.net>=0?'g':'r';$('k-wr').textContent=m.wr.toFixed(1)+'%';$('k-pf').textContent=m.pf===Infinity?'∞':m.pf==null?'N/D':m.pf.toFixed(2);$('k-exp').textContent=money(m.exp);$('k-dd').textContent=money(m.dd);$('k-aw').textContent=money(m.aw);$('k-al').textContent=money(m.al);$('k-n').textContent=m.n;$('s-closed').textContent=history.length;$('s-open').textContent=live.length;for(const asset of ['BTC','ETH']){const v=history.filter(t=>t.asset===asset).reduce((a,t)=>a+(num(t.pnl)||0),0);const el=$(asset==='BTC'?'s-btc':'s-eth');el.textContent=money(v);el.className=v>=0?'g':'r'}}
+function renderCharts(arr){const sorted=[...arr].sort((a,b)=>String(a.exit_utc).localeCompare(String(b.exit_utc)));let eq=0;const x=sorted.map(t=>t.exit_utc),y=sorted.map(t=>(eq+=num(t.pnl)||0));Plotly.react('equity',x.length?[{x,y,mode:'lines',line:{color:'#38bdf8',width:2},fill:'tozeroy',fillcolor:'rgba(56,189,248,.06)',hovertemplate:'%{x}<br>$%{y:.2f}<extra></extra>'}]:[],{...DARK,xaxis:{gridcolor:'#172332'},yaxis:{gridcolor:'#172332',tickformat:'$,.2f'},shapes:x.length?[{type:'line',x0:x[0],x1:x[x.length-1],y0:0,y1:0,line:{color:'#304156',dash:'dash',width:1}}]:[]},{responsive:true,displayModeBar:false});const by={};arr.forEach(t=>{const k=stratName(t.strategy);by[k]=(by[k]||0)+(num(t.pnl)||0)});const ents=Object.entries(by).sort((a,b)=>b[1]-a[1]);Plotly.react('strategy-chart',ents.length?[{x:ents.map(e=>e[0]),y:ents.map(e=>e[1]),type:'bar',marker:{color:ents.map(e=>e[1]>=0?'#35d08a':'#ff6d7a'),opacity:.8},hovertemplate:'%{x}<br>$%{y:.2f}<extra></extra>'}]:[],{...DARK,margin:{l:38,r:6,t:8,b:48},xaxis:{gridcolor:'#172332',tickangle:-25,tickfont:{size:7}},yaxis:{gridcolor:'#172332',tickformat:'$,.2f'}},{responsive:true,displayModeBar:false})}
+function renderEdge(arr){const by={};arr.forEach(t=>{const k=stratName(t.strategy);if(!by[k])by[k]=[];by[k].push(t)});const rows=Object.entries(by).map(([k,v])=>{const m=metrics(v);return {k,n:m.n,pnl:m.net,wr:m.wr}}).sort((a,b)=>b.pnl-a.pnl);$('edge-grid').innerHTML='<div class="edge h"><span>Strategy</span><span>N</span><span>PnL</span><span>WR</span></div>'+rows.map(r=>`<div class="edge"><b>${r.k}</b><span>${r.n}</span><span class="${r.pnl>=0?'g':'r'}">${money(r.pnl)}</span><span>${r.wr.toFixed(0)}%</span></div>`).join('')+(rows.length?'':'<div class="empty">Sin muestra</div>')}
+function renderTable(arr){
+  filterDescription(arr);
+  $('tbody').innerHTML=arr.length?arr.map(t=>{
+    const ts=trackStatus(t),cls=ts==='PRODUCTION'?'status-prod':ts==='LEGACY'?'status-legacy':ts==='TEST'?'status-test':'status-paper';
+    return `<tr class="${String(selectedId)===String(t.trade_id)?'active':''}" onclick="selectTrade('${String(t.trade_id).replaceAll("'","")}')"><td>${t.exit_utc||'N/D'}</td><td><span class="badge ${cls}">${ts}</span></td><td class="c">${t.asset||'N/D'}</td><td>${stratName(t.strategy)}</td><td>${n(t.dte_entry,0)}</td><td>${n(t.ivr_entry,1)}%</td><td>${n(t.delta_entry,3)}</td><td>${money(t.premium_entry)}</td><td>${money(t.premium_exit)}</td><td class="money ${num(t.pnl)>=0?'g':'r'}">${money(t.pnl)}</td><td><span class="badge ${num(t.pnl)>=0?'win':'loss'}">${num(t.pnl)>=0?'WIN':'LOSS'}</span></td><td>${t.exit_reason||'N/D'}</td><td><span class="badge ${t.data_quality==='LEGACY_PARTIAL'?'legacy':''}">${t.data_quality||'N/D'}</span></td></tr>`;
+  }).join(''):`<tr><td colspan="13"><div class="empty-filter"><b>0 trades en el track record seleccionado</b><span>${$('f-track').value==='PRODUCTION'?'El track record oficial empieza limpio. Los '+history.filter(t=>trackStatus(t)!=='PRODUCTION').length+' registros legacy quedan archivados fuera de KPIs.':'El histórico contiene '+history.length+' registros.'}</span><br><button class="btn" onclick="document.getElementById('f-track').value='ALL';render()">SHOW ALL RECORDS</button></div></td></tr>`;
 }
-
-function deleteTrade(id){
-  trades=trades.filter(t=>t.id!==id);
-  localStorage.setItem('co_diario',JSON.stringify(trades));
-  renderAll();
+function renderOpen(){$('open-list').innerHTML=live.length?live.map(p=>`<div class="open"><div class="o1"><b>${p.estrategia||'?'} ${p.asset||''}</b><b class="${num(p.pnl_canonical??p.pnl)>=0?'g':'r'}">${money(p.pnl_canonical??p.pnl)}</b></div><div class="o2">${p.label||'--'} · ${p.expiry||'--'} · crédito ${money(p.credito_entrada||0)}</div></div>`).join(''):'<div class="empty">Sin posiciones abiertas</div>'}
+function parseLegs(t){try{return JSON.parse(t.legs_json||'[]')}catch{return[]}}function selectTrade(id){selectedId=id;render();renderDetail(history.find(t=>String(t.trade_id)===String(id)))}
+function renderDetail(t){
+  if(!t){
+    const prod=officialHistory(),m=metrics(prod);
+    const inst=prod.length;
+    const legacy=history.filter(x=>trackStatus(x)!=='PRODUCTION').length;
+    $('detail-body').innerHTML=`<div class="detail-summary"><h3>PORTFOLIO REVIEW SUMMARY</h3><p>Selecciona un trade cerrado para revisar PLAN vs EXECUTION. El histórico permanece en Google Sheets aunque Render reinicie su DB.</p><div class="summary-grid"><div class="summary-cell"><span>Production trades</span><b>${inst}</b></div><div class="summary-cell"><span>Official Net PnL</span><b class="${m.net>=0?'g':'r'}">${money(m.net)}</b></div><div class="summary-cell"><span>Institutional</span><b class="g">${inst}</b></div><div class="summary-cell"><span>Legacy partial</span><b class="y">${legacy}</b></div></div></div><div class="block"><h4>DATA INTERPRETATION</h4><div style="font-size:6.8px;line-height:1.45;color:#8195aa">Los trades <b style="color:#35d08a">BOT_VERIFIED</b> contienen el nuevo esquema institucional. Los <b style="color:#f6ad42">LEGACY_PARTIAL</b> conservan sólo los campos históricos que realmente existían; el Desk no inventa IVR, patas ni contexto faltante.</div></div>`;
+    return;
+  }
+  const legs=parseLegs(t),verified=t.data_quality!=='LEGACY_PARTIAL',plan=`${stratName(t.strategy)} ${t.asset||''} · DTE ${n(t.dte_entry,0)} · IVR_DVOL ${n(t.ivr_entry,1)}%${t.delta_entry!==''?' · Δ '+n(t.delta_entry,3):''}`,execution=`Salida ${t.exit_utc||'N/D'} · ${t.exit_reason||'N/D'} · PnL ${money(t.pnl)} · ${num(t.pnl)>=0?'WIN':'LOSS'}`;
+  $('detail-body').innerHTML=`<div class="dhero"><div class="topline"><h3>${t.trade_id}</h3><span><span class="badge ${trackStatus(t)==='PRODUCTION'?'status-prod':'status-legacy'}">${trackStatus(t)}</span> <span class="badge ${verified?'win':'legacy'}">${verified?'VERIFIED':'LEGACY PARTIAL'}</span></span></div><p>${t.label||stratName(t.strategy)} · ${t.asset||'N/D'} · ${t.expiry||'expiry N/D'}</p></div><div class="dmetrics"><div class="dm"><span>PnL Final</span><b class="${num(t.pnl)>=0?'g':'r'}">${money(t.pnl)}</b></div><div class="dm"><span>Exit Reason</span><b>${t.exit_reason||'N/D'}</b></div><div class="dm"><span>IVR Entry</span><b>${n(t.ivr_entry,1)}%</b></div><div class="dm"><span>DTE Entry</span><b>${n(t.dte_entry,0)}</b></div></div><div class="block"><h4>PLAN vs EXECUTION</h4><div class="planexec"><div class="pe"><b>PLAN / ENTRY CONTEXT</b><p>${plan}</p></div><div class="pe"><b>EXECUTION / OUTCOME</b><p>${execution}</p></div></div></div><div class="block"><h4>Trade Facts</h4><div class="kv"><div>Entry UTC</div><div>${t.entry_utc||'N/D'}</div><div>Exit UTC</div><div>${t.exit_utc||'N/D'}</div><div>Premium Entry</div><div>${money(t.premium_entry)}</div><div>Premium Exit</div><div>${money(t.premium_exit)}</div><div>Contracts</div><div>${t.contracts||'N/D'}</div><div>Max Risk</div><div>${t.max_risk||'N/D'}</div></div></div><div class="block"><h4>Structure Legs</h4>${legs.length?legs.map(l=>`<div class="kv"><div>${String(l.role||'leg').toUpperCase()}</div><div>${l.symbol||'N/D'} · ${l.side||''} · K ${l.strike??'N/D'}</div></div>`).join(''):'<div style="font-size:7px;color:#6e8298">N/D en histórico legacy. No se inventan patas.</div>'}</div><div class="block"><h4>Human Review · Optional</h4><textarea id="rv-notes" placeholder="Notas de ejecución / mercado">${t.notes||''}</textarea><div class="reviewgrid"><input id="rv-disc" value="${(t.discipline||'').replaceAll('"','&quot;')}" placeholder="Disciplina: A / B / C o comentario"><input id="rv-lesson" value="${(t.lesson||'').replaceAll('"','&quot;')}" placeholder="Lección"></div><button class="btn go" style="width:100%;margin-top:4px" ${verified?'':'disabled'} onclick="saveReview('${t.trade_id}')">SAVE REVIEW TO SHEETS</button></div>`;
 }
-
-function clearAll(){if(confirm('¿Eliminar todo el diario?')){trades=[];localStorage.removeItem('co_diario');renderAll();}}
-
-function renderMetrics(){
-  if(!trades.length){return;}
-  const pnls=trades.map(t=>t.pnl);
-  const wins=pnls.filter(p=>p>0),losses=pnls.filter(p=>p<0);
-  const total=pnls.length;
-  const wr=wins.length/total*100;
-  const pnlNeto=pnls.reduce((a,b)=>a+b,0);
-  const sumWins=wins.reduce((a,b)=>a+b,0);
-  const sumLoss=Math.abs(losses.reduce((a,b)=>a+b,0));
-  const pf=sumLoss>0?sumWins/sumLoss:sumWins>0?Infinity:0;
-  const avgW=wins.length>0?sumWins/wins.length:0;
-  const avgL=losses.length>0?sumLoss/losses.length:0;
-
-  // Max Drawdown
-  let peak=0,dd=0,equity=0;
-  [...pnls].reverse().forEach(p=>{equity+=p;if(equity>peak)peak=equity;if(peak-equity>dd)dd=peak-equity;});
-
-  // Sharpe
-  const mean=pnls.reduce((a,b)=>a+b,0)/pnls.length;
-  const variance=pnls.reduce((s,p)=>s+(p-mean)**2,0)/pnls.length;
-  const sharpe=variance>0?mean/Math.sqrt(variance)*Math.sqrt(144):0;
-
-  document.getElementById('d-total').textContent=total;
-  document.getElementById('d-wr').textContent=wr.toFixed(1)+'%';
-  const pnlEl=document.getElementById('d-pnl');pnlEl.textContent=fmt(pnlNeto);pnlEl.className='mv '+(pnlNeto>=0?'pos':'neg');
-  document.getElementById('d-pf').textContent=pf===Infinity?'∞':pf.toFixed(2);
-  document.getElementById('d-avg-w').textContent=fmt(avgW);
-  document.getElementById('d-avg-l').textContent=fmt(avgL);
-  document.getElementById('d-dd').textContent=fmt(dd);
-  document.getElementById('d-sharpe').textContent=sharpe.toFixed(2);
+async function saveReview(id){try{await botFetch(`/journal/${encodeURIComponent(id)}/review`,{method:'POST',body:JSON.stringify({notes:$('rv-notes').value,discipline:$('rv-disc').value,lesson:$('rv-lesson').value})});await loadAll();selectedId=id;renderDetail(history.find(t=>t.trade_id===id))}catch(e){alert(e.message)}}
+function populateStrategies(){const cur=$('f-strategy').value,vals=[...new Set(history.map(t=>stratName(t.strategy)).filter(Boolean))].sort();$('f-strategy').innerHTML='<option value="">ALL STRATEGIES</option>'+vals.map(v=>`<option>${v}</option>`).join('');if(vals.includes(cur))$('f-strategy').value=cur}
+function render(){
+  const arr=filtered();
+  const selected=ensureSelection(arr);
+  const prod=officialHistory();
+  $('production-summary').innerHTML=`<b>OFFICIAL TRACK RECORD:</b>&nbsp; PRODUCTION ONLY · ${prod.length} trades · Legacy excluded from official KPIs`;
+  renderKPIs(arr);
+  renderCoverage();
+  renderCharts(arr);
+  renderEdge(arr);
+  renderTable(arr);
+  renderOpen();
+  renderDetail(selected);
 }
+async function loadAll(){
+  $('foot-state').textContent='SYNCING...';
+  const firstLoad=!window.__diarioLoaded;
+  const [jr,lv]=await Promise.allSettled([botFetch('/journal'),botFetch('/live')]);
+  if(jr.status==='fulfilled'&&jr.value.available!==false){
+    history=jr.value.trades||[];
+    schema=jr.value.schema||'Journal';
+    $('sheet-dot').className='dot ok';$('sheet-state').textContent='LIVE';$('sheet-state').className='g';
+    $('top-history').textContent=history.length+' TRADES';$('top-history').className='g';
+    $('schema-label').textContent=schema;
+  }else{
+    $('sheet-dot').className='dot err';$('sheet-state').textContent='N/D';$('sheet-state').className='r';history=[];
+  }
+  if(lv.status==='fulfilled'){
+    live=lv.value.estrategias||[];
+    $('bot-dot').className='dot ok';$('bot-state').textContent='LIVE';$('bot-state').className='g';
+    $('top-live').textContent=live.length+' OPEN';$('top-live').className='g';
+  }else{
+    $('bot-dot').className='dot err';$('bot-state').textContent='OFF';$('bot-state').className='r';live=[];
+  }
+  populateStrategies();
 
-function renderCharts(){
-  if(!trades.length)return;
-  // Curva de capital
-  const sorted=[...trades].reverse();
-  let equity=0;
-  const eqX=sorted.map(t=>t.fecha);
-  const eqY=sorted.map(t=>{equity+=t.pnl;return +equity.toFixed(2);});
-  Plotly.react('chart-equity',[{x:eqX,y:eqY,mode:'lines',line:{color:'#38bdf8',width:2},fill:'tozeroy',fillcolor:'rgba(56,189,248,0.06)'}],
-    {...DARK,xaxis:{gridcolor:'#1e2035'},yaxis:{tickformat:'$,.2f',gridcolor:'#1e2035'},shapes:[{type:'line',x0:eqX[0],x1:eqX[eqX.length-1],y0:0,y1:0,line:{color:'#1e2035',width:1}}]},{responsive:true,displayModeBar:false});
+  // V2 UX rule: every fresh page load starts with the full BTC+ETH history.
+  // This prevents browser-restored select values from making a healthy journal look empty.
+  if(firstLoad){
+    $('f-asset').value='';
+    $('f-strategy').value='';
+    $('f-result').value='';
+    $('f-quality').value='';
+    $('f-track').value='PRODUCTION';
+    const latest=latestTrade(officialHistory());
+    selectedId=latest?.trade_id||null;
+    window.__diarioLoaded=true;
+  }
 
-  // PnL por estrategia
-  const byStrat={};
-  trades.forEach(t=>{if(!byStrat[t.estrategia])byStrat[t.estrategia]={pnl:0,n:0};byStrat[t.estrategia].pnl+=t.pnl;byStrat[t.estrategia].n++;});
-  const strats=Object.entries(byStrat).sort((a,b)=>b[1].pnl-a[1].pnl);
-  Plotly.react('chart-strat',[{x:strats.map(s=>s[0]),y:strats.map(s=>+s[1].pnl.toFixed(2)),type:'bar',marker:{color:strats.map(s=>s[1].pnl>=0?'#22c55e':'#ef4444'),opacity:0.8},text:strats.map(s=>fmt(s[1].pnl)),textposition:'outside',textfont:{size:9}}],
-    {...DARK,xaxis:{gridcolor:'#1e2035',tickangle:-30},yaxis:{tickformat:'$,.2f',gridcolor:'#1e2035'}},{responsive:true,displayModeBar:false});
+  $('top-sync').textContent=new Date().toLocaleTimeString('es');
+  $('foot-state').textContent=`SHEETS ${history.length} · LIVE ${live.length} · ${new Date().toLocaleTimeString('es')}`;
+  render();
 }
-
-function renderTable(){
-  const tb=document.getElementById('trades-body');
-  if(!trades.length){tb.innerHTML='<tr><td colspan="16" style="text-align:center;padding:20px;color:#334155">Sin trades registrados. Agrega tu primer trade.</td></tr>';return;}
-  tb.innerHTML=trades.map((t,i)=>`
-    <tr>
-      <td style="color:#334155">${trades.length-i}</td>
-      <td>${t.fecha}</td>
-      <td style="color:#38bdf8;font-weight:600">${t.activo}</td>
-      <td>${t.estrategia}</td>
-      <td style="color:${t.dir==='CALL'?'#38bdf8':t.dir==='PUT'?'#fb923c':'#94a3b8'}">${t.dir}</td>
-      <td>$${t.primaIn}</td>
-      <td>$${t.primaOut}</td>
-      <td>${t.qty}</td>
-      <td style="color:${t.pnl>=0?'#22c55e':'#ef4444'};font-weight:600">${fmt(t.pnl)}</td>
-      <td style="color:${t.pnl>=0?'#22c55e':'#ef4444'}">${t.primaIn>0?((t.pnl/(t.primaIn*t.qty*100))*100).toFixed(1)+'%':'--'}</td>
-      <td>${t.dte}</td>
-      <td>${t.ivr}%</td>
-      <td style="color:#94a3b8">${t.motivo}</td>
-      <td>${t.duracion<60?t.duracion+'min':(t.duracion/60).toFixed(1)+'h'}</td>
-      <td><span class="${t.wl==='WIN'?'win-badge':'loss-badge'}">${t.wl}</span></td>
-      <td><button onclick="deleteTrade(${t.id})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px">✕</button></td>
-    </tr>`).join('');
-}
-
-function renderAll(){renderMetrics();renderCharts();renderTable();}
-
-function exportCSV(){
-  const headers=['Fecha','Activo','Estrategia','Dir','Prima In','Prima Out','Qty','PnL','DTE','IVR%','Motivo','Duración','W/L','Notas'];
-  const rows=trades.map(t=>[t.fecha,t.activo,t.estrategia,t.dir,t.primaIn,t.primaOut,t.qty,t.pnl,t.dte,t.ivr,t.motivo,t.duracion,t.wl,`"${t.notas||''}"`]);
-  const csv=[headers,...rows].map(r=>r.join(',')).join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='criptoopciones_diario.csv';a.click();
-}
-
-async function navRefresh(){}
-window.addEventListener('load',()=>renderAll());
+window.addEventListener('load',()=>{loadAll();setInterval(loadAll,60000)});window.addEventListener('resize',()=>{try{Plotly.Plots.resize('equity');Plotly.Plots.resize('strategy-chart')}catch{}});
 </script>
 </body>
 </html>
