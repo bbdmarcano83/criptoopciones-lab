@@ -1,17 +1,17 @@
 import argparse, base64, gzip, hashlib, pathlib
 
-# Phase 6: reconstruct index.html from staged payload pieces and verify the exact source hash.
-TARGET = 'index.html'
-EXPECTED = 'c4026e999bff73eabe2c8c260fb16758e5b13552d80a438ea11a8cd05144d085'
+# Phase 7: reconstruct the reviewed institutional positions.html candidate.
+# This is intentionally NOT the untouched ZIP source: it contains the role-aware
+# roll-model fix while preserving the rest of the institutional page.
+TARGET = 'positions.html'
+EXPECTED = '381feb74ff16b4ff43cd906ccbc4e4311a524a5956e4ff054d671f591b4f0ffb'
 PARTS = [
-    pathlib.Path('scripts/payload_parts/part01.txt'),
-    pathlib.Path('scripts/payload_parts/part02.txt'),
-    pathlib.Path('scripts/payload_parts/part03.txt'),
-    pathlib.Path('scripts/payload_parts/part04.txt'),
-    pathlib.Path('scripts/payload_parts/part05a.txt'),
-    pathlib.Path('scripts/payload_parts/part05b.txt'),
-    pathlib.Path('scripts/payload_parts/part06.txt'),
-    pathlib.Path('scripts/payload_parts/part07.txt'),
+    pathlib.Path('scripts/positions_payload/part01.txt'),
+    pathlib.Path('scripts/positions_payload/part02.txt'),
+    pathlib.Path('scripts/positions_payload/part03.txt'),
+    pathlib.Path('scripts/positions_payload/part04.txt'),
+    pathlib.Path('scripts/positions_payload/part05.txt'),
+    pathlib.Path('scripts/positions_payload/part06.txt'),
 ]
 
 if __name__ == '__main__':
@@ -22,16 +22,7 @@ if __name__ == '__main__':
         print(TARGET)
         raise SystemExit(0)
 
-    clean_parts = []
-    for p in PARTS:
-        clean = ''.join(p.read_text().split())
-        # A staging transport dropped exactly one base64 character in this piece.
-        # Repair is explicit/deterministic; the final SHA-256 below is the authority.
-        if p.name == 'part05a.txt' and len(clean) == 2999:
-            clean = clean[:2650] + 'n' + clean[2650:]
-        clean_parts.append(clean)
-
-    payload = ''.join(clean_parts)
+    payload = ''.join(''.join(p.read_text().split()) for p in PARTS)
     if len(payload) % 4:
         raise SystemExit(f'payload length is not base64-aligned: {len(payload)}')
 
@@ -39,5 +30,14 @@ if __name__ == '__main__':
     got = hashlib.sha256(data).hexdigest()
     if got != EXPECTED:
         raise SystemExit(f'hash mismatch: {got} != {EXPECTED}')
+
+    text = data.decode('utf-8')
+    if '/positions/${p.label}/resize' not in text:
+        raise SystemExit('safety check failed: partial resize endpoint missing')
+    if "const tipo=sells.some(l=>l.is_call)?'call':'call';" in text:
+        raise SystemExit('safety check failed: old roll type bug still present')
+    if "modelPair(callPair,'call'" not in text or "modelPair(putPair,'put'" not in text:
+        raise SystemExit('safety check failed: role-aware roll model missing')
+
     pathlib.Path(TARGET).write_bytes(data)
     print(f'OK {TARGET} {len(data)} bytes {got}')
