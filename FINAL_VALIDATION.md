@@ -14,6 +14,7 @@ Validated pages: `index.html`, `positions.html`, `chain.html`, `iv.html`, `ajust
 - Local asset/dependency references: PASS; no missing local HTML/JS dependency was detected.
 - Local HTTP smoke: PASS; all seven pages and the four shared engines returned HTTP 200 from a local static server.
 - Manual broken PDF dependencies: removed; browser print / print-to-PDF remains available for one section or the full manual.
+- Shared navigation cleanup: removed unreachable `_initNav` scheduling after `return` in `navHTML()`; no trading logic changed.
 - Legacy entry pages `CriptoOpciones_Lab.html` and `quant_options_lab.html` redirect to `index.html`.
 
 A headless Chromium browser smoke was attempted, but this execution environment blocks loopback navigation with `ERR_BLOCKED_BY_ADMINISTRATOR`; this is an environment restriction, not a terminal failure. Therefore no claim of browser-runtime/API connectivity validation is made here.
@@ -39,7 +40,7 @@ The migration branch currently contains the audited candidate blobs:
 - `iv.html`: Git blob `32c83e8c7dbbd44e9c29b68ab58529b65900f720`; SHA256 `ab018b2b1ccd421b849a7c4b736556b46d809880a2135389f75a094b27f89194`.
 - `diario.html`: Git blob `55d4ea913230036add83be7d45e6ba19408b0f3f`; SHA256 `0571a7792d48ea74a563b7c2ce9b166fbf2ede55153e74c09ddb3ae8a35faa68`.
 
-The common engines on the branch are the exact authoritative project versions: `exchange_engine.js` 8027 bytes, `iv_engine.js` 12277 bytes, `market_engine.js` 5361 bytes and `co_shared.js` 10810 bytes.
+The common engines on the branch are the exact authoritative project versions: `exchange_engine.js` 8027 bytes, `iv_engine.js` 12277 bytes, `market_engine.js` 5361 bytes and `co_shared.js` 10783 bytes (Git blob `170a0649328b777e775f89baea6974460bc1ef08`).
 
 ## Promotion rule
 
