@@ -1,8 +1,8 @@
 import argparse, base64, gzip, hashlib, pathlib
 
-TARGET = 'ajuste.html'
-EXPECTED = '9e5416efdfac75b8d28ed8b379c15bce91690a16e0fa6bb470884b28ebbb8981'
-PARTS = [pathlib.Path(f'scripts/payload_parts/part{i:02d}.txt') for i in range(1, 5)]
+TARGET = 'index.html'
+EXPECTED = 'c4026e999bff73eabe2c8c260fb16758e5b13552d80a438ea11a8cd05144d085'
+PARTS = [pathlib.Path(f'scripts/payload_parts/part{i:02d}.txt') for i in range(1, 8)]
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
