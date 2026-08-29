@@ -1,0 +1,12 @@
+TEMP_CLEANUP_MARKER.md
+CLEANUP_PATHS.txt
+.github/workflows/materialize-audit-candidates.yml
+scripts/materialize_audit_candidates.py
+scripts/audit_payload/manual/part01.txt
+scripts/audit_payload/manual/part02.txt
+scripts/audit_payload/manual/part03.txt
+scripts/audit_payload/index/part01.txt
+scripts/audit_payload/index/part02.txt
+scripts/audit_payload/index/part03.txt
+scripts/audit_payload/index/part04a.txt
+scripts/audit_payload/index/part04b.txt
