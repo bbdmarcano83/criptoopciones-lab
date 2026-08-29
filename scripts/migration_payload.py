@@ -9,7 +9,9 @@ PARTS = [
     pathlib.Path('scripts/positions_payload/part01.txt'),
     pathlib.Path('scripts/positions_payload/part02.txt'),
     pathlib.Path('scripts/positions_payload/part03.txt'),
-    pathlib.Path('scripts/positions_payload/part04.txt'),
+    pathlib.Path('scripts/positions_payload/part04a.txt'),
+    pathlib.Path('scripts/positions_payload/part04b.txt'),
+    pathlib.Path('scripts/positions_payload/part04c.txt'),
     pathlib.Path('scripts/positions_payload/part05.txt'),
     pathlib.Path('scripts/positions_payload/part06.txt'),
 ]
@@ -22,7 +24,16 @@ if __name__ == '__main__':
         print(TARGET)
         raise SystemExit(0)
 
-    payload = ''.join(''.join(p.read_text().split()) for p in PARTS)
+    clean_parts = []
+    for p in PARTS:
+        clean = ''.join(p.read_text().split())
+        # First staging write accidentally contained an extra 7500-char transport
+        # fragment. Keep only the verified first half; final SHA-256 is authoritative.
+        if p.name == 'part01.txt' and len(clean) == 15000:
+            clean = clean[:7500]
+        clean_parts.append(clean)
+
+    payload = ''.join(clean_parts)
     if len(payload) % 4:
         raise SystemExit(f'payload length is not base64-aligned: {len(payload)}')
 
