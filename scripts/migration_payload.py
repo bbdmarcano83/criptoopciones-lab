@@ -1,5 +1,6 @@
 import argparse, base64, gzip, hashlib, pathlib
 
+# Phase 6 retry after splitting the exact payload chunk 5 into two verified pieces.
 TARGET = 'index.html'
 EXPECTED = 'c4026e999bff73eabe2c8c260fb16758e5b13552d80a438ea11a8cd05144d085'
 PARTS = [
