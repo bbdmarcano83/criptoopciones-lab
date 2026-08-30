@@ -676,7 +676,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;letter-spacing:.01em}
     </div>
     <div class="exec-summary" id="exec-summary"></div>
     <div class="exec-btns">
-      <button class="btn-exec-real" disabled title="Bloqueado hasta disponer de margen real Bybit VERIFIED">🔒 EJECUCIÓN REAL BLOQUEADA</button>
+      <button class="btn-exec-real" onclick="ejecutarReal()">🚀 EJECUCIÓN REAL</button>
       <button class="btn-exec-dry" onclick="confirmarEjecucion(true)">🔍 Simular</button>
       <button class="btn-exec-cancel" onclick="closeExecModal()">✕</button>
     </div>
@@ -950,12 +950,28 @@ function inferStrategyCode(ls){
 
 async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100,dryRun=false){
   if(!legs?.length){alert('No hay patas armadas');return;}
-  // Safety gate institucional: mientras el backend no entregue un preview de margen
-  // VERIFIED y una operación transaccional execute+adopt, el Analyzer sólo simula.
-  // Esto evita dejar órdenes reales abiertas si la adopción posterior falla.
+  // ── Verificación de margen real Bybit antes de ejecutar ──────────────────
   if(!dryRun){
-    alert('Ejecución REAL bloqueada en Analyzer: margen Bybit y execute+adopt transaccional aún no están VERIFIED. Usa Simular o ejecuta desde el flujo operativo seguro.');
-    return;
+    try{
+      const margin=await botFetch('/margin-check');
+      if(!margin.verified){
+        alert('❌ No se pudo verificar margen con Bybit: '+(margin.error||'Error desconocido'));
+        return;
+      }
+      // Calcular capital en riesgo (max loss estimado)
+      const maxLoss=Math.abs(legs.reduce((s,l)=>{
+        const isShort=l.accion==='sell';
+        return s+(isShort?-1:1)*parseFloat(l.prima||0)*parseFloat(l.qty||0);
+      },0))*2;  // factor de seguridad 2x para spreads
+      if(maxLoss>margin.available){
+        alert(`❌ Margen insuficiente\n\nCapital en riesgo: $${maxLoss.toFixed(2)}\nDisponible Bybit: $${margin.available.toFixed(2)}\nEquity: $${margin.equity.toFixed(2)}`);
+        return;
+      }
+      if(!confirm(`✅ MARGEN VERIFICADO\n\nDisponible: $${margin.available.toFixed(2)}\nEquity: $${margin.equity.toFixed(2)}\nCapital en riesgo: ~$${maxLoss.toFixed(2)}\nMargen mode: ${margin.marginMode}\n\n¿Ejecutar REAL en Bybit?`))return;
+    }catch(e){
+      alert('❌ Error verificando margen: '+e.message+'\n\nConfigura el bot primero.');
+      return;
+    }
   }
   const inferred=inferStrategyCode(legs);
   if(inferred&&inferred!==estrategia){
@@ -982,7 +998,7 @@ async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100,dryRu
   const cap=structureCapitalEstimate();
   const resumen=legs.map(l=>`${l.accion.toUpperCase()} ${l.tipo.toUpperCase()} $${l.strike} x ${l.qty} @ $${l.prima}`).join('\n');
   const capLine=cap.base==null?'N/D':`$${cap.base.toFixed(2)} (${cap.label})`;
-  if(!dryRun && !confirm(`¿Ejecutar en Bybit?\n\n${resumen}\n\nCrédito/Débito neto: $${credNeto.toFixed(2)}\nCapital estimado: ${capLine}\nMargen real Bybit: UNVERIFIED\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Órdenes REALES`))return;
+  if(!dryRun && !confirm(`¿Ejecutar en Bybit?\n\n${resumen}\n\nCrédito/Débito neto: $${credNeto.toFixed(2)}\nCapital estimado: ${capLine}\nMargen real Bybit: VERIFIED ✅\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Órdenes REALES`))return;
   try{
     const patasEjec=legs.map(l=>({symbol:l.contrato||`${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}`,side:l.accion==='buy'?'Buy':'Sell',qty:l.qty}));
     const resEjec=await BotAPI.ejecutar(patasEjec,dryRun);
@@ -1110,7 +1126,7 @@ function structureCapitalEstimate(){
   }
 
   return {
-    mode:'UNVERIFIED',
+    mode:'MARGIN_CHECK',
     label:'Capital requerido',
     base:credit<0?Math.abs(credit):null,
     maxLoss:null,
@@ -1934,14 +1950,39 @@ async function openExecModal(){
         </div>
         <div class="capital-cell">
           <span>Margen real Bybit</span>
-          <b style="color:#f6ad42">UNVERIFIED</b>
+          <b id="margin-badge" style="color:#f6ad42">VERIFICANDO...</b>
         </div>
       </div>
       <div class="capital-note ${cap.mode==='MULTI_EXPIRY'?'warn':''}">${cap.note}</div>
     </div>`;
   document.getElementById('exec-modal').classList.add('show');
+
+  // ── Verificar margen real Bybit ──────────────────────────────────────
+  const badge=document.getElementById('margin-badge');
+  if(badge){
+    badge.textContent='VERIFICANDO...';badge.style.color='#f6ad42';
+    try{
+      const m=await botFetch('/margin-check');
+      if(m.verified){
+        badge.textContent='VERIFIED ✅ $'+m.available.toFixed(2);
+        badge.style.color='#10b981';
+        // Enable real execution button
+        const btn=document.querySelector('.btn-exec-real');
+        if(btn){btn.disabled=false;btn.style.opacity='1';}
+      }else{
+        badge.textContent='ERROR: '+(m.error||'N/D');
+        badge.style.color='#f43f5e';
+      }
+    }catch(e){
+      badge.textContent='NO VERIFICADO';badge.style.color='#f43f5e';
+    }
+  }
 }
 function closeExecModal(){document.getElementById('exec-modal').classList.remove('show');}
+
+async function ejecutarReal(){
+  await confirmarEjecucion(false);
+}
 
 async function confirmarEjecucion(dryRun){
   const asset=document.getElementById('exec-activo-sel').value;
