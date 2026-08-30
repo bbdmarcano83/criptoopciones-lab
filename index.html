@@ -676,7 +676,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;letter-spacing:.01em}
     </div>
     <div class="exec-summary" id="exec-summary"></div>
     <div class="exec-btns">
-      <button class="btn-exec-real" disabled title="Bloqueado hasta disponer de margen real Bybit VERIFIED">🔒 EJECUCIÓN REAL BLOQUEADA</button>
+      <button class="btn-exec-real" id="exec-real-btn" disabled onclick="confirmarEjecucion(false)" title="Esperando preflight oficial de Bybit">🔒 VERIFICANDO BYBIT...</button>
       <button class="btn-exec-dry" onclick="confirmarEjecucion(true)">🔍 Simular</button>
       <button class="btn-exec-cancel" onclick="closeExecModal()">✕</button>
     </div>
@@ -905,7 +905,21 @@ const BotAPI={
   async resume(){return botFetch('/resume',{method:'POST'})},
   async closePosition(label,reason='manual'){return botFetch(`/positions/${label}/close`,{method:'POST',body:JSON.stringify({reason})})},
   async adoptar(asset,estrategia,legs,tpPct=50,slPct=100,label=''){return botFetch('/adoptar',{method:'POST',body:JSON.stringify({asset,estrategia,patas:legs,tp_pct:tpPct,sl_pct:slPct,label})})},
-  async ejecutar(legs,dryRun=false){return botFetch('/ejecutar',{method:'POST',body:JSON.stringify({patas:legs,dry_run:dryRun})})},
+  async previewExecution(legs){return botFetch('/ejecutar/preview',{method:'POST',body:JSON.stringify({patas:legs})},1)},
+  async ejecutar(legs,dryRun=false,options={}){
+    return botFetch('/ejecutar',{
+      method:'POST',
+      body:JSON.stringify({
+        patas:legs,
+        dry_run:dryRun,
+        ticket:options.ticket||null,
+        asset:options.asset||'ETH',
+        estrategia:options.estrategia||'IC',
+        tp_pct:options.tpPct||50,
+        sl_pct:options.slPct||100
+      })
+    },1);
+  },
 };
 
 function inferStrategyCode(ls){
@@ -950,12 +964,16 @@ function inferStrategyCode(ls){
 
 async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100,dryRun=false){
   if(!legs?.length){alert('No hay patas armadas');return;}
-  // Safety gate institucional: mientras el backend no entregue un preview de margen
-  // VERIFIED y una operación transaccional execute+adopt, el Analyzer sólo simula.
-  // Esto evita dejar órdenes reales abiertas si la adopción posterior falla.
   if(!dryRun){
-    alert('Ejecución REAL bloqueada en Analyzer: margen Bybit y execute+adopt transaccional aún no están VERIFIED. Usa Simular o ejecuta desde el flujo operativo seguro.');
-    return;
+    if(!executionPreview?.verified||!executionPreview?.ticket){
+      alert('Ejecución bloqueada: abre nuevamente el modal y completa el preflight oficial de Bybit.');
+      return;
+    }
+    if(Date.now()>=executionPreviewExpiresAt){
+      executionPreview=null;
+      alert('El ticket de margen venció. Abre nuevamente el modal para verificar precios y cuenta.');
+      return;
+    }
   }
   const inferred=inferStrategyCode(legs);
   if(inferred&&inferred!==estrategia){
@@ -985,14 +1003,18 @@ async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100,dryRu
   if(!dryRun && !confirm(`¿Ejecutar en Bybit?\n\n${resumen}\n\nCrédito/Débito neto: $${credNeto.toFixed(2)}\nCapital estimado: ${capLine}\nMargen real Bybit: UNVERIFIED\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Órdenes REALES`))return;
   try{
     const patasEjec=legs.map(l=>({symbol:l.contrato||`${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}`,side:l.accion==='buy'?'Buy':'Sell',qty:l.qty}));
-    const resEjec=await BotAPI.ejecutar(patasEjec,dryRun);
+    const resEjec=await BotAPI.ejecutar(patasEjec,dryRun,{
+      ticket:executionPreview?.ticket,
+      asset,estrategia,tpPct,slPct
+    });
     if(!resEjec.ok)throw new Error(resEjec.error||'Error ejecutando');
     if(!dryRun){
-      const patasAdopt=legs.map(l=>({symbol:l.contrato||`${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}`,side:l.accion,qty:l.qty,prima:l.prima}));
-      const resAdopt=await BotAPI.adoptar(asset,estrategia,patasAdopt,tpPct,slPct);
-      alert(`✅ Ejecutado!\nCrédito: $${resAdopt.credito_neto?.toFixed(2)||credNeto.toFixed(2)}\nLabel: ${resAdopt.label}\nBot gestiona TP/SL`);
+      executionPreview=null;
+      executionPreviewExpiresAt=0;
+      const adoption=resEjec.adoption||{};
+      alert(`✅ Estructura ejecutada y adoptada\nFills confirmados: ${resEjec.fills?.length||0}\nLabel: ${adoption.label||'confirmado por bot'}\nBot gestiona TP/SL`);
     } else {
-      alert(`🔍 Simulación exitosa:\n${resumen}\nCrédito estimado: $${credNeto.toFixed(2)}`);
+      alert(`🔍 Simulación exitosa:\n${resumen}\nCrédito estimado: ${credNeto.toFixed(2)}`);
     }
     if(document.getElementById('portfolio-mini'))refreshPortfolio();
   }catch(e){alert('❌ '+e.message);}
@@ -1029,6 +1051,9 @@ let dragActive=false,dragIdx=-1;
 let savedStrategies=JSON.parse(localStorage.getItem('co_strats')||'[]');
 let chainData={};
 let legsSource='manual';
+let executionPreview=null;
+let executionPreviewExpiresAt=0;
+let executionPreviewTimer=null;
 
 let lastMarketAnalysis=null;
 let opportunityCandidates=[];
@@ -1868,26 +1893,22 @@ async function openExecModal(){
 
   const ex=document.getElementById('exchange')?.value||'Bybit';
   if(ex!=='Bybit'){
-    alert('La ejecución real del Bot V5 está habilitada únicamente para Bybit. Cambia el exchange a Bybit antes de enviar la orden.');
+    alert('La ejecución real del Bot V5 está habilitada únicamente para Bybit.');
     return;
   }
-
   if(!BOT_CONFIG.url||!BOT_CONFIG.token){
-    alert('Primero configura la conexión del Bot V5. El botón ⚙️ Bot te pedirá la URL y el X-Bot-Token.');
+    alert('Primero configura la conexión del Bot V5.');
     openBotConfig();
     return;
   }
 
-  const credNeto=netPremium();
-  const cap=structureCapitalEstimate();
-  let available=null;
-  try{
-    const p=await BotAPI.portfolio();
-    available=portfolioAvailable(p);
-  }catch(e){
-    available=null;
-  }
-  const pctAvail=(available!=null&&cap.base!=null&&available>0)?cap.base/available*100:null;
+  executionPreview=null;
+  executionPreviewExpiresAt=0;
+  if(executionPreviewTimer)clearTimeout(executionPreviewTimer);
+  const realBtn=document.getElementById('exec-real-btn');
+  realBtn.disabled=true;
+  realBtn.textContent='⏳ VERIFICANDO BYBIT...';
+  realBtn.title='Cotizaciones, cuenta y margen en validación';
 
   document.getElementById('exec-legs-list').innerHTML=legs.map(l=>`
     <div class="exec-leg">
@@ -1896,52 +1917,56 @@ async function openExecModal(){
         <div class="el-side" style="color:${l.accion==='buy'?'#38bdf8':'#f43f5e'}">${l.accion.toUpperCase()} ${l.tipo.toUpperCase()} × ${l.qty}</div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:10px;color:#64748b">Prima</div>
+        <div style="font-size:10px;color:#64748b">Prima terminal</div>
         <div style="color:#f59e0b;font-weight:600">$${l.prima}</div>
       </div>
     </div>`).join('');
-  document.getElementById('exec-summary').innerHTML=`
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-      <span style="color:#64748b">Crédito neto:</span>
-      <b style="color:${credNeto>=0?'#10b981':'#f43f5e'}">${fmt(credNeto)}</b>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-      <span style="color:#64748b">Activo:</span><b>${document.getElementById('exec-activo-sel').value}</b>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-      <span style="color:#64748b">Estrategia:</span><b>${document.getElementById('exec-strat-sel').value}</b>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-      <span style="color:#64748b">Destino:</span><b style="color:#10b981">BYBIT · BOT V5</b>
-    </div>
-    <div style="display:flex;justify-content:space-between">
-      <span style="color:#64748b">Fuente patas:</span><b>${String(legsSource||'manual').toUpperCase()}</b>
-    </div>
-    <div class="capital-box">
-      <div class="capital-title"><span>Capital / Buying Power</span><b>${cap.mode==='MULTI_EXPIRY'?'CALENDAR / MULTI-EXPIRY':'RISK DEFINED'}</b></div>
-      <div class="capital-grid">
-        <div class="capital-cell">
-          <span>${cap.label}</span>
-          <b style="color:#f6ad42">${cap.base==null?'N/D':fmt(cap.base)}</b>
-        </div>
-        <div class="capital-cell">
-          <span>Disponible cuenta</span>
-          <b style="color:${available!=null?'#35d08a':'#f6ad42'}">${available==null?'N/D':fmt(available)}</b>
-        </div>
-        <div class="capital-cell">
-          <span>% del disponible</span>
-          <b>${pctAvail==null?'N/D':pctAvail.toFixed(2)+'%'}</b>
-        </div>
-        <div class="capital-cell">
-          <span>Margen real Bybit</span>
-          <b style="color:#f6ad42">UNVERIFIED</b>
-        </div>
-      </div>
-      <div class="capital-note ${cap.mode==='MULTI_EXPIRY'?'warn':''}">${cap.note}</div>
-    </div>`;
+
+  document.getElementById('exec-summary').innerHTML='<div style="color:#f6ad42">Consultando pre-check oficial de Bybit por cada pata…</div>';
   document.getElementById('exec-modal').classList.add('show');
+
+  const patasEjec=legs.map(l=>({
+    symbol:l.contrato||'',
+    side:l.accion==='buy'?'Buy':'Sell',
+    qty:Number(l.qty)
+  }));
+  try{
+    const preview=await BotAPI.previewExecution(patasEjec);
+    if(!preview?.verified||!preview?.ticket)throw new Error('Bybit no devolvió verificación completa');
+    executionPreview=preview;
+    executionPreviewExpiresAt=Date.now()+Number(preview.ticket_ttl_seconds||20)*1000;
+    const a=preview.account||{};
+    const r=preview.risk||{};
+    const worstImr=Math.max(...(preview.legs||[]).map(l=>Number(l.post_imr_e4||0)))/100;
+    document.getElementById('exec-summary').innerHTML=`
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Pre-check Bybit</span><b style="color:#10b981">VERIFIED ${preview.legs.length}/${preview.legs.length}</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Margen inicial actual Bybit</span><b>${fmt(Number(a.current_initial_margin||0))}</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Disponible real Bybit</span><b style="color:#10b981">${fmt(Number(a.available_balance||0))}</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">IMR post-check máximo por pata</span><b>${worstImr.toFixed(2)}%</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Pérdida máxima definida</span><b style="color:#f6ad42">${fmt(Number(r.model_max_loss||0))}</b></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:#64748b">Capital con buffer</span><b>${fmt(Number(preview.capital_required_with_buffer||0))}</b></div>
+      <div class="capital-note">Bybit verificó cuenta y cada orden. La estructura completa usa pérdida máxima definida; las alas BUY se confirman antes de enviar shorts.</div>`;
+    realBtn.disabled=false;
+    realBtn.textContent='🔐 EJECUTAR ESTRUCTURA VERIFICADA';
+    realBtn.title='Ticket Bybit de un solo uso; vence en '+preview.ticket_ttl_seconds+'s';
+    executionPreviewTimer=setTimeout(()=>{
+      executionPreview=null;
+      executionPreviewExpiresAt=0;
+      realBtn.disabled=true;
+      realBtn.textContent='🔒 TICKET VENCIDO — REABRIR';
+      realBtn.title='Reabre el modal para obtener datos frescos';
+    },Number(preview.ticket_ttl_seconds||20)*1000);
+  }catch(e){
+    executionPreview=null;
+    document.getElementById('exec-summary').innerHTML=`<div style="color:#f43f5e"><b>EJECUCIÓN BLOQUEADA</b><br>${String(e.message||e)}</div>`;
+    realBtn.disabled=true;
+    realBtn.textContent='🔒 BYBIT NO VERIFICADO';
+    realBtn.title=String(e.message||e);
+  }
 }
-function closeExecModal(){document.getElementById('exec-modal').classList.remove('show');}
+function closeExecModal(){
+  document.getElementById('exec-modal').classList.remove('show');
+}
 
 async function confirmarEjecucion(dryRun){
   const asset=document.getElementById('exec-activo-sel').value;
