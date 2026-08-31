@@ -1223,6 +1223,27 @@ function optionATM(rows,S,type){
     .filter(o=>o.type===type&&safeNum(o.iv)>0)
     .sort((a,b)=>Math.abs(safeNum(a.strike)-S)-Math.abs(safeNum(b.strike)-S))[0]||null;
 }
+function executableOptions(rows,type){
+  return rows.filter(o=>
+    o.type===type&&safeNum(o.iv)>0&&safeNum(o.bid)>0&&safeNum(o.ask)>0
+  );
+}
+function optionAtStrike(rows,type,strike){
+  return executableOptions(rows,type)
+    .filter(o=>Math.abs(safeNum(o.strike)-safeNum(strike))<1e-9)
+    .sort((a,b)=>safeNum(b.score)-safeNum(a.score))[0]||null;
+}
+function protectedDiagonalBack(rows,type,frontStrike){
+  return executableOptions(rows,type)
+    .filter(o=>type==='call'
+      ?safeNum(o.strike)<=safeNum(frontStrike)
+      :safeNum(o.strike)>=safeNum(frontStrike))
+    .sort((a,b)=>
+      Math.abs(safeNum(a.strike)-safeNum(frontStrike))-
+      Math.abs(safeNum(b.strike)-safeNum(frontStrike))
+      ||safeNum(b.score)-safeNum(a.score)
+    )[0]||null;
+}
 function priceFor(row,action){return action==='sell'?safeNum(row?.bid):safeNum(row?.ask)}
 function mkLeg(row,action){
   if(!row)return null;
@@ -1321,21 +1342,34 @@ function buildCandidates(d){
     });
   }
 
-  // Calendar — favored when vol is not expensive.
+  // Calendar puro primero. Diagonal protegida solo como fallback explícito.
   const farExpiry=findFartherExpiry(options,ref.dte);
   if(farExpiry){
     const farRows=options.filter(o=>o.expiry===farExpiry);
-    const nearCall=optionATM(rows,S,'call');
-    const farCall=optionATM(farRows,S,'call');
+    const nearCall=executableOptions(rows,'call')
+      .sort((a,b)=>Math.abs(safeNum(a.strike)-S)-Math.abs(safeNum(b.strike)-S))[0]||null;
+    const pureBack=nearCall
+      ?optionAtStrike(farRows,'call',nearCall.strike)
+      :null;
+    const farCall=pureBack||(
+      nearCall?protectedDiagonalBack(farRows,'call',nearCall.strike):null
+    );
+    const isPure=Boolean(
+      nearCall&&farCall&&
+      Math.abs(safeNum(nearCall.strike)-safeNum(farCall.strike))<1e-9
+    );
     const cal=[mkLeg(nearCall,'sell'),mkLeg(farCall,'buy')].filter(Boolean);
     if(validLegs(cal)){
       const debit=-candidateCredit(cal),liq=candidateLiquidity(cal,options);
       let score=baseScore+(Number.isFinite(ivr)?(45-ivr)*.35:0)+(liq-50)*.08;
       if(d.regime?.term==='CONTANGO')score+=6;
+      if(!isPure)score-=2;
       score=Math.round(clamp(score,0,100));
       result.push({
-        name:'Calendar ATM',code:'CAL',score,legs:cal,
-        reason:'Compra vega de mayor vencimiento y financia parte del débito vendiendo el corto.',
+        name:isPure?'Calendar ATM':'Diagonal protegida',code:'CAL',score,legs:cal,
+        reason:isPure
+          ?'Mismo strike en ambos vencimientos: compra vega posterior y financia el débito vendiendo el frontal.'
+          :'Fallback: el mismo strike no tenía cotización ejecutable atrás; se eligió el strike adyacente con protección conservada.',
         premium:-debit,liq
       });
     }
