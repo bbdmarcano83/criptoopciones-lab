@@ -1934,10 +1934,13 @@ async function openExecModal(){
   document.getElementById('exec-summary').innerHTML='<div style="color:#f6ad42">Verificando cuenta y pre-check de las alas BUY…</div>';
   document.getElementById('exec-modal').classList.add('show');
 
+  const quoteTs=Date.now()/1000;
   const patasEjec=legs.map(l=>({
     symbol:l.contrato||'',
     side:l.accion==='buy'?'Buy':'Sell',
-    qty:Number(l.qty)
+    qty:Number(l.qty),
+    reference_price:Number(l.prima||0),
+    quote_ts:quoteTs
   }));
   try{
     const preview=await BotAPI.previewExecution(patasEjec);
