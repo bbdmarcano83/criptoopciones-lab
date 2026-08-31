@@ -949,11 +949,10 @@ function inferStrategyCode(ls){
   if(meta.length===2){
     const [a,b]=meta;
     const sameType=a.tipo===b.tipo;
-    const sameStrike=Number.isFinite(a.strike)&&Number.isFinite(b.strike)&&Math.abs(a.strike-b.strike)<1e-9;
-    const twoExp=a.expiry&&b.expiry&&a.expiry!==b.expiry;
+        const twoExp=a.expiry&&b.expiry&&a.expiry!==b.expiry;
     const opposite=(a.accion==='buy'&&b.accion==='sell')||(a.accion==='sell'&&b.accion==='buy');
     const sameQty=Math.abs(a.qty-b.qty)<1e-9;
-    if(sameType&&sameStrike&&twoExp&&opposite&&sameQty)return 'CAL';
+    if(sameType&&twoExp&&opposite&&sameQty)return 'CAL';
   }
   if(meta.length===4){
     const calls=meta.filter(l=>l.tipo==='call'),puts=meta.filter(l=>l.tipo==='put');
@@ -1106,6 +1105,16 @@ function setGate(prefix,status,value,sub){
 }
 
 function legExpiry(leg){return leg.expiry||((leg.contrato||'').split('-')[1]||'')}
+const EXPIRY_MONTHS={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+function expiryTimestamp(code){
+  const m=/^(\d{1,2})([A-Z]{3})(\d{2})$/.exec(String(code||'').toUpperCase());
+  if(!m||EXPIRY_MONTHS[m[2]]===undefined)return null;
+  return Date.UTC(2000+Number(m[3]),EXPIRY_MONTHS[m[2]],Number(m[1]),8,0,0);
+}
+function legTimeYears(leg,fromTs=Date.now()){
+  const ts=expiryTimestamp(legExpiry(leg));
+  return ts===null?null:Math.max(0,(ts-fromTs)/(365*86400000));
+}
 function netPremium(){
   return legs.reduce((s,l)=>s+((l.accion==='sell'?safeNum(l.prima):-safeNum(l.prima))*safeNum(l.qty,defaultQty())),0);
 }
@@ -1525,7 +1534,7 @@ function renderLegs(){
     const aBg=leg.accion==='buy'?'rgba(16,185,129,0.1)':'rgba(244,63,94,0.1)';
     const aCol=leg.accion==='buy'?'#10b981':'#f43f5e';
     const tCol=leg.tipo==='call'?'#10b981':'#f43f5e';
-    const g=bs(S,leg.strike,DTE/365,rfr,leg.iv/100,leg.tipo);
+    const g=bs(S,leg.strike,legTimeYears(leg)??DTE/365,rfr,leg.iv/100,leg.tipo);
     const mult=leg.accion==='buy'?1:-1;
     const tr=document.createElement('tr');
     tr.innerHTML=`
@@ -1556,30 +1565,43 @@ function remLeg(){if(legs.length>1){legs.pop();renderLegs();recalc();}}
 // ── Calcular ───────────────────────────────────────────────────────────────
 function calcAll(){
   const S=parseFloat(document.getElementById('spot').value)||77000;
-  const DTE=parseFloat(document.getElementById('dte').value)||7;
+  const fallbackDTE=parseFloat(document.getElementById('dte').value)||7;
   const IV=parseFloat(document.getElementById('iv').value)||45;
   const rfr=parseFloat(document.getElementById('rfr').value)/100||0.05;
   const rango=parseFloat(document.getElementById('rango').value)||20;
-  const T=DTE/365,N=500;
+  const now=Date.now(),validExpiries=legs.map(l=>expiryTimestamp(legExpiry(l))).filter(Number.isFinite);
+  const frontTs=validExpiries.length?Math.min(...validExpiries):now+fallbackDTE*86400000;
+  const mixedExpiry=new Set(validExpiries).size>1;
+  const DTE=Math.max(0,(frontTs-now)/86400000),T=Math.max(DTE/365,1e-9),N=500;
   const lo=S*(1-rango/100),hi=S*(1+rango/100);
   const precios=Array.from({length:N},(_,i)=>lo+(hi-lo)*i/(N-1));
   const pnlV=new Array(N).fill(0),pnlH=new Array(N).fill(0);
   let tD=0,tG=0,tTh=0,tV=0,tC=0;
   legs.forEach(leg=>{
-    const mult=leg.accion==='buy'?1:-1,sigma=leg.iv/100;
-    const g=bs(S,leg.strike,T,rfr,sigma,leg.tipo);
+    const mult=leg.accion==='buy'?1:-1,sigma=Math.max(Number(leg.iv)||IV,0.01)/100;
+    const currentT=legTimeYears(leg,now)??fallbackDTE/365;
+    const frontT=legTimeYears(leg,frontTs)??0;
+    const g=bs(S,leg.strike,currentT,rfr,sigma,leg.tipo);
     tD+=g.delta*leg.qty*mult;tG+=g.gamma*leg.qty*mult;
     tTh+=g.theta*leg.qty*mult;tV+=g.vega*leg.qty*mult;
     tC+=(leg.accion==='sell'?leg.prima:-leg.prima)*leg.qty;
     precios.forEach((p,j)=>{
-      const ev=leg.tipo==='call'?Math.max(0,p-leg.strike):Math.max(0,leg.strike-p);
-      pnlV[j]+=(leg.accion==='buy'?(ev-leg.prima):(leg.prima-ev))*leg.qty;
-      const gp=bs(p,leg.strike,T,rfr,sigma,leg.tipo);
-      pnlH[j]+=(gp.precio-leg.prima)*leg.qty*mult;
+      const frontValue=frontT>0
+        ?bs(p,leg.strike,frontT,rfr,sigma,leg.tipo).precio
+        :(leg.tipo==='call'?Math.max(0,p-leg.strike):Math.max(0,leg.strike-p));
+      pnlV[j]+=(frontValue-leg.prima)*leg.qty*mult;
+      const currentValue=bs(p,leg.strike,currentT,rfr,sigma,leg.tipo).precio;
+      pnlH[j]+=(currentValue-leg.prima)*leg.qty*mult;
     });
   });
   const bes=[];
-  for(let i=0;i<N-1;i++){if(Math.sign(pnlV[i])!==Math.sign(pnlV[i+1])){const d=pnlV[i+1]-pnlV[i];if(d)bes.push(precios[i]-pnlV[i]*(precios[i+1]-precios[i])/d);}}
+  for(let i=0;i<N-1;i++){
+    if(pnlV[i]===0)bes.push(precios[i]);
+    else if(Math.sign(pnlV[i])!==Math.sign(pnlV[i+1])){
+      const d=pnlV[i+1]-pnlV[i];
+      if(d)bes.push(precios[i]-pnlV[i]*(precios[i+1]-precios[i])/d);
+    }
+  }
   const sig0=(IV/100)*Math.sqrt(T),mu0=Math.log(S)+(rfr-0.5*(IV/100)**2)*T;
   let pop=0;
   if(bes.length>=2){const l=Math.min(...bes),h=Math.max(...bes);pop=(normCDF((Math.log(h)-mu0)/sig0)-normCDF((Math.log(l)-mu0)/sig0))*100;}
@@ -1594,7 +1616,7 @@ function calcAll(){
   document.getElementById('m-gamma').textContent=tG.toFixed(5);
   const cEl=document.getElementById('m-cred');cEl.textContent=fmt(tC);cEl.className='metric-value '+(tC>=0?'pos':'neg');
   document.getElementById('be-tags').innerHTML=bes.map(b=>`<span class="be-tag">BE $${Math.round(b).toLocaleString()}</span>`).join('');
-  chartData={precios,pnlV,pnlH,bes,S,DTE,IV,T,rfr};
+  chartData={precios,pnlV,pnlH,bes,S,DTE,IV,T,rfr,mixedExpiry,frontTs};
   return chartData;
 }
 
@@ -1602,7 +1624,7 @@ function calcAll(){
 const DARK={template:'plotly_dark',paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',margin:{l:52,r:10,t:8,b:34},font:{family:'Segoe UI, Inter, system-ui, sans-serif',size:11,color:'#b7c6d8'},xaxis:{automargin:true,showline:false,zeroline:false,tickfont:{size:11,color:'#aebfd4'}},yaxis:{automargin:true,showline:false,zeroline:false,tickfont:{size:11,color:'#aebfd4'}}};
 
 function plotPayoff(d){
-  const{precios,pnlV,pnlH,bes,S,DTE}=d;const N=precios.length;
+  const{precios,pnlV,pnlH,bes,S,DTE,mixedExpiry}=d;const N=precios.length;
   const shapes=[],anns=[];
   shapes.push({type:'line',x0:precios[0],x1:precios[N-1],y0:0,y1:0,line:{color:'#253146',width:1,dash:'dot'}});
   shapes.push({type:'line',x0:S,x1:S,y0:0,y1:1,yref:'paper',line:{color:'#f59e0b',width:1.5,dash:'dot'}});
@@ -1628,8 +1650,8 @@ function plotPayoff(d){
   const traces=[
     {x:[...precios,...precios.slice().reverse()],y:[...pnlV.map(v=>Math.max(v,0)),...new Array(N).fill(0)],fill:'toself',fillcolor:'rgba(16,185,129,0.08)',line:{color:'transparent'},hoverinfo:'skip',showlegend:false},
     {x:[...precios,...precios.slice().reverse()],y:[...pnlV.map(v=>Math.min(v,0)),...new Array(N).fill(0)],fill:'toself',fillcolor:'rgba(244,63,94,0.08)',line:{color:'transparent'},hoverinfo:'skip',showlegend:false},
-    {x:precios,y:pnlV,mode:'lines',name:'Al vencimiento',line:{color:'#e9eff8',width:2.8},hovertemplate:'$%{x:,.0f} → $%{y:,.2f}<extra></extra>'},
-    {x:precios,y:pnlH,mode:'lines',name:`Hoy (DTE ${DTE})`,line:{color:'#38bdf8',width:1.9,dash:'dot'},hovertemplate:'$%{x:,.0f} → $%{y:,.2f}<extra></extra>'},
+    {x:precios,y:pnlV,mode:'lines',name:mixedExpiry?'Vencimiento frontal':'Al vencimiento',line:{color:'#e9eff8',width:2.8},hovertemplate:'$%{x:,.0f} → $%{y:,.2f}<extra></extra>'},
+    {x:precios,y:pnlH,mode:'lines',name:`Hoy (DTE frontal ${Math.max(0,DTE).toFixed(1)})`,line:{color:'#38bdf8',width:1.9,dash:'dot'},hovertemplate:'$%{x:,.0f} → $%{y:,.2f}<extra></extra>'},
   ];
   Plotly.react('chart',traces,{...DARK,xaxis:{...DARK.xaxis,tickformat:'$,.0f',gridcolor:'#233248',tickfont:{size:11,color:'#b5c4d8'}},yaxis:{...DARK.yaxis,tickformat:'$,.2f',gridcolor:'#233248',tickfont:{size:11,color:'#b5c4d8'}},legend:{orientation:'h',y:1.06,font:{size:10,color:'#b7c6d8'}},hoverlabel:{bgcolor:'#101823',bordercolor:'#35506d',font:{size:11,color:'#eef4fb'}},hovermode:'x unified',shapes,annotations:anns,dragmode:'pan'}, {responsive:true,scrollZoom:true,displayModeBar:false});
   const el=document.getElementById('chart');
