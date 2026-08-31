@@ -850,7 +850,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;letter-spacing:.01em}
         <option>ETH</option><option>BTC</option>
       </select>
       <select id="exec-strat-sel" style="width:70px;height:24px;font-size:10px;margin:0">
-        <option>IC</option><option>IB</option><option>CAL</option><option>BWC</option><option>CS</option><option>DS</option>
+        <option>IC</option><option>IB</option><option>BWC</option><option>CAL</option><option>DIAG</option><option>CDS</option><option>PDS</option><option>CCS</option><option>PCS</option><option>STRADDLE</option><option>STRANGLE</option>
       </select>
       <input type="text" id="strat-name" placeholder="Nombre..." style="width:100px;height:24px;font-size:10px;background:#0b0e14;border:1px solid #253146;border-radius:3px;color:#e2e8f0;padding:0 6px">
       <button class="save-btn" onclick="saveStrategy()">💾 Guardar</button>
@@ -933,42 +933,35 @@ const BotAPI={
 };
 
 function inferStrategyCode(ls){
-  const valid=(ls||[]).filter(Boolean);
-  const meta=valid.map(l=>{
+  const meta=(ls||[]).filter(Boolean).map(l=>{
     const parts=String(l.contrato||'').split('-');
-    const expiry=parts.length>1?parts[1]:'';
-    return {
-      ...l,
-      expiry,
-      strike:Number(l.strike),
-      tipo:String(l.tipo||'').toLowerCase(),
-      accion:String(l.accion||'').toLowerCase(),
-      qty:Number(l.qty||0)
-    };
+    return {...l,expiry:parts.length>1?parts[1]:String(l.expiry||''),strike:Number(l.strike),tipo:String(l.tipo||'').toLowerCase(),accion:String(l.accion||'').toLowerCase(),qty:Number(l.qty||0)};
   });
-  if(meta.length===2){
-    const [a,b]=meta;
+  const sameQty=meta.length>0&&meta.every(l=>Math.abs(l.qty-meta[0].qty)<1e-9);
+  const expiries=new Set(meta.map(l=>l.expiry).filter(Boolean));
+  if(meta.length===4&&sameQty&&expiries.size===1){
+    const role=(tipo,accion)=>meta.find(l=>l.tipo===tipo&&l.accion===accion);
+    const lp=role('put','buy'),sp=role('put','sell'),sc=role('call','sell'),lc=role('call','buy');
+    if(lp&&sp&&sc&&lc&&lp.strike<sp.strike&&sp.strike<=sc.strike&&sc.strike<lc.strike){
+      if(Math.abs(sp.strike-sc.strike)<1e-9)return 'IB';
+      return Math.abs((sp.strike-lp.strike)-(lc.strike-sc.strike))>1e-9?'BWC':'IC';
+    }
+  }
+  if(meta.length===2&&sameQty){
+    const [a,b]=meta,buys=meta.filter(l=>l.accion==='buy'),sells=meta.filter(l=>l.accion==='sell');
     const sameType=a.tipo===b.tipo;
-        const twoExp=a.expiry&&b.expiry&&a.expiry!==b.expiry;
-    const opposite=(a.accion==='buy'&&b.accion==='sell')||(a.accion==='sell'&&b.accion==='buy');
-    const sameQty=Math.abs(a.qty-b.qty)<1e-9;
-    if(sameType&&twoExp&&opposite&&sameQty)return 'CAL';
-  }
-  if(meta.length===4){
-    const calls=meta.filter(l=>l.tipo==='call'),puts=meta.filter(l=>l.tipo==='put');
-    const sells=meta.filter(l=>l.accion==='sell');
-    if(calls.length===2&&puts.length===2&&sells.length===2){
-      return Math.abs(sells[0].strike-sells[1].strike)<1e-9?'IB':'IC';
+    if(expiries.size===2&&sameType&&buys.length===1&&sells.length===1)return Math.abs(a.strike-b.strike)<1e-9?'CAL':'DIAG';
+    if(expiries.size===1&&buys.length===2&&!sells.length){
+      const call=meta.find(l=>l.tipo==='call'),put=meta.find(l=>l.tipo==='put');
+      if(call&&put)return Math.abs(call.strike-put.strike)<1e-9?'STRADDLE':'STRANGLE';
+    }
+    if(expiries.size===1&&sameType&&buys.length===1&&sells.length===1){
+      const buy=buys[0],sell=sells[0];
+      if(a.tipo==='call')return buy.strike<sell.strike?'CDS':'CCS';
+      if(a.tipo==='put')return buy.strike>sell.strike?'PDS':'PCS';
     }
   }
-  if(meta.length===2){
-    const buys=meta.filter(l=>l.accion==='buy'),sells=meta.filter(l=>l.accion==='sell');
-    if(buys.length===1&&sells.length===1){
-      const net=meta.reduce((s,l)=>s+(l.accion==='sell'?Number(l.prima||0):-Number(l.prima||0))*l.qty,0);
-      return net>=0?'CS':'DS';
-    }
-  }
-  return document.getElementById('exec-strat-sel')?.value||'IC';
+  return 'UNSUPPORTED';
 }
 
 async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100,dryRun=false){
@@ -1493,10 +1486,10 @@ const TPLS={
   '🔰 BWC':(S,w,IV)=>[['put','buy',S-3*w,5,0.7,IV],['put','sell',S-w,20,0.7,IV],['call','sell',S+w,20,0.7,IV],['call','buy',S+2*w,10,0.7,IV]],
   'Call Debit Spread':(S,w,IV)=>[['call','buy',S,50,0.1,IV],['call','sell',S+w,20,0.1,IV]],
   'Put Debit Spread':(S,w,IV)=>[['put','buy',S,50,0.1,IV],['put','sell',S-w,20,0.1,IV]],
-  '⚡ Strad':(S,w,IV)=>[['call','buy',S,50,0.1,IV],['put','buy',S,50,0.1,IV]],
-  '🌊 Stran':(S,w,IV)=>[['put','buy',S-w,20,0.1,IV],['call','buy',S+w,20,0.1,IV]],
-  'Call Credit Spread':(S,w,IV)=>[['call','buy',S,50,0.1,IV],['call','sell',S+w,20,0.1,IV]],
-  'Put Credit Spread':(S,w,IV)=>[['put','buy',S,50,0.1,IV],['put','sell',S-w,20,0.1,IV]],
+  '⚡ Straddle':(S,w,IV)=>[['call','buy',S,50,0.1,IV],['put','buy',S,50,0.1,IV]],
+  '🌊 Strangle':(S,w,IV)=>[['put','buy',S-w,20,0.1,IV],['call','buy',S+w,20,0.1,IV]],
+  'Call Credit Spread':(S,w,IV)=>[['call','sell',S,50,0.1,IV],['call','buy',S+w,20,0.1,IV]],
+  'Put Credit Spread':(S,w,IV)=>[['put','sell',S,50,0.1,IV],['put','buy',S-w,20,0.1,IV]],
 };
 
 function buildStratBtns(){
@@ -1521,7 +1514,7 @@ function loadTpl(n){
   legs=TPLS[n](Sr,w,IV).map(([tipo,accion,strike,prima,qty,iv])=>({tipo,accion,strike:+strike,prima:+prima,qty:defaultQty(),iv:+iv,contrato:''}));
   const act=document.getElementById('activo').value;
   document.getElementById('exec-activo-sel').value=act;
-  const stratMap={'🦅 IC':'IC','🦋 IB':'IB','🔰 BWC':'BWC','Call Debit Spread':'CS','Put Debit Spread':'CS','Call Credit Spread':'DS','Put Credit Spread':'DS','⚡ Strad':'IC','🌊 Stran':'IC'};
+  const stratMap={'🦅 IC':'IC','🦋 IB':'IB','🔰 BWC':'BWC','Call Debit Spread':'CDS','Put Debit Spread':'PDS','Call Credit Spread':'CCS','Put Credit Spread':'PCS','⚡ Straddle':'STRADDLE','🌊 Strangle':'STRANGLE'};
   document.getElementById('exec-strat-sel').value=stratMap[n]||'IC';
   if(typeof COState!=='undefined')COState.legs=legs;
   renderLegs();recalc();
