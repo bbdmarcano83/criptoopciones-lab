@@ -1,0 +1,54 @@
+name: Terminal safety
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "feature/**"
+      - "fix/**"
+
+permissions:
+  contents: read
+
+jobs:
+  static-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject merge markers and missing local scripts
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          pages = [
+              "index.html", "positions.html", "chain.html", "iv.html",
+              "ajuste.html", "diario.html", "manual.html",
+          ]
+          for name in pages:
+              text = Path(name).read_text(encoding="utf-8")
+              assert not re.search(
+                  r"^(<<<<<<<|=======|>>>>>>>)",
+                  text,
+                  flags=re.MULTILINE,
+              ), f"merge marker in {name}"
+              for src in re.findall(r'<script[^>]+src=["\']([^"\']+)', text):
+                  if src.startswith(("http://", "https://", "//", "data:")):
+                      continue
+                  assert Path(src.split("?", 1)[0]).is_file(), (
+                      f"{name}: missing local script {src}"
+                  )
+          print("HTML_REFERENCES_OK")
+      - name: Parse inline JavaScript
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const vm = require("vm");
+          const html = fs.readFileSync("index.html", "utf8");
+          const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
+          for (const [i, match] of scripts.entries()) {
+            new vm.Script(match[1], { filename: `index-inline-${i + 1}.js` });
+          }
+          console.log(`TERMINAL_JS_SYNTAX_OK ${scripts.length}`);
+          NODE
