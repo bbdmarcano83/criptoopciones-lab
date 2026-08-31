@@ -717,7 +717,8 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;letter-spacing:.01em}
 
   <div class="slabel">IV Rank (IVR)</div>
   <div class="ivr-panel">
-    <div class="ivr-row"><span class="ivr-lbl">IV actual</span><span class="ivr-v acc" id="ivr-actual">--%</span></div>
+    <div class="ivr-row"><span class="ivr-lbl">IV ATM seleccionada</span><span class="ivr-v acc" id="ivr-actual">--%</span></div>
+    <div class="ivr-row"><span class="ivr-lbl">DVOL actual</span><span class="ivr-v acc" id="ivr-dvol">--%</span></div>
     <div class="ivr-row"><span class="ivr-lbl">IVR 52w</span><span class="ivr-v warn" id="ivr-rank">--%</span></div>
     <div class="ivr-row"><span class="ivr-lbl">IV Percentile 52w</span><span class="ivr-v" id="ivr-percentile" style="color:#a78bfa">--%</span></div>
     <div class="ivr-row"><span class="ivr-lbl">Min / Max</span><span class="ivr-v" id="ivr-range" style="font-size:10px;color:#64748b">-- / --</span></div>
@@ -1772,10 +1773,11 @@ async function fetchIVR(){
     const ivr=st.ivRank52w;
     const pct=st.ivPercentile52w;
     document.getElementById('ivr-actual').textContent=st.currentIV.toFixed(1)+'%';
+    document.getElementById('ivr-dvol').textContent=Number.isFinite(Number(st.benchmarkIV))?Number(st.benchmarkIV).toFixed(1)+'%':'--';
     document.getElementById('ivr-rank').textContent=st.ready?ivr.toFixed(1)+'%':'--';
     document.getElementById('ivr-percentile').textContent=st.ready?pct.toFixed(1)+'%':'--';
     document.getElementById('ivr-range').textContent=(st.min52w??'--')+'% / '+(st.max52w??'--')+'%';
-    document.getElementById('ivr-history').textContent=st.ready?`${st.benchmarkSampleCount||st.sampleCount||'--'} obs · Deribit DVOL`:'Benchmark N/D';
+    document.getElementById('ivr-history').textContent=st.ready?`${st.benchmarkSampleCount||st.sampleCount||'--'} obs · ${st.benchmarkSource||'Deribit DVOL'}`:'Benchmark N/D';
     const fill=document.getElementById('ivr-fill');
     fill.style.width=st.ready?Math.min(100,ivr).toFixed(0)+'%':'0%';
     fill.style.background=st.ready?(ivr>=65?'#10b981':ivr>=35?'#f59e0b':'#f43f5e'):'#475569';

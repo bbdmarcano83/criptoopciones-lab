@@ -25,6 +25,7 @@ const MAX_POINTS=15000;
 const VALID_ASSETS=['BTC','ETH'];
 const VALID_EXCHANGES=['Bybit','Deribit'];
 const DERIBIT='https://www.deribit.com/api/v2';
+const canonicalCache=new Map();
 
 function load(k){try{return JSON.parse(localStorage.getItem(k)||'{}')||{};}catch{return{};}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){console.warn('IVEngine storage',e);return false;}}
@@ -190,7 +191,54 @@ function calculateBenchmark(points){
   };
 }
 
+async function fetchCanonicalBenchmark(asset,{force=false}={}){
+  asset=String(asset||'BTC').toUpperCase();
+  const now=Date.now(),cached=canonicalCache.get(asset);
+  if(!force&&cached&&now-cached.savedAt<60000)return cached.data;
+
+  const base=String(localStorage.getItem('co_bot_url')||'').replace(/\/$/,'');
+  const token=String(localStorage.getItem('co_bot_token')||'');
+  if(!base||!token)return null;
+
+  const r=await fetch(`${base}/mercado/${asset}`,{
+    cache:'no-store',
+    headers:{'X-Bot-Token':token}
+  });
+  if(!r.ok)throw new Error(`Bot IVR HTTP ${r.status}`);
+  const j=await r.json();
+  if(String(j.asset||'').toUpperCase()!==asset)throw new Error('Activo IVR no coincide');
+  const values=[
+    j.iv_actual,j.iv_min_52w,j.iv_max_52w,
+    j.iv_rank,j.iv_percentile_52w
+  ].map(Number);
+  if(values.some(v=>!Number.isFinite(v)))throw new Error('Snapshot IVR incompleto');
+
+  const data={
+    ready:true,
+    current:values[0],
+    min52w:values[1],
+    max52w:values[2],
+    ivRank52w:values[3],
+    ivPercentile52w:values[4],
+    ivRank90d:null,
+    ivPercentile90d:null,
+    sampleCount52w:Number(j.sample_count_52w)||null,
+    historyDays52w:Number(j.history_days_52w)||null,
+    lastTimestamp:Number(j.dvol_timestamp_ms)||null,
+    source:'Bot V5 · Deribit DVOL',
+    methodology:j.methodology||'Deribit DVOL daily close · 52W'
+  };
+  canonicalCache.set(asset,{savedAt:now,data});
+  return data;
+}
+
 async function getBenchmark(asset,{force=false}={}){
+  try{
+    const canonical=await fetchCanonicalBenchmark(asset,{force});
+    if(canonical)return canonical;
+  }catch(e){
+    console.warn('IVEngine canonical benchmark',e?.message||e);
+  }
   const points=await fetchDvolHistory(asset,{days:370,force});
   return calculateBenchmark(points);
 }
@@ -294,6 +342,7 @@ global.IVEngine={
   update,get,getHistory,clear,
   extractReference,
   getBenchmark,
+  fetchCanonicalBenchmark,
   fetchDvolHistory,
   calculateBenchmark,
   clearBenchmark
