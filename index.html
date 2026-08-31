@@ -1292,10 +1292,17 @@ function buildCandidates(d){
     const liq=candidateLiquidity(ic,options);
     let score=baseScore+(Number.isFinite(ivr)?(ivr-50)*.20:0)+(liq-50)*.12;
     if(skew==='BALANCED')score+=5;
+    const putWing=Math.abs(safeNum(p20?.strike)-safeNum(p10?.strike));
+    const callWing=Math.abs(safeNum(c10?.strike)-safeNum(c20?.strike));
+    const brokenWing=Math.abs(putWing-callWing)>1e-9;
+    if(brokenWing)score-=2;
     score=Math.round(clamp(score,0,100));
     result.push({
-      name:'Iron Condor',code:'IC',score,legs:ic,
-      reason:'Neutral · riesgo definido · monetiza prima en ambos lados.',
+      name:brokenWing?'Broken Wing Condor':'Iron Condor',
+      code:brokenWing?'BWC':'IC',score,legs:ic,
+      reason:brokenWing
+        ?`Alas asimétricas ${putWing.toLocaleString()}/${callWing.toLocaleString()} · riesgo definido por el ala más ancha.`
+        :'Neutral · alas simétricas · riesgo definido · monetiza prima en ambos lados.',
       premium:credit,liq
     });
   }
