@@ -85,9 +85,13 @@ function evaluate(candidate,market){
   ));
   const selectable=isStructurallyComplete(candidate,code);
   const status=!selectable?'INCOMPLETA':score>=75?'ALTA':score>=60?'MEDIA':'BAJA';
+  const regimePriority=!Number.isFinite(ivr)?50:
+    ivr<35?(code==='CAL'?100:code==='BWC'?25:code==='IC'?20:10):
+    ivr<65?(code==='IC'?95:code==='BWC'?90:code==='CAL'?55:40):
+    (code==='IB'?100:code==='IC'?95:code==='BWC'?90:35);
 
   return {
-    ...candidate,score,status,selectable,meetsPolicy,
+    ...candidate,score,status,selectable,meetsPolicy,regimePriority,
     eligible:meetsPolicy,
     advisoryObservations:observations,
     rejectionReasons:observations,
@@ -99,11 +103,15 @@ function rank(candidates,market){
   return (candidates||[])
     .map(c=>evaluate(c,market))
     .filter(c=>AUTO_CODES.has(String(c.code||'').toUpperCase()))
-    .sort((a,b)=>Number(b.selectable)-Number(a.selectable)||b.score-a.score);
+    .sort((a,b)=>
+      Number(b.selectable)-Number(a.selectable)||
+      b.regimePriority-a.regimePriority||
+      b.score-a.score
+    );
 }
 
 global.NeutralStrategyPolicy={
-  version:'1.3',
+  version:'1.4',
   autoCodes:[...AUTO_CODES],
   evaluate,
   rank,
