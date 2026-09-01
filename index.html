@@ -1299,8 +1299,8 @@ function calendarFrontExpiryMetrics(front,back,S){
     scenarioLow:null,scenarioMid:null,scenarioHigh:null,scenarioPass:false
   };
   if(!front||!back||S<=0)return empty;
-  const frontTs=safeNum(front.expiryTs,expiryTimestamp(front.expiry));
-  const backTs=safeNum(back.expiryTs,expiryTimestamp(back.expiry));
+  const frontTs=Number.isFinite(Number(front.expiryTs))?Number(front.expiryTs):expiryTimestamp(front.expiry);
+  const backTs=Number.isFinite(Number(back.expiryTs))?Number(back.expiryTs):expiryTimestamp(back.expiry);
   const now=Date.now();
   const tFront=Math.max(0,(frontTs-now)/(365*86400000));
   const tRemain=Math.max(0,(backTs-frontTs)/(365*86400000));
