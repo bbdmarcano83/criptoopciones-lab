@@ -46,7 +46,7 @@ function opportunity({ref,ivr,skewData,liquidity,term}){
   if(!ref)return {score:0,label:'NO DATA',strategy:'Esperar datos'};
   let score=45; if(ivr!=null)score+=(ivr-50)*.4; score+=(ref.liquidity-50)*.2; if(liquidity?.label==='HIGH')score+=8; if(termLabel(term)==='BACKWARDATION')score+=5; if(skewData?.label==='PUT PREMIUM')score+=3;
   score=Math.round(clamp(score,0,100));
-  let strategy=ivr==null?'Monitorear / histórico IVR en construcción':ivr>=70?'Iron Condor / Iron Butterfly / Credit Spread':ivr>=40?'Calendar / estructura definida por skew':'Debit Spread / Calendar';
+  let strategy=ivr==null?'Monitorear / histórico IVR en construcción':ivr>=65?'Iron Condor / Iron Butterfly / BWC neutral':ivr>=35?'Iron Condor selectivo / Calendar':'Calendar puro / esperar';
   return {score,label:score>=80?'A':score>=65?'B':score>=50?'C':'D',strategy};
 }
 async function analyze(exchange,asset,targetDTE=30){
