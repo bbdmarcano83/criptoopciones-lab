@@ -1292,6 +1292,48 @@ function definedRiskEconomicScore(ls){
   return maxLoss>0?clamp((credit/maxLoss)*180,0,100):0;
 }
 
+function calendarFrontExpiryMetrics(front,back,S){
+  const empty={
+    sameStrike:false,debit:0,frontIv:null,backIv:null,ivSpread:null,
+    ivSpreadPass:false,backTimeValue:null,backTimePass:false,
+    scenarioLow:null,scenarioMid:null,scenarioHigh:null,scenarioPass:false
+  };
+  if(!front||!back||S<=0)return empty;
+  const frontTs=Number.isFinite(Number(front.expiryTs))?Number(front.expiryTs):expiryTimestamp(front.expiry);
+  const backTs=Number.isFinite(Number(back.expiryTs))?Number(back.expiryTs):expiryTimestamp(back.expiry);
+  const now=Date.now();
+  const tFront=Math.max(0,(frontTs-now)/(365*86400000));
+  const tRemain=Math.max(0,(backTs-frontTs)/(365*86400000));
+  const frontIv=safeNum(front.iv)/100,backIv=safeNum(back.iv)/100;
+  const debit=safeNum(back.ask)-safeNum(front.bid);
+  const K=safeNum(front.strike);
+  const r=safeNum(document.getElementById('rfr')?.value,5)/100;
+  if(!(tFront>0&&tRemain>0&&frontIv>0&&backIv>0&&debit>0&&K>0))return {
+    ...empty,sameStrike:Math.abs(K-safeNum(back.strike))<1e-9,
+    debit,frontIv:frontIv*100||null,backIv:backIv*100||null
+  };
+  const halfSigmaMove=.5*S*frontIv*Math.sqrt(tFront);
+  const scenarioSpots=[Math.max(1,S-halfSigmaMove),S,S+halfSigmaMove];
+  const pnl=scenarioSpots.map(x=>{
+    const backValue=bs(x,K,tRemain,r,backIv,'call').precio;
+    const frontIntrinsic=Math.max(0,x-K);
+    return backValue-frontIntrinsic-debit;
+  });
+  const backAtCenter=bs(S,K,tRemain,r,backIv,'call').precio;
+  const backTimeValue=backAtCenter-Math.max(0,S-K);
+  const ivSpread=(backIv-frontIv)*100;
+  return {
+    sameStrike:Math.abs(K-safeNum(back.strike))<1e-9,
+    debit,frontIv:frontIv*100,backIv:backIv*100,ivSpread,
+    ivSpreadPass:ivSpread<=5,
+    backTimeValue,
+    backTimePass:backTimeValue>=debit*.25,
+    scenarioLow:pnl[0],scenarioMid:pnl[1],scenarioHigh:pnl[2],
+    scenarioPass:pnl.every(x=>x>=0),
+    halfSigmaMove
+  };
+}
+
 function buildCandidates(d){
   const options=d.options||[];
   const ref=d.reference;
@@ -1358,23 +1400,36 @@ function buildCandidates(d){
     });
   }
 
-  // Calendar puro: mismo tipo y strike; nunca degradar automáticamente a diagonal.
+  // Calendar puro: siempre producir diagnóstico, incluso si una pata falta.
   const farExpiry=findFartherExpiry(options,ref.dte);
-  if(farExpiry){
-    const farRows=options.filter(o=>o.expiry===farExpiry);
-    const nearCall=executableOptions(rows,'call').sort((a,b)=>Math.abs(safeNum(a.strike)-S)-Math.abs(safeNum(b.strike)-S))[0]||null;
-    const pureBack=nearCall?optionAtStrike(farRows,'call',nearCall.strike):null;
-    const cal=[mkLeg(nearCall,'sell'),mkLeg(pureBack,'buy')].filter(Boolean);
-    if(validLegs(cal)){
-      const termBonus=d.regime?.term==='CONTANGO'?75:d.regime?.term==='FLAT'?62:35;
-      result.push({
-        name:'Calendar ATM',code:'CAL',legs:cal,isPureCalendar:true,
-        premium:candidateCredit(cal),liq:candidateLiquidity(cal,options),
-        netDelta:candidateNetDelta(cal,options),pop:null,economicScore:termBonus,
-        reason:'Mismo strike · vende vencimiento frontal y compra vega posterior; evaluación al expiry frontal.'
-      });
-    }
-  }
+  const farRows=farExpiry?options.filter(o=>o.expiry===farExpiry):[];
+  const nearCall=executableOptions(rows,'call')
+    .sort((a,b)=>Math.abs(safeNum(a.strike)-S)-Math.abs(safeNum(b.strike)-S))[0]||null;
+  const pureBack=nearCall?optionAtStrike(farRows,'call',nearCall.strike):null;
+  const cal=[mkLeg(nearCall,'sell'),mkLeg(pureBack,'buy')].filter(Boolean);
+  const calMetrics=calendarFrontExpiryMetrics(nearCall,pureBack,S);
+  const calComplete=validLegs(cal)&&cal.length===2;
+  const timeRatio=nearCall&&pureBack
+    ?clamp((safeNum(pureBack.expiryTs)-safeNum(nearCall.expiryTs))/(Math.max(1,safeNum(nearCall.expiryTs)-Date.now())),0,3)
+    :0;
+  result.push({
+    name:'Calendar ATM',code:'CAL',legs:cal,
+    isPureCalendar:calComplete&&calMetrics.sameStrike,
+    premium:calComplete?candidateCredit(cal):0,
+    liq:calComplete?candidateLiquidity(cal,options):0,
+    netDelta:calComplete?candidateNetDelta(cal,options):0,
+    pop:null,economicScore:calComplete?clamp(
+      45+(calMetrics.backTimePass?15:0)+(calMetrics.ivSpreadPass?15:0)+
+      (calMetrics.scenarioPass?20:0)+timeRatio*2,
+      0,100
+    ):0,
+    calendarMetrics:calMetrics,
+    reason:calComplete
+      ?'Evaluado al vencimiento frontal con valor temporal posterior y escenarios ±0.5σ.'
+      :farExpiry
+        ?'No existe Call posterior ejecutable con exactamente el mismo strike ATM.'
+        :'No existe un segundo vencimiento suficientemente posterior para construir el CAL.'
+  });
 
   // Long volatility excepcional. Sin catalizador verificado queda WATCH y no se puede cargar.
   if(pATM&&cATM&&Math.abs(safeNum(pATM.strike)-safeNum(cATM.strike))<1e-9){
@@ -1395,8 +1450,8 @@ function buildCandidates(d){
   }
 
   return NeutralStrategyPolicy.rank(result,d)
-    .filter(o=>o.status!=='FAIL')
-    .slice(0,5);
+    .filter(o=>o.status!=='FAIL'||o.code==='CAL')
+    .slice(0,6);
 }
 
 function opportunityGrade(score){
@@ -1410,7 +1465,7 @@ function renderOpportunities(d){
   const ivr=Number(d.ivRank52w);
   let intro='';
   if(Number.isFinite(ivr)&&ivr<35){
-    intro='<div class="no-edge"><b>Prima relativamente barata.</b> No fuerzo una venta de volatilidad: Calendar/Diagonal pueden puntuar mejor que estructuras short-vol.</div>';
+    intro='<div class="no-edge"><b>Prima relativamente barata.</b> No fuerzo una venta de volatilidad: Calendar puro puede puntuar mejor que estructuras short-vol.</div>';
   }else if(Number.isFinite(ivr)&&ivr>=70){
     intro='<div class="no-edge" style="border-color:#255f43;background:#081e15;color:#9eddb9"><b>Existe ventaja de volatilidad.</b> El ranking prioriza estructuras de crédito con riesgo definido y buena liquidez.</div>';
   }
@@ -1429,7 +1484,10 @@ function renderOpportunities(d){
         <span class="opp-name">${i===0?'★ ':''}${o.name}</span>
         <span class="opp-score ${grade}">${o.score}/100</span>
       </div>
-      <div class="opp-reason"><b>${o.status}</b> · ${o.reason}${o.rejectionReasons?.length?`<br><span style="color:#f6ad42">${o.rejectionReasons.join(' · ')}</span>`:''}</div>
+      <div class="opp-reason"><b>${o.status}</b> · ${o.reason}
+        ${o.diagnosticChecks?.length?`<div style="margin-top:6px;line-height:1.55">${o.diagnosticChecks.map(x=>`<div style="color:${x.pass?'#10b981':'#f43f5e'}">${x.pass?'✅':'❌'} ${x.label}: ${x.detail}</div>`).join('')}</div>`:''}
+        ${o.code!=='CAL'&&o.rejectionReasons?.length?`<br><span style="color:#f6ad42">${o.rejectionReasons.join(' · ')}</span>`:''}
+      </div>
       <div class="opp-legs">
         ${o.legs.map(l=>`<div class="opp-leg"><span class="${l.accion}">${l.accion.toUpperCase()} ${l.tipo.toUpperCase()}</span><b>${Math.round(l.strike).toLocaleString()} · Δ ${(() => {
           const row=(d.options||[]).find(x=>x.symbol===l.contrato);
