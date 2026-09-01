@@ -64,3 +64,18 @@ jobs:
           }
           console.log("LOCAL_JS_SYNTAX_OK");
           NODE
+      - name: Guard rolled diagonal valuation
+        shell: python
+        run: |
+          from pathlib import Path
+          text = Path("positions.html").read_text(encoding="utf-8")
+          checks = {
+              "per-leg tenor": "const legT=Math.max(Number.isFinite(legDte)?legDte:dte,0.001)/365;" in text,
+              "per-leg IV": "const legIv=legIvDecimal(l,iv);" in text,
+              "back residual IV": "const backIv=legIvDecimal(long,iv);" in text,
+              "manual-roll basis warning": "p.basis_adjusted===false" in text,
+              "safe incomplete pair": "homogeneousPair?.short&&homogeneousPair?.long" in text,
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          assert not failed, failed
+          print("ROLLED_DIAGONAL_VALUATION_OK")
