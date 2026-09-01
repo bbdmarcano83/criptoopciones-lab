@@ -1257,13 +1257,36 @@ function candidateLiquidity(ls,options){
 }
 function validLegs(ls){return ls.length&&ls.every(l=>l&&safeNum(l.strike)>0&&safeNum(l.prima)>0)}
 
-function findFartherExpiry(options,refDte){
-  const groups=new Map();
-  options.forEach(o=>{
-    const d=Math.max(0,(safeNum(o.expiryTs)-Date.now())/86400000);
-    if(d>refDte+5)groups.set(o.expiry,d);
+function findPureCalendarPair(options,frontExpiry,refDte,S){
+  const frontRows=executableOptions(options.filter(o=>o.expiry===frontExpiry),'call');
+  const frontTs=Math.min(...frontRows.map(o=>safeNum(o.expiryTs,expiryTimestamp(o.expiry))).filter(v=>v>0));
+  if(!frontRows.length||!Number.isFinite(frontTs))return {front:null,back:null,hasBackExpiry:false};
+
+  const backRows=executableOptions(options.filter(o=>{
+    if(o.type!=='call'||o.expiry===frontExpiry)return false;
+    const ts=safeNum(o.expiryTs,expiryTimestamp(o.expiry));
+    return ts>frontTs+86400000;
+  }),'call');
+  if(!backRows.length)return {front:null,back:null,hasBackExpiry:false};
+
+  const pairs=[];
+  frontRows.forEach(front=>{
+    backRows.forEach(back=>{
+      if(Math.abs(safeNum(front.strike)-safeNum(back.strike))>1e-9)return;
+      const backDte=Math.max(0,(safeNum(back.expiryTs,expiryTimestamp(back.expiry))-Date.now())/86400000);
+      const atmDistance=Math.abs(safeNum(front.strike)-S)/Math.max(S,1);
+      const termDistance=Math.abs(backDte-Math.max(refDte*2,refDte+5))/Math.max(refDte,1);
+      const liquidity=(safeNum(front.score)+safeNum(back.score))/2;
+      pairs.push({front,back,atmDistance,termDistance,liquidity});
+    });
   });
-  return [...groups.entries()].sort((a,b)=>Math.abs(a[1]-refDte*2)-Math.abs(b[1]-refDte*2))[0]?.[0]||null;
+
+  pairs.sort((a,b)=>
+    a.atmDistance-b.atmDistance||
+    b.liquidity-a.liquidity||
+    a.termDistance-b.termDistance
+  );
+  return pairs[0]||{front:null,back:null,hasBackExpiry:true};
 }
 
 function candidateNetDelta(ls,options){
@@ -1400,12 +1423,11 @@ function buildCandidates(d){
     });
   }
 
-  // Calendar puro: siempre producir diagnóstico, incluso si una pata falta.
-  const farExpiry=findFartherExpiry(options,ref.dte);
-  const farRows=farExpiry?options.filter(o=>o.expiry===farExpiry):[];
-  const nearCall=executableOptions(rows,'call')
-    .sort((a,b)=>Math.abs(safeNum(a.strike)-S)-Math.abs(safeNum(b.strike)-S))[0]||null;
-  const pureBack=nearCall?optionAtStrike(farRows,'call',nearCall.strike):null;
+  // Calendar puro: buscar primero la intersección real de strikes entre
+  // el vencimiento frontal y todos los posteriores ejecutables.
+  const calendarPair=findPureCalendarPair(options,ref.expiry,ref.dte,S);
+  const nearCall=calendarPair.front;
+  const pureBack=calendarPair.back;
   const cal=[mkLeg(nearCall,'sell'),mkLeg(pureBack,'buy')].filter(Boolean);
   const calMetrics=calendarFrontExpiryMetrics(nearCall,pureBack,S);
   const calComplete=validLegs(cal)&&cal.length===2;
@@ -1426,9 +1448,9 @@ function buildCandidates(d){
     calendarMetrics:calMetrics,
     reason:calComplete
       ?'Evaluado al vencimiento frontal con valor temporal posterior y escenarios ±0.5σ.'
-      :farExpiry
-        ?'No existe Call posterior ejecutable con exactamente el mismo strike ATM.'
-        :'No existe un segundo vencimiento suficientemente posterior para construir el CAL.'
+      :calendarPair.hasBackExpiry
+        ?'Hay vencimientos posteriores, pero todavía no comparten un strike Call ejecutable con el frontal.'
+        :'No existe un segundo vencimiento posterior ejecutable para construir el CAL.'
   });
 
   // Straddle/Strangle siguen disponibles como plantillas manuales, pero no
