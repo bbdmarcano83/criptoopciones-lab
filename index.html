@@ -1435,11 +1435,15 @@ function buildCandidates(d){
   // se generan automáticamente hasta integrar una fuente real de catalizadores.
 
   const ranked=NeutralStrategyPolicy.rank(result,d);
-  const visible=ranked.filter(o=>o.status!=='FAIL');
-  const calendar=ranked.find(o=>o.code==='CAL');
-  // El diagnóstico Calendar nunca se oculta por límite o ranking.
-  if(calendar&&!visible.includes(calendar))visible.push(calendar);
-  return visible.slice(0,5);
+  // Ranking consultivo: una candidata por familia, ordenada por puntuación.
+  // Las condiciones de mercado reducen el score, pero no impiden cargarla.
+  const bestByCode=new Map();
+  ranked.forEach(o=>{
+    const current=bestByCode.get(o.code);
+    if(!current||o.score>current.score)bestByCode.set(o.code,o);
+  });
+  return [...bestByCode.values()]
+    .sort((a,b)=>Number(b.selectable)-Number(a.selectable)||b.score-a.score);
 }
 
 function opportunityGrade(score){
@@ -1474,7 +1478,7 @@ function renderOpportunities(d){
       </div>
       <div class="opp-reason"><b>${o.status}</b> · ${o.reason}
         ${o.diagnosticChecks?.length?`<div style="margin-top:6px;line-height:1.55">${o.diagnosticChecks.map(x=>`<div style="color:${x.pass?'#10b981':'#f43f5e'}">${x.pass?'✅':'❌'} ${x.label}: ${x.detail}</div>`).join('')}</div>`:''}
-        ${o.code!=='CAL'&&o.rejectionReasons?.length?`<br><span style="color:#f6ad42">${o.rejectionReasons.join(' · ')}</span>`:''}
+        ${o.advisoryObservations?.length?`<br><span style="color:#f6ad42"><b>Observaciones:</b> ${o.advisoryObservations.join(' · ')}</span>`:''}
       </div>
       <div class="opp-legs">
         ${o.legs.map(l=>`<div class="opp-leg"><span class="${l.accion}">${l.accion.toUpperCase()} ${l.tipo.toUpperCase()}</span><b>${Math.round(l.strike).toLocaleString()} · Δ ${(() => {
@@ -1486,18 +1490,17 @@ function renderOpportunities(d){
         <div><span>${premLabel} teórico / unidad</span><b>${fmt(Math.abs(net))}</b></div>
         <div><span>Liquidez patas</span><b>${o.liq.toFixed(0)}/100</b></div>
       </div>
-      <button class="opp-action" ${o.eligible?`onclick="loadOpportunity(${i})"`:'disabled style="opacity:.45;cursor:not-allowed"'}>${o.eligible?'Cargar estructura al payoff':'Condición pendiente · no ejecutable'}</button>
+      <button class="opp-action" ${o.selectable?`onclick="loadOpportunity(${i})"`:'disabled style="opacity:.45;cursor:not-allowed"'}>${o.selectable?'Cargar al payoff · decisión del operador':'Patas ejecutables incompletas'}</button>
     </div>`;
   }).join('');
 }
 
 function loadOpportunity(i){
   const o=opportunityCandidates[i];
-  if(!o)return;
+  if(!o||!o.selectable)return;
   legs=o.legs.map(l=>({...l}));
   setLegsSource('analyzer');
   if(typeof COState!=='undefined')COState.legs=legs;
-  if(!o.eligible)return;
   const map={IC:'IC',IB:'IB',BWC:'BWC',CAL:'CAL',STRADDLE:'STRADDLE',STRANGLE:'STRANGLE'};
   const sel=document.getElementById('exec-strat-sel');
   if(sel&&[...sel.options].some(x=>x.value===map[o.code]))sel.value=map[o.code];
@@ -1514,7 +1517,7 @@ function evaluateDecisionDesk(d){
   const atmIV=safeNum(d.reference?.iv);
   const risk=currentRiskState();
   const candidates=buildCandidates(d);
-  const best=candidates.find(x=>x.eligible)||null;
+  const best=candidates.find(x=>x.selectable)||null;
 
   let volStatus,volValue,volSub;
   if(!Number.isFinite(ivr)){
@@ -1535,8 +1538,8 @@ function evaluateDecisionDesk(d){
   setGate('risk',{label:risk.label,cls:risk.cls},risk.headline,risk.detail);
 
   if(best){
-    const s=best.score>=65?{label:'SELECT',cls:'pass'}:best.score>=50?{label:'WATCH',cls:'watch'}:{label:'NO EDGE',cls:'fail'};
-    setGate('strat',s,`${best.name} · ${best.score}/100`,`Basado en IVR, skew, term, liquidez y precios reales`);
+    const s=best.score>=75?{label:'ALTA',cls:'pass'}:best.score>=60?{label:'MEDIA',cls:'watch'}:{label:'BAJA',cls:'fail'};
+    setGate('strat',s,`${best.name} · ${best.score}/100`,`Ranking consultivo basado en IVR, skew, term, liquidez y precios reales`);
   }else{
     setGate('strat',{label:'N/D',cls:'watch'},'Sin estructura','Faltan contratos ejecutables');
   }
