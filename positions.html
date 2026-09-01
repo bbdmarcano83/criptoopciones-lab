@@ -1279,7 +1279,7 @@ function renderSidebar(){
     const pct=Math.abs(Number(p.credito_entrada))>0?(Number(p.pnl||0)/Math.abs(Number(p.credito_entrada))*100):0;
     const barW=Math.min(100,Math.abs(pct));
     const barC=pct>=50?'#10b981':pct>=0?'#f59e0b':'#f43f5e';
-    const stratClass={IC:'ic',IB:'ib',CS:'cs',DS:'ds',CAL:'cal'}[p.estrategia]||'custom';
+    const stratClass={IC:'ic',IB:'ib',CS:'cs',DS:'ds',CAL:'cal',DIAG:'cal',BWC:'ic'}[p.estrategia]||'custom';
     const assetClass={BTC:'btc',ETH:'eth'}[p.asset]||'btc';
     const rr=assessRiskState(p);
     return `<div class="pos-card ${selectedPos?.label===p.label?'selected':''}" onclick="selectByIndex(${i})">
@@ -1318,7 +1318,7 @@ function renderMainHeader(){
   const p=selectedPos;if(!p)return;
   const dte=calcDTE(p.expiry);
   const pct=Math.abs(Number(p.credito_entrada))>0?(Number(p.pnl||0)/Math.abs(Number(p.credito_entrada))*100):0;
-  const sc={IC:'ic',IB:'ib',CS:'cs',DS:'ds',CAL:'cal'}[p.estrategia]||'custom';
+  const sc={IC:'ic',IB:'ib',CS:'cs',DS:'ds',CAL:'cal',DIAG:'cal',BWC:'ic'}[p.estrategia]||'custom';
   const ac={BTC:'btc',ETH:'eth'}[p.asset]||'btc';
   const S_hdr=spotPrices[p.asset]||0;
   const iv_hdr=(marketIV[p.asset]||60)/100;
@@ -1481,7 +1481,7 @@ function renderRollOptions(p,S,iv,T){
       ? 'put'
       : null;
   const homogeneousPair=homogeneousType?byType(homogeneousType):null;
-  const costOut=homogeneousPair
+  const costOut=homogeneousPair?.short&&homogeneousPair?.long
     ? modelPair(homogeneousPair,homogeneousType,homogeneousPair.short.strike,Tnew)
     : null;
 
@@ -1919,15 +1919,15 @@ function expiryUtc(code){
   return mon==null?null:new Date(Date.UTC(2000+Number(m[3]),mon,Number(m[1]),8));
 }
 function isCalendarPosition(pos){
-  if(String(pos?.estrategia||'').toUpperCase()==='CAL')return true;
+  const strategy=String(pos?.estrategia||'').toUpperCase();
+  if(strategy==='CAL'||strategy==='DIAG')return true;
   const ls=pos?.legs||[];
   if(ls.length!==2)return false;
   const exps=[...new Set(ls.map(legExpiryCode).filter(Boolean))];
-  const sameStrike=Math.abs(Number(ls[0]?.strike||0)-Number(ls[1]?.strike||0))<1e-9;
   const sameType=Boolean(ls[0]?.is_call)===Boolean(ls[1]?.is_call)&&Boolean(ls[0]?.is_put)===Boolean(ls[1]?.is_put);
   const opposite=String(ls[0]?.side)!==String(ls[1]?.side);
   const sameQty=Math.abs(Number(ls[0]?.size||0)-Number(ls[1]?.size||0))<1e-9;
-  return exps.length===2&&sameStrike&&sameType&&opposite&&sameQty;
+  return exps.length===2&&sameType&&opposite&&sameQty;
 }
 
 function calendarDebit(pos){
@@ -1961,12 +1961,13 @@ function calendarFrontExpiryPayoff(pos,px,iv,rfr=0){
   if(ls.length!==2)return null;
   const short=ls.find(l=>l.side==='sell'),long=ls.find(l=>l.side==='buy');
   if(!short||!long)return null;
-  const K=Number(short.strike||long.strike||0),qty=Math.min(Number(short.size||0),Number(long.size||0));
-  if(!(K>0&&qty>0))return null;
+  const Kshort=Number(short.strike||0),Klong=Number(long.strike||0);
+  const qty=Math.min(Number(short.size||0),Number(long.size||0));
+  if(!(Kshort>0&&Klong>0&&qty>0))return null;
   const f=expiryUtc(legExpiryCode(short)),b=expiryUtc(legExpiryCode(long));
   const residual=(f&&b)?Math.max(0,(b-f)/86400000)/365:0;
-  const intrinsic=short.is_call?Math.max(0,px-K):Math.max(0,K-px);
-  const back=bsOptionValue(px,K,residual,rfr,iv,!!short.is_call);
+  const intrinsic=short.is_call?Math.max(0,px-Kshort):Math.max(0,Kshort-px);
+  const back=bsOptionValue(px,Klong,residual,rfr,iv,!!long.is_call);
   const debitFromLegs=(Number(long.avg_price||0)*Number(long.size||0))-(Number(short.avg_price||0)*Number(short.size||0));
   const debit=Number(pos.credito_entrada)<0?Math.abs(Number(pos.credito_entrada)):Math.max(0,debitFromLegs);
   return (back-intrinsic)*qty-debit;
