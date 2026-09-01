@@ -78,11 +78,17 @@ function evaluate(candidate,market){
   const popScore=Number.isFinite(pop)?clamp(pop*100,0,100):55;
   const economicScore=clamp(num(candidate.economicScore,55),0,100);
   const deltaLimit=code==='CAL'?.20:.10;
-  const score=Math.round(clamp(
+  let score=Math.round(clamp(
     popScore*.25+economicScore*.25+regimeFit*.20+liq*.15+
     clamp(100-(delta/deltaLimit)*50,0,100)*.15,
     0,100
   ));
+  // El régimen viejo vuelve a ser la restricción económica principal:
+  // con IV barata, una venta de rango no puede obtener nota media/alta
+  // solamente por liquidez o geometría.
+  if(Number.isFinite(ivr)&&ivr<35&&code!=='CAL'){
+    score=Math.min(score,code==='IB'?35:49);
+  }
   const selectable=isStructurallyComplete(candidate,code);
   const status=!selectable?'INCOMPLETA':score>=75?'ALTA':score>=60?'MEDIA':'BAJA';
   const regimePriority=!Number.isFinite(ivr)?50:
@@ -111,7 +117,7 @@ function rank(candidates,market){
 }
 
 global.NeutralStrategyPolicy={
-  version:'1.4',
+  version:'1.5',
   autoCodes:[...AUTO_CODES],
   evaluate,
   rank,
