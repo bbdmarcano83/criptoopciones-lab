@@ -1393,7 +1393,10 @@ function renderRightPanel(){
   setText('val-exec-pnl',valuation.execPnlText);
   setText('val-slip',valuation.slippageText);
   setText('val-fees',valuation.feesText);
-  setText('val-note',valuation.note);
+  const basisWarning=p.basis_adjusted===false
+    ? `ROLL MANUAL: ${p.basis_note||'base total pendiente de historial de fills'}`
+    : '';
+  setText('val-note',[valuation.note,basisWarning].filter(Boolean).join(' · '));
   colorValue('val-exec-pnl',valuation.execPnl);
   colorValue('val-mark-pnl',Number(p.pnl||0));
 
@@ -1597,7 +1600,10 @@ function renderChart(){
     const legs=p.legs||[];
     const ysToday=xs.map(px=>legs.reduce((sum,l)=>{
       const tipo=l.is_call?'call':'put';
-      const g=bs(px,l.strike,T,rfr,iv,tipo);
+      const legDte=calcDTE(legExpiryCode(l));
+      const legT=Math.max(Number.isFinite(legDte)?legDte:dte,0.001)/365;
+      const legIv=legIvDecimal(l,iv);
+      const g=bs(px,l.strike,legT,rfr,legIv,tipo);
       return sum+(l.side==='sell'?(l.avg_price-g.precio):(g.precio-l.avg_price))*Number(l.size||0);
     },0));
 
@@ -1947,6 +1953,11 @@ function calendarNetDelta(pos){
   return (pos?.legs||[]).reduce((s,l)=>s+(Number(l.delta)||0),0);
 }
 
+function legIvDecimal(leg,fallback){
+  const raw=Number(leg?.iv);
+  if(Number.isFinite(raw)&&raw>0)return raw>3?raw/100:raw;
+  return Number.isFinite(Number(fallback))&&Number(fallback)>0?Number(fallback):0.60;
+}
 function bsOptionValue(S,K,T,r,iv,isCall){
   if(!(S>0&&K>0))return 0;
   if(!(T>0)||!(iv>0))return isCall?Math.max(0,S-K):Math.max(0,K-S);
@@ -1967,7 +1978,8 @@ function calendarFrontExpiryPayoff(pos,px,iv,rfr=0){
   const f=expiryUtc(legExpiryCode(short)),b=expiryUtc(legExpiryCode(long));
   const residual=(f&&b)?Math.max(0,(b-f)/86400000)/365:0;
   const intrinsic=short.is_call?Math.max(0,px-Kshort):Math.max(0,Kshort-px);
-  const back=bsOptionValue(px,Klong,residual,rfr,iv,!!long.is_call);
+  const backIv=legIvDecimal(long,iv);
+  const back=bsOptionValue(px,Klong,residual,rfr,backIv,!!long.is_call);
   const debitFromLegs=(Number(long.avg_price||0)*Number(long.size||0))-(Number(short.avg_price||0)*Number(short.size||0));
   const debit=Number(pos.credito_entrada)<0?Math.abs(Number(pos.credito_entrada)):Math.max(0,debitFromLegs);
   return (back-intrinsic)*qty-debit;
@@ -2062,7 +2074,9 @@ function positionRiskModel(pos,S,iv,T,rfr=0){
     shortStrikes,minShortDistance,maxShortDelta,
     multiExpiry,
     riskBasis:multiExpiry?'DEBIT_RISK':'EXPIRY_PAYOFF',
-    modelNote:multiExpiry?'Calendar modelado al front expiry; back leg conserva valor temporal.':'Expiry payoff'
+    modelNote:multiExpiry
+      ? `${String(pos?.estrategia||'CAL').toUpperCase()} modelada al front expiry; back leg conserva valor temporal con su IV y vencimiento propios.`
+      :'Expiry payoff'
   };
 }
 function assessRiskState(pos,model=null){
