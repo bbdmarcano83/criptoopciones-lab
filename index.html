@@ -1465,7 +1465,11 @@ function buildCandidates(d){
     if(!current||o.score>current.score)bestByCode.set(o.code,o);
   });
   return [...bestByCode.values()]
-    .sort((a,b)=>Number(b.selectable)-Number(a.selectable)||b.score-a.score);
+    .sort((a,b)=>
+      Number(b.selectable)-Number(a.selectable)||
+      b.regimePriority-a.regimePriority||
+      b.score-a.score
+    );
 }
 
 function opportunityGrade(score){
