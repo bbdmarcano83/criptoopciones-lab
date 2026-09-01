@@ -1431,27 +1431,15 @@ function buildCandidates(d){
         :'No existe un segundo vencimiento suficientemente posterior para construir el CAL.'
   });
 
-  // Long volatility excepcional. Sin catalizador verificado queda WATCH y no se puede cargar.
-  if(pATM&&cATM&&Math.abs(safeNum(pATM.strike)-safeNum(cATM.strike))<1e-9){
-    const straddle=[mkLeg(cATM,'buy'),mkLeg(pATM,'buy')].filter(Boolean);
-    if(validLegs(straddle))result.push({
-      name:'Long Straddle',code:'STRADDLE',legs:straddle,premium:candidateCredit(straddle),
-      liq:candidateLiquidity(straddle,options),netDelta:candidateNetDelta(straddle,options),
-      pop:null,economicScore:50,reason:'Compra movimiento en ambas direcciones · exige IV extrema barata y catalizador verificable.'
-    });
-  }
-  if(p20&&c20){
-    const strangle=[mkLeg(p20,'buy'),mkLeg(c20,'buy')].filter(Boolean);
-    if(validLegs(strangle))result.push({
-      name:'Long Strangle',code:'STRANGLE',legs:strangle,premium:candidateCredit(strangle),
-      liq:candidateLiquidity(strangle,options),netDelta:candidateNetDelta(strangle,options),
-      pop:null,economicScore:45,reason:'Compra colas sin elegir dirección · exige IV extrema barata y catalizador verificable.'
-    });
-  }
+  // Straddle/Strangle siguen disponibles como plantillas manuales, pero no
+  // se generan automáticamente hasta integrar una fuente real de catalizadores.
 
-  return NeutralStrategyPolicy.rank(result,d)
-    .filter(o=>o.status!=='FAIL'||o.code==='CAL')
-    .slice(0,6);
+  const ranked=NeutralStrategyPolicy.rank(result,d);
+  const visible=ranked.filter(o=>o.status!=='FAIL');
+  const calendar=ranked.find(o=>o.code==='CAL');
+  // El diagnóstico Calendar nunca se oculta por límite o ranking.
+  if(calendar&&!visible.includes(calendar))visible.push(calendar);
+  return visible.slice(0,5);
 }
 
 function opportunityGrade(score){
