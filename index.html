@@ -10,6 +10,7 @@
 <script src="exchange_engine.js"></script>
 <script src="iv_engine.js"></script>
 <script src="market_engine.js"></script>
+<script src="strategy_recommender.js"></script>
 <script src="co_shared.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1265,117 +1266,137 @@ function findFartherExpiry(options,refDte){
   return [...groups.entries()].sort((a,b)=>Math.abs(a[1]-refDte*2)-Math.abs(b[1]-refDte*2))[0]?.[0]||null;
 }
 
+function candidateNetDelta(ls,options){
+  return ls.reduce((sum,l)=>{
+    const row=options.find(o=>o.symbol===l.contrato);
+    const delta=Number(row?.delta);
+    if(!Number.isFinite(delta))return sum;
+    return sum+(l.accion==='buy'?1:-1)*delta*safeNum(l.qty,defaultQty());
+  },0);
+}
+function candidatePop(ls,options){
+  const shorts=ls.filter(l=>l.accion==='sell').map(l=>options.find(o=>o.symbol===l.contrato)).filter(Boolean);
+  if(shorts.length<2)return null;
+  return clamp(1-shorts.reduce((s,row)=>s+Math.abs(safeNum(row.delta)),0),0,1);
+}
+function definedRiskEconomicScore(ls){
+  const credit=candidateCredit(ls);
+  if(credit<=0)return 0;
+  const puts=ls.filter(l=>l.tipo==='put').map(l=>safeNum(l.strike));
+  const calls=ls.filter(l=>l.tipo==='call').map(l=>safeNum(l.strike));
+  const widths=[];
+  if(puts.length>=2)widths.push(Math.max(...puts)-Math.min(...puts));
+  if(calls.length>=2)widths.push(Math.max(...calls)-Math.min(...calls));
+  const maxWidth=Math.max(...widths,0);
+  const maxLoss=maxWidth-credit;
+  return maxLoss>0?clamp((credit/maxLoss)*180,0,100):0;
+}
+
 function buildCandidates(d){
   const options=d.options||[];
   const ref=d.reference;
-  if(!ref)return [];
+  if(!ref||typeof NeutralStrategyPolicy==='undefined')return [];
   const S=safeNum(d.spot?.price);
   const rows=options.filter(o=>o.expiry===ref.expiry);
-  const ivr=Number(d.ivRank52w);
-  const skew=d.skew?.label||'BALANCED';
-  const baseScore=safeNum(d.opportunity?.score,45);
   const result=[];
 
-  const p20=optionByDelta(rows,'put',.20);
-  const p10=optionByDelta(rows,'put',.10);
-  const c20=optionByDelta(rows,'call',.20);
-  const c10=optionByDelta(rows,'call',.10);
-  const pATM=optionATM(rows,S,'put');
-  const cATM=optionATM(rows,S,'call');
-  const p15=optionByDelta(rows,'put',.15);
-  const c15=optionByDelta(rows,'call',.15);
+  const p20=optionByDelta(rows,'put',.20),p10=optionByDelta(rows,'put',.10),p05=optionByDelta(rows,'put',.05);
+  const c20=optionByDelta(rows,'call',.20),c10=optionByDelta(rows,'call',.10),c05=optionByDelta(rows,'call',.05);
+  const p15=optionByDelta(rows,'put',.15),c15=optionByDelta(rows,'call',.15);
+  const pATM=optionATM(rows,S,'put'),cATM=optionATM(rows,S,'call');
+  const skew=d.skew?.label||'BALANCED';
 
-  // Iron Condor — preferred neutral defined-risk premium structure.
-  const ic=[mkLeg(p10,'buy'),mkLeg(p20,'sell'),mkLeg(c20,'sell'),mkLeg(c10,'buy')].filter(Boolean);
-  if(validLegs(ic)){
-    const credit=candidateCredit(ic);
-    const liq=candidateLiquidity(ic,options);
-    let score=baseScore+(Number.isFinite(ivr)?(ivr-50)*.20:0)+(liq-50)*.12;
-    if(skew==='BALANCED')score+=5;
-    const putWing=Math.abs(safeNum(p20?.strike)-safeNum(p10?.strike));
-    const callWing=Math.abs(safeNum(c10?.strike)-safeNum(c20?.strike));
-    const brokenWing=Math.abs(putWing-callWing)>1e-9;
-    if(brokenWing)score-=2;
-    score=Math.round(clamp(score,0,100));
-    result.push({
-      name:brokenWing?'Broken Wing Condor':'Iron Condor',
-      code:brokenWing?'BWC':'IC',score,legs:ic,
-      reason:brokenWing
-        ?`Alas asimétricas ${putWing.toLocaleString()}/${callWing.toLocaleString()} · riesgo definido por el ala más ancha.`
-        :'Neutral · alas simétricas · riesgo definido · monetiza prima en ambos lados.',
-      premium:credit,liq
-    });
-  }
-
-  // Iron Butterfly — concentrated premium around ATM.
-  const ib=[mkLeg(p15,'buy'),mkLeg(pATM,'sell'),mkLeg(cATM,'sell'),mkLeg(c15,'buy')].filter(Boolean);
-  if(validLegs(ib)){
-    const credit=candidateCredit(ib);
-    const liq=candidateLiquidity(ib,options);
-    let score=baseScore+(Number.isFinite(ivr)?(ivr-55)*.24:0)+(liq-50)*.10;
-    if(d.regime?.trend==='NEUTRAL')score+=6;
-    score=Math.round(clamp(score,0,100));
-    result.push({
-      name:'Iron Butterfly',code:'IB',score,legs:ib,
-      reason:'Máxima concentración de theta cerca del ATM; exige mayor disciplina de gestión.',
-      premium:credit,liq
-    });
-  }
-
-  // Credit spread selected by richer skew, still defined-risk.
-  let shortRow,longRow,spreadName;
-  if(skew==='CALL PREMIUM'){
-    shortRow=c20; longRow=c10; spreadName='Call Credit Spread';
-  }else{
-    shortRow=p20; longRow=p10; spreadName='Put Credit Spread';
-  }
-  const cs=[mkLeg(shortRow,'sell'),mkLeg(longRow,'buy')].filter(Boolean);
-  if(validLegs(cs)){
-    const credit=candidateCredit(cs),liq=candidateLiquidity(cs,options);
-    let score=baseScore-3+(Number.isFinite(ivr)?(ivr-50)*.16:0)+(liq-50)*.12;
-    if(skew!=='BALANCED')score+=7;
-    score=Math.round(clamp(score,0,100));
-    result.push({
-      name:spreadName,code:'CS',score,legs:cs,
-      reason:`Riesgo definido · aprovecha ${skew==='BALANCED'?'el lado con mejor ejecución':skew.toLowerCase()}.`,
-      premium:credit,liq
-    });
-  }
-
-  // Calendar puro primero. Diagonal protegida solo como fallback explícito.
-  const farExpiry=findFartherExpiry(options,ref.dte);
-  if(farExpiry){
-    const farRows=options.filter(o=>o.expiry===farExpiry);
-    const nearCall=executableOptions(rows,'call')
-      .sort((a,b)=>Math.abs(safeNum(a.strike)-S)-Math.abs(safeNum(b.strike)-S))[0]||null;
-    const pureBack=nearCall
-      ?optionAtStrike(farRows,'call',nearCall.strike)
-      :null;
-    const farCall=pureBack||(
-      nearCall?protectedDiagonalBack(farRows,'call',nearCall.strike):null
-    );
-    const isPure=Boolean(
-      nearCall&&farCall&&
-      Math.abs(safeNum(nearCall.strike)-safeNum(farCall.strike))<1e-9
-    );
-    const cal=[mkLeg(nearCall,'sell'),mkLeg(farCall,'buy')].filter(Boolean);
-    if(validLegs(cal)){
-      const debit=-candidateCredit(cal),liq=candidateLiquidity(cal,options);
-      let score=baseScore+(Number.isFinite(ivr)?(45-ivr)*.35:0)+(liq-50)*.08;
-      if(d.regime?.term==='CONTANGO')score+=6;
-      if(!isPure)score-=2;
-      score=Math.round(clamp(score,0,100));
+  // IC neutral: intentar alas exactamente simétricas antes de aceptar la geometría.
+  if(p20&&c20&&p10&&c10){
+    const putW=Math.abs(safeNum(p20.strike)-safeNum(p10.strike));
+    const callW=Math.abs(safeNum(c10.strike)-safeNum(c20.strike));
+    const w=Math.min(putW,callW);
+    const lp=optionAtStrike(rows,'put',safeNum(p20.strike)-w)||p10;
+    const lc=optionAtStrike(rows,'call',safeNum(c20.strike)+w)||c10;
+    const ic=[mkLeg(lp,'buy'),mkLeg(p20,'sell'),mkLeg(c20,'sell'),mkLeg(lc,'buy')].filter(Boolean);
+    if(validLegs(ic)){
+      const actualPutW=Math.abs(safeNum(p20.strike)-safeNum(lp.strike));
+      const actualCallW=Math.abs(safeNum(lc.strike)-safeNum(c20.strike));
+      const code=Math.abs(actualPutW-actualCallW)<1e-9?'IC':'BWC';
       result.push({
-        name:isPure?'Calendar ATM':'Diagonal protegida',code:'CAL',score,legs:cal,
-        reason:isPure
-          ?'Mismo strike en ambos vencimientos: compra vega posterior y financia el débito vendiendo el frontal.'
-          :'Fallback: el mismo strike no tenía cotización ejecutable atrás; se eligió el strike adyacente con protección conservada.',
-        premium:-debit,liq
+        name:code==='IC'?'Iron Condor':'Broken Wing Condor',code,legs:ic,
+        premium:candidateCredit(ic),liq:candidateLiquidity(ic,options),
+        netDelta:candidateNetDelta(ic,options),pop:candidatePop(ic,options),
+        economicScore:definedRiskEconomicScore(ic),
+        reason:code==='IC'
+          ?'Neutral · alas simétricas · riesgo definido · monetiza prima en ambos lados.'
+          :`Alas ${actualPutW.toLocaleString()}/${actualCallW.toLocaleString()} derivadas de contratos ejecutables.`
       });
     }
   }
 
-  return result.sort((a,b)=>b.score-a.score).slice(0,4);
+  // BWC separado: sólo tendrá PASS cuando el skew justifique la asimetría y Δ permanezca neutral.
+  if(skew!=='BALANCED'&&p20&&c20){
+    const lp=skew==='PUT PREMIUM'?(p05||p10):p10;
+    const lc=skew==='CALL PREMIUM'?(c05||c10):c10;
+    const bwc=[mkLeg(lp,'buy'),mkLeg(p20,'sell'),mkLeg(c20,'sell'),mkLeg(lc,'buy')].filter(Boolean);
+    if(validLegs(bwc)){
+      result.push({
+        name:'Broken Wing Condor',code:'BWC',legs:bwc,
+        premium:candidateCredit(bwc),liq:candidateLiquidity(bwc,options),
+        netDelta:candidateNetDelta(bwc,options),pop:candidatePop(bwc,options),
+        economicScore:definedRiskEconomicScore(bwc),
+        reason:`Neutral ajustado al ${skew.toLowerCase()} · alas asimétricas con pérdida definida.`
+      });
+    }
+  }
+
+  // IB selectiva: reservada por política para IVR >=65 y crédito excepcional.
+  const ib=[mkLeg(p15,'buy'),mkLeg(pATM,'sell'),mkLeg(cATM,'sell'),mkLeg(c15,'buy')].filter(Boolean);
+  if(validLegs(ib)){
+    result.push({
+      name:'Iron Butterfly',code:'IB',legs:ib,
+      premium:candidateCredit(ib),liq:candidateLiquidity(ib,options),
+      netDelta:candidateNetDelta(ib,options),pop:candidatePop(ib,options),
+      economicScore:definedRiskEconomicScore(ib),
+      reason:'Theta concentrada en ATM · sólo se aprueba con IV muy alta, crédito y break-even suficientes.'
+    });
+  }
+
+  // Calendar puro: mismo tipo y strike; nunca degradar automáticamente a diagonal.
+  const farExpiry=findFartherExpiry(options,ref.dte);
+  if(farExpiry){
+    const farRows=options.filter(o=>o.expiry===farExpiry);
+    const nearCall=executableOptions(rows,'call').sort((a,b)=>Math.abs(safeNum(a.strike)-S)-Math.abs(safeNum(b.strike)-S))[0]||null;
+    const pureBack=nearCall?optionAtStrike(farRows,'call',nearCall.strike):null;
+    const cal=[mkLeg(nearCall,'sell'),mkLeg(pureBack,'buy')].filter(Boolean);
+    if(validLegs(cal)){
+      const termBonus=d.regime?.term==='CONTANGO'?75:d.regime?.term==='FLAT'?62:35;
+      result.push({
+        name:'Calendar ATM',code:'CAL',legs:cal,isPureCalendar:true,
+        premium:candidateCredit(cal),liq:candidateLiquidity(cal,options),
+        netDelta:candidateNetDelta(cal,options),pop:null,economicScore:termBonus,
+        reason:'Mismo strike · vende vencimiento frontal y compra vega posterior; evaluación al expiry frontal.'
+      });
+    }
+  }
+
+  // Long volatility excepcional. Sin catalizador verificado queda WATCH y no se puede cargar.
+  if(pATM&&cATM&&Math.abs(safeNum(pATM.strike)-safeNum(cATM.strike))<1e-9){
+    const straddle=[mkLeg(cATM,'buy'),mkLeg(pATM,'buy')].filter(Boolean);
+    if(validLegs(straddle))result.push({
+      name:'Long Straddle',code:'STRADDLE',legs:straddle,premium:candidateCredit(straddle),
+      liq:candidateLiquidity(straddle,options),netDelta:candidateNetDelta(straddle,options),
+      pop:null,economicScore:50,reason:'Compra movimiento en ambas direcciones · exige IV extrema barata y catalizador verificable.'
+    });
+  }
+  if(p20&&c20){
+    const strangle=[mkLeg(p20,'buy'),mkLeg(c20,'buy')].filter(Boolean);
+    if(validLegs(strangle))result.push({
+      name:'Long Strangle',code:'STRANGLE',legs:strangle,premium:candidateCredit(strangle),
+      liq:candidateLiquidity(strangle,options),netDelta:candidateNetDelta(strangle,options),
+      pop:null,economicScore:45,reason:'Compra colas sin elegir dirección · exige IV extrema barata y catalizador verificable.'
+    });
+  }
+
+  return NeutralStrategyPolicy.rank(result,d)
+    .filter(o=>o.status!=='FAIL')
+    .slice(0,5);
 }
 
 function opportunityGrade(score){
@@ -1408,7 +1429,7 @@ function renderOpportunities(d){
         <span class="opp-name">${i===0?'★ ':''}${o.name}</span>
         <span class="opp-score ${grade}">${o.score}/100</span>
       </div>
-      <div class="opp-reason">${o.reason}</div>
+      <div class="opp-reason"><b>${o.status}</b> · ${o.reason}${o.rejectionReasons?.length?`<br><span style="color:#f6ad42">${o.rejectionReasons.join(' · ')}</span>`:''}</div>
       <div class="opp-legs">
         ${o.legs.map(l=>`<div class="opp-leg"><span class="${l.accion}">${l.accion.toUpperCase()} ${l.tipo.toUpperCase()}</span><b>${Math.round(l.strike).toLocaleString()} · Δ ${(() => {
           const row=(d.options||[]).find(x=>x.symbol===l.contrato);
@@ -1419,7 +1440,7 @@ function renderOpportunities(d){
         <div><span>${premLabel} teórico / unidad</span><b>${fmt(Math.abs(net))}</b></div>
         <div><span>Liquidez patas</span><b>${o.liq.toFixed(0)}/100</b></div>
       </div>
-      <button class="opp-action" onclick="loadOpportunity(${i})">Cargar estructura al payoff</button>
+      <button class="opp-action" ${o.eligible?`onclick="loadOpportunity(${i})"`:'disabled style="opacity:.45;cursor:not-allowed"'}>${o.eligible?'Cargar estructura al payoff':'Condición pendiente · no ejecutable'}</button>
     </div>`;
   }).join('');
 }
@@ -1430,7 +1451,8 @@ function loadOpportunity(i){
   legs=o.legs.map(l=>({...l}));
   setLegsSource('analyzer');
   if(typeof COState!=='undefined')COState.legs=legs;
-  const map={IC:'IC',IB:'IB',CS:'CS',CAL:'CAL'};
+  if(!o.eligible)return;
+  const map={IC:'IC',IB:'IB',BWC:'BWC',CAL:'CAL',STRADDLE:'STRADDLE',STRANGLE:'STRANGLE'};
   const sel=document.getElementById('exec-strat-sel');
   if(sel&&[...sel.options].some(x=>x.value===map[o.code]))sel.value=map[o.code];
   renderLegs();
@@ -1446,7 +1468,7 @@ function evaluateDecisionDesk(d){
   const atmIV=safeNum(d.reference?.iv);
   const risk=currentRiskState();
   const candidates=buildCandidates(d);
-  const best=candidates[0]||null;
+  const best=candidates.find(x=>x.eligible)||null;
 
   let volStatus,volValue,volSub;
   if(!Number.isFinite(ivr)){
