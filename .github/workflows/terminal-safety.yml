@@ -45,12 +45,20 @@ jobs:
           node <<'NODE'
           const fs = require("fs");
           const vm = require("vm");
-          const html = fs.readFileSync("index.html", "utf8");
-          const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
-          for (const [i, match] of scripts.entries()) {
-            new vm.Script(match[1], { filename: `index-inline-${i + 1}.js` });
+          const pages = [
+            "index.html", "positions.html", "chain.html", "iv.html",
+            "ajuste.html", "diario.html", "manual.html",
+          ];
+          let inlineCount = 0;
+          for (const page of pages) {
+            const html = fs.readFileSync(page, "utf8");
+            const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
+            for (const [i, match] of scripts.entries()) {
+              new vm.Script(match[1], { filename: `${page}-inline-${i + 1}.js` });
+              inlineCount += 1;
+            }
           }
-          console.log(`TERMINAL_JS_SYNTAX_OK ${scripts.length}`);
+          console.log(`TERMINAL_JS_SYNTAX_OK ${inlineCount}`);
           for (const file of fs.readdirSync(".").filter(name => name.endsWith(".js"))) {
             new vm.Script(fs.readFileSync(file, "utf8"), { filename: file });
           }
