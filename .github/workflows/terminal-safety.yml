@@ -51,4 +51,8 @@ jobs:
             new vm.Script(match[1], { filename: `index-inline-${i + 1}.js` });
           }
           console.log(`TERMINAL_JS_SYNTAX_OK ${scripts.length}`);
+          for (const file of fs.readdirSync(".").filter(name => name.endsWith(".js"))) {
+            new vm.Script(fs.readFileSync(file, "utf8"), { filename: file });
+          }
+          console.log("LOCAL_JS_SYNTAX_OK");
           NODE
