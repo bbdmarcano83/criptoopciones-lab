@@ -2,7 +2,7 @@
 (function(global){
 'use strict';
 
-const AUTO_CODES=new Set(['CAL','IC','IB','BWC','STRADDLE','STRANGLE']);
+const AUTO_CODES=new Set(['CAL','IC','IB','BWC']);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const num=(v,d=0)=>Number.isFinite(Number(v))?Number(v):d;
 
@@ -61,15 +61,6 @@ function evaluate(candidate,market){
       if(Number.isFinite(ivr)&&ivr<65){eligible=false;reasons.push('IB reservada para IVR muy alta');}
       if(credit<=0){eligible=false;reasons.push('Crédito neto no positivo');}
       if(Number.isFinite(pop)&&pop<.45){eligible=false;reasons.push('Break-even demasiado estrecho');}
-    }else if(code==='STRADDLE'||code==='STRANGLE'){
-      regimeFit=Number.isFinite(ivr)?clamp(100-(ivr*5),0,100):25;
-      const extremeCheap=Number.isFinite(ivr)&&ivr<=10&&Number.isFinite(ivp)&&ivp<=15;
-      if(!extremeCheap){eligible=false;reasons.push('Volatilidad no está extremadamente barata');}
-      if(market.catalyst?.verified!==true){
-        eligible=false;status='WATCH';
-        reasons.push('Requiere catalizador verificable');
-      }
-      if(credit>=0){eligible=false;reasons.push('La compra de volatilidad debe ser débito');}
     }
   }
 
@@ -99,7 +90,7 @@ function rank(candidates,market){
 }
 
 global.NeutralStrategyPolicy={
-  version:'1.1',
+  version:'1.2',
   autoCodes:[...AUTO_CODES],
   evaluate,
   rank,
