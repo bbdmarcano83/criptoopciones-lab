@@ -1122,8 +1122,13 @@ const BOT={
 
 async function botFetch(path,opts={}){
   if(!BOT.url||!BOT.token)throw new Error('Bot no configurado');
-  const r=await fetch(BOT.url+path,{
+  const method=String(opts.method||'GET').toUpperCase();
+  const noCachePath=method==='GET'
+    ? path+(path.includes('?')?'&':'?')+'_ts='+Date.now()
+    : path;
+  const r=await fetch(BOT.url+noCachePath,{
     ...opts,
+    cache:method==='GET'?'no-store':opts.cache,
     headers:{'X-Bot-Token':BOT.token,'Content-Type':'application/json',...(opts.headers||{})}
   });
   if(!r.ok){const t=await r.text();throw new Error(t||r.statusText);}
@@ -1136,6 +1141,8 @@ let selectedPos=null;
 let selectedRoll=null;
 let activeTab='payoff';
 let autoRefreshTimer=null;
+let livePnlTimer=null;
+let livePnlInFlight=false;
 const spotPrices={BTC:0,ETH:0};
 const marketIV={BTC:60,ETH:60};
 let positionVenue='Bybit';
@@ -1143,6 +1150,31 @@ let marketAnalyses={};
 let botCapabilities={};
 let legsCollapsed=localStorage.getItem('co_positions_legs_collapsed')==='1';
 let payoffView=localStorage.getItem('co_positions_payoff_view')||'focus';
+
+function finiteNumber(...values){
+  for(const value of values){
+    const n=Number(value);
+    if(value!==null&&value!==''&&Number.isFinite(n))return n;
+  }
+  return 0;
+}
+function normalizeLiveSnapshot(data){
+  const estrategias=(data?.estrategias||[]).map(p=>{
+    const legs=(p.legs||[]).map(l=>({
+      ...l,
+      // Fuente canónica: el unrealisedPnl de la misma posición abierta en Bybit.
+      pnl:finiteNumber(l.unrealised_pnl,l.unrealisedPnl,l.pnl)
+    }));
+    return {...p,legs,pnl:legs.reduce((sum,l)=>sum+l.pnl,0)};
+  });
+  return {
+    ...(data||{}),
+    estrategias,
+    // El total visible siempre es la suma de las patas del mismo snapshot.
+    pnl_total:estrategias.reduce((sum,p)=>sum+p.pnl,0)
+  };
+}
+function fmtPnl(v){return fmt(finiteNumber(v),4);}
 let lastBotData={};
 let lastPortfolioData={};
 let accountSnapshot={verified:false,source:'N/D'};
@@ -1193,7 +1225,7 @@ async function loadAll(){
     }
 
     // Live positions from bot
-    const data=await botFetch('/live');
+    const data=normalizeLiveSnapshot(await botFetch('/live'));
     lastBotData=data||{};
     botFetchedAt=Date.now();
 
@@ -1208,7 +1240,7 @@ async function loadAll(){
 
     // Update topbar
     const pnlTotal=data.pnl_total||0;
-    el('tb-pnl').textContent=fmt(pnlTotal);
+    el('tb-pnl').textContent=fmtPnl(pnlTotal);
     el('tb-pnl').className='tsv '+(pnlTotal>=0?'g':'r');
     const acc=accountSnapshot;
     el('tb-bal').textContent=Number.isFinite(acc.balance)?fmt(acc.balance):'N/D';
@@ -1285,7 +1317,7 @@ function renderSidebar(){
     return `<div class="pos-card ${selectedPos?.label===p.label?'selected':''}" onclick="selectByIndex(${i})">
       <div class="pc-top">
         <span><span class="badge ${stratClass}">${p.estrategia}</span> <span class="badge ${assetClass}">${p.asset}</span></span>
-        <span class="pc-pnl ${p.pnl>=0?'g':'r'}">${fmt(p.pnl)}</span>
+        <span class="pc-pnl ${p.pnl>=0?'g':'r'}">${fmtPnl(p.pnl)}</span>
       </div>
       <div class="pc-sub">${p.expiry||'--'} · ${calcDTE(p.expiry)??'--'}d · ${Number(p.credito_entrada)<0?'Db':'Cr'} ${fmt(Math.abs(Number(p.credito_entrada)||0))}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px">
@@ -1341,7 +1373,7 @@ function renderMainHeader(){
     <div class="mh-group"><div class="mh-lbl">MAX LOSS</div><div class="mh-val" style="color:#ff6f7d">${model.unbounded?'UNBOUNDED':fmt(Math.abs(model.maxLoss||0))+(model.multiExpiry?' · DEBIT RISK':'')}</div></div>
     <div class="mh-sep"></div>
     <div class="mh-group"><div class="mh-lbl">PnL actual</div>
-      <div class="mh-val" style="color:${p.pnl>=0?'#10b981':'#f43f5e'}">${fmt(p.pnl)} (${pct.toFixed(1)}%)</div></div>
+      <div class="mh-val" style="color:${p.pnl>=0?'#10b981':'#f43f5e'}">${fmtPnl(p.pnl)} (${pct.toFixed(1)}%)</div></div>
     <div class="mh-sep"></div>
     <div class="mh-group"><div class="mh-lbl">Label</div>
       <div class="mh-val" style="font-size:10px;color:#64748b">${p.label}</div></div>
@@ -1389,7 +1421,7 @@ function renderRightPanel(){
   // Mark vs executable valuation
   setText('val-mark-close',valuation.markCloseText);
   setText('val-exec-close',valuation.execCloseText);
-  setText('val-mark-pnl',fmt(p.pnl||0));
+  setText('val-mark-pnl',fmtPnl(p.pnl||0));
   setText('val-exec-pnl',valuation.execPnlText);
   setText('val-slip',valuation.slippageText);
   setText('val-fees',valuation.feesText);
@@ -1418,7 +1450,7 @@ function renderRightPanel(){
   const _premAbs=_isDebit?(calendarDebit(p)??Math.abs(Number(p.credito_entrada)||0)):Math.abs(Number(p.credito_entrada)||0);
   setText('rp-premium-label',_isDebit?'Débito entrada':'Crédito entrada');
   setText('rp-cred',fmt(_premAbs));
-  setText('rp-pnl',fmt(p.pnl||0)); colorValue('rp-pnl',Number(p.pnl||0));
+  setText('rp-pnl',fmtPnl(p.pnl||0)); colorValue('rp-pnl',Number(p.pnl||0));
   setText('rp-pct',pct.toFixed(1)+'%');
   setText('rp-exp',p.expiry||'--');
   setText('rp-dte',(dte??'--')+'d');
@@ -1562,7 +1594,7 @@ function renderLegsTable(){
       <td class="leg-entry">$${Number(l.avg_price||0).toFixed(2)}</td>
       <td class="leg-mark">$${Number(l.mark_price||q?.mark||0).toFixed(2)}</td>
       <td style="color:#f59e0b">${Number(l.iv||q?.iv||0).toFixed(1)}%</td>
-      <td style="color:${pnl>=0?'#10b981':'#f43f5e'};font-weight:700">${fmt(pnl)}</td>
+      <td style="color:${pnl>=0?'#10b981':'#f43f5e'};font-weight:700">${fmtPnl(pnl)}</td>
       <td style="color:#9badc1">${Number(l.delta||q?.delta||0).toFixed(3)}</td>
       <td style="color:${Number(l.theta||0)>=0?'#10b981':'#f43f5e'}">${fmt(Number(l.theta||0))}</td>
       <td style="color:${Number(l.vega||0)>=0?'#10b981':'#f43f5e'}">${fmt(Number(l.vega||0))}</td>
@@ -1684,7 +1716,7 @@ function updateSummary(data){
   const theta=allPositions.reduce((s,p)=>s+(p.theta||0),0);
   const delta=allPositions.reduce((s,p)=>s+(p.delta||0),0);
   el('s-cred').textContent=fmt(cred);
-  const spnl=el('s-pnl');spnl.textContent=fmt(pnl);spnl.className='ss-val '+(pnl>=0?'g':'r');
+  const spnl=el('s-pnl');spnl.textContent=fmtPnl(pnl);spnl.className='ss-val '+(pnl>=0?'g':'r');
   const spct=el('s-pct');spct.textContent=pct.toFixed(1)+'%';spct.className='ss-val '+(pct>=50?'g':pct>=25?'y':'r');
   el('s-theta').textContent=fmt(theta);
   el('s-delta').textContent=delta.toFixed(4);
@@ -1732,7 +1764,7 @@ function confirmClose(){
   if(!selectedPos){toast('Selecciona una posición','err');return;}
   el('close-label').textContent=selectedPos.label;
   const pnl=selectedPos.pnl||0;
-  el('close-pnl').innerHTML=`<span style="color:${pnl>=0?'#10b981':'#f43f5e'}">${fmt(pnl)}</span>`;
+  el('close-pnl').innerHTML=`<span style="color:${pnl>=0?'#10b981':'#f43f5e'}">${fmtPnl(pnl)}</span>`;
   showModal('modal-close');
 }
 
@@ -2257,7 +2289,7 @@ function updatePortfolioRisk(data){
   });
   const global=combineRiskStates(structureWorst,accountRisk);
 
-  setText('pf-pnl',fmt(pnl)); colorValue('pf-pnl',pnl);
+  setText('pf-pnl',fmtPnl(pnl)); colorValue('pf-pnl',pnl);
   setText('pf-balance',Number.isFinite(balance)?fmt(balance):'N/D');
   setText('pf-balance-s',acc.verified?`Fuente ${acc.source}`:'UNVERIFIED · no usar para riesgo');
   setText('pf-available',Number.isFinite(available)?fmt(available):'N/D');
@@ -2572,7 +2604,7 @@ function renderStructureSummary(){
   const rr=assessRiskState(p,model);
   const val=computeExecutableValuation(p);
   const pct=Math.abs(Number(p.credito_entrada))>0?Number(p.pnl||0)/Math.abs(Number(p.credito_entrada))*100:0;
-  setText('ssum-pnl',fmt(p.pnl||0));colorValue('ssum-pnl',Number(p.pnl||0));
+  setText('ssum-pnl',fmtPnl(p.pnl||0));colorValue('ssum-pnl',Number(p.pnl||0));
   setText('ssum-pnl-pct',pct.toFixed(1)+'% capturado');
   const _sumDebit=Number(p.credito_entrada)<0||isCalendarPosition(p);
   const _sumPrem=_sumDebit?(calendarDebit(p)??Math.abs(Number(p.credito_entrada)||0)):Math.abs(Number(p.credito_entrada)||0);
@@ -2751,12 +2783,56 @@ function renderExecutionTelemetry(){
   host.innerHTML=`<b>${lastExecutionTelemetry.status}</b><span>${lastExecutionTelemetry.detail}</span>`;
 }
 
+async function refreshLivePnl(){
+  if(livePnlInFlight||!BOT.url||!BOT.token)return;
+  livePnlInFlight=true;
+  try{
+    const data=normalizeLiveSnapshot(await botFetch('/live'));
+    lastBotData=data;
+    botFetchedAt=Date.now();
+    allPositions=(data.estrategias||[]).map(p=>({
+      ...p,
+      delta:Number.isFinite(Number(p.delta))?Number(p.delta):(p.legs||[]).reduce((s,l)=>s+(Number(l.delta)||0),0),
+      theta:Number.isFinite(Number(p.theta))?Number(p.theta):(p.legs||[]).reduce((s,l)=>s+(Number(l.theta)||0),0),
+      vega:Number.isFinite(Number(p.vega))?Number(p.vega):(p.legs||[]).reduce((s,l)=>s+(Number(l.vega)||0),0),
+      gamma:Number.isFinite(Number(p.gamma))?Number(p.gamma):(p.legs||[]).reduce((s,l)=>s+(Number(l.gamma)||0),0),
+    }));
+
+    const pnlTotal=data.pnl_total;
+    el('tb-pnl').textContent=fmtPnl(pnlTotal);
+    el('tb-pnl').className='tsv '+(pnlTotal>=0?'g':'r');
+    el('sb-update').textContent='PnL Bybit actualizado: '+new Date().toLocaleTimeString('es');
+    updateSummary(data);
+
+    if(selectedPos){
+      const refreshed=allPositions.find(p=>p.label===selectedPos.label);
+      if(refreshed){
+        selectedPos=refreshed;
+        renderSidebar();
+        renderMainHeader();
+        renderRightPanel();
+        renderLegsTable();
+        renderStructureSummary();
+      }
+    }else{
+      renderSidebar();
+    }
+  }catch(err){
+    el('sb-update').textContent='PnL sin actualizar: '+err.message;
+  }finally{
+    livePnlInFlight=false;
+  }
+}
+
 
 // ── Auto refresh ───────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{
   applyLegsState();
   loadAll();
   autoRefreshTimer=setInterval(loadAll,30000);
+  // /live debe ser un snapshot del caché WS privado del Bot; no una consulta
+  // REST nueva a Bybit. Mantiene patas y total dentro del mismo snapshot.
+  livePnlTimer=setInterval(refreshLivePnl,10000);
 });
 
 /* ¡CORRECCIÓN AÑADIDA AQUÍ: Fix para Plotly Resize! */
