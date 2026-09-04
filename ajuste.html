@@ -452,7 +452,7 @@ html,body{
       <section class="leftwork">
         <div class="compare">
           <div class="struct">
-            <div class="struct-title"><b>CURRENT STRUCTURE</b><span class="source live">LIVE / BYBIT</span></div>
+            <div class="struct-title"><b>CURRENT STRUCTURE</b><span class="source live">LIVE / DERIBIT</span></div>
             <div class="legs" id="legs-current"></div>
             <div class="metrics">
               <div class="m"><span>Max Profit</span><b id="cur-mp">--</b></div>
@@ -553,7 +553,7 @@ html,body{
 <div class="modal-bg" id="modal">
   <div class="modal">
     <h3>⚠️ Aprobación explícita de Roll</h3>
-    <p>Esta acción puede enviar órdenes reales a Bybit. El Bot V5 no ejecuta un roll desde este Desk sin aprobación humana explícita.</p>
+    <p>Esta acción puede enviar órdenes reales a Deribit. El Bot V5 no ejecuta un roll desde este Desk sin aprobación humana explícita.</p>
     <div class="review" id="modal-review"></div>
     <p>Confirma que revisaste MAX LOSS, payoff, distancia a shorts, DTE, PnL, liquidez y que el ajuste mejora el perfil de riesgo.</p>
     <div class="modal-actions">
@@ -900,7 +900,7 @@ function selectPos(i){selected=positions[i];candidate=makeCandidates()[0];propos
 async function loadAll(){
   try{
     $('bot-status').textContent='Conectando…';
-    const marketJobs=await Promise.allSettled([MarketEngine.analyze(COState.exchange==='Deribit'?'Deribit':'Bybit','BTC',30),MarketEngine.analyze(COState.exchange==='Deribit'?'Deribit':'Bybit','ETH',30)]);
+    const marketJobs=await Promise.allSettled([MarketEngine.analyze('Deribit','BTC',30),MarketEngine.analyze('Deribit','ETH',30)]);
     for(const r of marketJobs)if(r.status==='fulfilled')market[r.value.asset]=r.value;
     $('btc').textContent=spot('BTC')?fmt(spot('BTC')):'N/D';$('eth').textContent=spot('ETH')?fmt(spot('ETH')):'N/D';
     try{

@@ -19,8 +19,8 @@ function fmtPct(v,d=1){return v.toFixed(d)+'%'}
 
 // Estado global persistente entre páginas
 const COState={
-  get exchange(){const v=localStorage.getItem('co_exchange')||'Bybit';return ['Bybit','Deribit'].includes(v)?v:'Bybit'},
-  set exchange(v){localStorage.setItem('co_exchange',v)},
+  get exchange(){return 'Deribit'},
+  set exchange(v){localStorage.setItem('co_exchange','Deribit')},
   get activo(){const v=localStorage.getItem('co_activo')||'BTC';return ['BTC','ETH'].includes(v)?v:'BTC'},
   set activo(v){localStorage.setItem('co_activo',v)},
   get spot(){return parseFloat(localStorage.getItem('co_spot')||'77000')},
@@ -69,7 +69,7 @@ function obtenerIVATM(opts, spot) {
   return +(atmOpt ? atmOpt.iv : 48.5).toFixed(1);
 }
 
-// Fetch precio — adaptador normalizado Bybit / Deribit
+// Fetch precio — adaptador único Deribit
 async function fetchSpot(exchange,activo){
   try{
     if(typeof ExchangeEngine!=='undefined' && ExchangeEngine.EXCHANGES.includes(exchange)){

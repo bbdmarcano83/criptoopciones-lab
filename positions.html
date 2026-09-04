@@ -1049,7 +1049,7 @@ table.legs td{
       <div id="roll-cost-display" style="font-weight:700;font-size:15px"></div>
     </div>
     <div style="background:#1c1200;border:1px solid #92400e;border-radius:4px;padding:8px;font-size:10px;color:#f59e0b;margin-bottom:4px">
-      ⚠️ Esta acción ejecuta órdenes reales en Bybit. Las cifras mostradas como «modelo» NO son cotizaciones ejecutables. Verifica cadena, bid/ask, margen y riesgo definido antes de confirmar.
+      ⚠️ Esta acción ejecuta órdenes reales en Deribit. Las cifras mostradas como «modelo» NO son cotizaciones ejecutables. Verifica cadena, bid/ask, margen y riesgo definido antes de confirmar.
     </div>
     <div class="modal-actions">
       <button class="modal-cancel" onclick="closeModal('modal-roll')">Cancelar</button>
@@ -1145,7 +1145,7 @@ let livePnlTimer=null;
 let livePnlInFlight=false;
 const spotPrices={BTC:0,ETH:0};
 const marketIV={BTC:60,ETH:60};
-let positionVenue='Bybit';
+let positionVenue='Deribit';
 let marketAnalyses={};
 let botCapabilities={};
 let legsCollapsed=localStorage.getItem('co_positions_legs_collapsed')==='1';
@@ -1162,7 +1162,7 @@ function normalizeLiveSnapshot(data){
   const estrategias=(data?.estrategias||[]).map(p=>{
     const legs=(p.legs||[]).map(l=>({
       ...l,
-      // Fuente canónica: el unrealisedPnl de la misma posición abierta en Bybit.
+      // Fuente canónica: el unrealisedPnl de la misma posición abierta en Deribit.
       pnl:finiteNumber(l.unrealised_pnl,l.unrealisedPnl,l.pnl)
     }));
     return {...p,legs,pnl:legs.reduce((sum,l)=>sum+l.pnl,0)};
@@ -1195,7 +1195,7 @@ let ivrCache={BTC:null,ETH:null};
 async function loadAll(){
   try{
     // Mercado público: mismo motor normalizado que el resto del terminal.
-    positionVenue=(COState.exchange==='Deribit'?'Deribit':'Bybit');
+    positionVenue='Deribit';
     const marketResults=await Promise.allSettled([
       MarketEngine.analyze(positionVenue,'BTC',30),
       MarketEngine.analyze(positionVenue,'ETH',30)
@@ -1319,7 +1319,7 @@ function renderSidebar(){
         <span><span class="badge ${stratClass}">${p.estrategia}</span> <span class="badge ${assetClass}">${p.asset}</span></span>
         <span class="pc-pnl ${p.pnl>=0?'g':'r'}">${fmtPnl(p.pnl)}</span>
       </div>
-      <div class="pc-sub">${p.expiry||'--'} · ${calcDTE(p.expiry)??'--'}d · ${Number(p.credito_entrada)<0?'Db':'Cr'} ${fmt(Math.abs(Number(p.credito_entrada)||0))}</div>
+      <div class="pc-sub">${p.expiry||'--'} · ${calcDTE(p.expiry)??'--'}d · ${Number(p.credito_entrada)<0?'Db':'Cr'} ${fmt(Math.abs(Number(p.credito_entrada)||0))} · ${p.execution_mode==='DERIBIT_NATIVE_COMBO'?'COMBO':'DERIBIT'}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px">
         <span class="pc-risk ${rr.cls}">${rr.label}</span>
         <span style="font-size:7px;color:#7388a2">${rr.shortDistanceText}</span>
@@ -1374,6 +1374,12 @@ function renderMainHeader(){
     <div class="mh-sep"></div>
     <div class="mh-group"><div class="mh-lbl">PnL actual</div>
       <div class="mh-val" style="color:${p.pnl>=0?'#10b981':'#f43f5e'}">${fmtPnl(p.pnl)} (${pct.toFixed(1)}%)</div></div>
+    <div class="mh-sep"></div>
+    <div class="mh-group"><div class="mh-lbl">Combo Deribit</div>
+      <div class="mh-val" style="font-size:9px;color:#38bdf8">${p.combo_id||'N/D'}</div></div>
+    <div class="mh-sep"></div>
+    <div class="mh-group"><div class="mh-lbl">Precio neto entrada</div>
+      <div class="mh-val">${Number.isFinite(Number(p.combo_price))?fmt(Number(p.combo_price)):'N/D'}</div></div>
     <div class="mh-sep"></div>
     <div class="mh-group"><div class="mh-lbl">Label</div>
       <div class="mh-val" style="font-size:10px;color:#64748b">${p.label}</div></div>
@@ -1888,7 +1894,7 @@ async function doSizeChange(){
         iv:l.iv||marketIV[p.asset]||50,
         contrato:l.symbol,
         expiry:p.expiry,
-        exchange:'Bybit'
+        exchange:'Deribit'
       }));
       localStorage.setItem('co_pending_legs',JSON.stringify(legsToSave));
       localStorage.setItem('co_pending_activo',p.asset);
@@ -2380,7 +2386,7 @@ function resolveAccountSnapshot(portfolio,live){
   const pc=digCandidates(portfolio);
   const lc=digCandidates(live);
 
-  // Prefer Bybit UTA canonical semantics from /portfolio.
+  // Prefer Deribit canonical account-summary semantics from /portfolio.
   let equity=pickSemantic(pc,['totalEquity','equity','totalWalletBalance','walletBalance']);
   let marginBalance=pickSemantic(pc,['totalMarginBalance','marginBalance','totalEquity']);
   let available=pickSemantic(pc,['totalAvailableBalance','availableMargin','availableBalance']);
@@ -2443,7 +2449,7 @@ function assessAccountRisk(acc){
   if(!(Number.isFinite(marginBalance)&&marginBalance>0&&Number.isFinite(available))){
     return {
       label:'N/D',cls:'watch',detail:'Margin fields incompletos',
-      reason:'Bybit account snapshot incompleto: faltan margin balance o available margin.'
+      reason:'Deribit account snapshot incompleto: faltan margin balance o available margin.'
     };
   }
 
@@ -2610,7 +2616,7 @@ function renderStructureSummary(){
   const _sumPrem=_sumDebit?(calendarDebit(p)??Math.abs(Number(p.credito_entrada)||0)):Math.abs(Number(p.credito_entrada)||0);
   setText('ssum-premium-label',_sumDebit?'Débito entrada':'Crédito entrada');
   setText('ssum-credit',fmt(_sumPrem));
-  setText('ssum-close','Close exec '+val.execCloseText);
+  setText('ssum-close',p.combo_id?'Combo '+p.combo_id+' · close '+val.execCloseText:'Close exec '+val.execCloseText);
   const mp=Math.max(0,Number(model.maxProfit||0));
   const ml=model.unbounded?Infinity:Math.abs(Number(model.maxLoss||0));
   setText('ssum-mp',model.multiExpiry?fmt(mp)+' MODEL':fmt(mp));
@@ -2801,7 +2807,7 @@ async function refreshLivePnl(){
     const pnlTotal=data.pnl_total;
     el('tb-pnl').textContent=fmtPnl(pnlTotal);
     el('tb-pnl').className='tsv '+(pnlTotal>=0?'g':'r');
-    el('sb-update').textContent='PnL Bybit actualizado: '+new Date().toLocaleTimeString('es');
+    el('sb-update').textContent='PnL Deribit actualizado: '+new Date().toLocaleTimeString('es');
     updateSummary(data);
 
     if(selectedPos){
@@ -2831,7 +2837,7 @@ window.addEventListener('load',()=>{
   loadAll();
   autoRefreshTimer=setInterval(loadAll,30000);
   // /live debe ser un snapshot del caché WS privado del Bot; no una consulta
-  // REST nueva a Bybit. Mantiene patas y total dentro del mismo snapshot.
+  // REST nueva a Deribit. Mantiene patas y total dentro del mismo snapshot.
   livePnlTimer=setInterval(refreshLivePnl,10000);
 });
 

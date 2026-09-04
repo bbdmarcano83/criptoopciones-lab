@@ -88,7 +88,7 @@ table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:9px}th{tex
   <p class="lead">Playbook oficial de decisión, ejecución, riesgo, ajustes y revisión. Este documento define cómo debe utilizarse la terminal como un proceso de inversión repetible, auditable y basado en riesgo.</p>
   <div class="hero-grid">
     <div><span>Universo</span><b>BTC · ETH</b></div>
-    <div><span>Mercados</span><b>Bybit · Deribit</b></div>
+    <div><span>Mercados</span><b>Deribit · Deribit</b></div>
     <div><span>Core</span><b>Volatilidad + Riesgo definido</b></div>
     <div><span>Histórico</span><b>Google Sheets · PRODUCTION</b></div>
   </div>
@@ -119,7 +119,7 @@ table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:9px}th{tex
 <h2>Estados de calidad de datos</h2>
 <table>
 <tr><th>Estado</th><th>Significado</th><th>Acción</th></tr>
-<tr><td><span class="tag live">LIVE / VERIFIED</span></td><td>Dato proveniente de mercado, Bybit/Deribit, Bot V5 o fuente histórica validada.</td><td>Puede utilizarse para decisión y ejecución según el resto de gates.</td></tr>
+<tr><td><span class="tag live">LIVE / VERIFIED</span></td><td>Dato proveniente de mercado, Deribit/Deribit, Bot V5 o fuente histórica validada.</td><td>Puede utilizarse para decisión y ejecución según el resto de gates.</td></tr>
 <tr><td><span class="tag model">MODEL</span></td><td>Estimación matemática o candidato construido por el front.</td><td>Útil para comparar; no se trata como precio ejecutable.</td></tr>
 <tr><td><span class="tag warn">UNVERIFIED</span></td><td>Dato esperado pero no confirmado por la fuente operativa.</td><td>No ejecutar si el dato afecta margen, precio o riesgo material.</td></tr>
 <tr><td><span class="tag bad">STALE / N/D</span></td><td>Dato viejo, incompleto o ausente.</td><td>Actualizar o detener el flujo de decisión.</td></tr>
@@ -413,7 +413,7 @@ table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:9px}th{tex
 </table>
 
 <h2>PnL canónico</h2>
-<p>Para las patas Bybit, el Bot V5 reconstruye el PnL desde <b>avgPrice + markPrice + size + side</b>. Si falta un dato necesario, el resultado debe ser N/D. No se utiliza una cifra stale como confirmación defensiva.</p>
+<p>Para las patas Deribit, el Bot V5 reconstruye el PnL desde <b>avgPrice + markPrice + size + side</b>. Si falta un dato necesario, el resultado debe ser N/D. No se utiliza una cifra stale como confirmación defensiva.</p>
 
 <h2>Greeks</h2>
 <ul>
@@ -500,7 +500,7 @@ table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:9px}th{tex
 </article>
 <article id="sec-journal" class="manual-section"><div class="section-kicker">09 · DIARIO</div>
 <h1>Diario — “¿Dónde está el edge y cómo ejecutamos?”</h1>
-<p class="lead">El Diario es el sistema de memoria institucional. Google Sheets es el histórico maestro persistente; Bot V5/Bybit alimenta estado LIVE. La DB efímera de Render no es autoridad histórica.</p>
+<p class="lead">El Diario es el sistema de memoria institucional. Google Sheets es el histórico maestro persistente; Bot V5/Deribit alimenta estado LIVE. La DB efímera de Render no es autoridad histórica.</p>
 
 <h2>Track Record</h2>
 <table>
@@ -548,7 +548,7 @@ table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:9px}th{tex
 </table>
 
 <h2>Anti-amnesia</h2>
-<p>Si Render reinicia y la DB está vacía, el Bot V5 reconstruye posiciones abiertas desde Bybit. El Diario no debe interpretar DB vacía como “histórico vacío”.</p>
+<p>Si Render reinicia y la DB está vacía, el Bot V5 reconstruye posiciones abiertas desde Deribit. El Diario no debe interpretar DB vacía como “histórico vacío”.</p>
 
 <h2>Control de cambios</h2>
 <ul>

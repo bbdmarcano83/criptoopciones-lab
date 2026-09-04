@@ -3,11 +3,11 @@
  * Núcleo único de volatilidad BTC / ETH.
  *
  * Principios:
- * 1) ATM IV = IV mark actual del exchange seleccionado (Bybit / Deribit).
+ * 1) ATM IV = IV mark actual de Deribit linear USDC.
  * 2) IVR 52W inmediato = benchmark de volatilidad implícita DVOL de Deribit
  *    (serie pública diaria, BTC/ETH). Esto evita IVR estáticos inventados y
  *    evita esperar un año para disponer de una referencia histórica útil.
- * 3) En paralelo se conserva un histórico propio del ATM IV de cada exchange,
+ * 3) En paralelo se conserva un histórico propio del ATM IV de Deribit,
  *    que podrá utilizarse más adelante como ATM-IVR específico del venue.
  */
 (function(global){
@@ -23,7 +23,7 @@ const YEAR_MS=365*DAY_MS;
 const BENCHMARK_CACHE_MS=6*60*60*1000;
 const MAX_POINTS=15000;
 const VALID_ASSETS=['BTC','ETH'];
-const VALID_EXCHANGES=['Bybit','Deribit'];
+const VALID_EXCHANGES=['Deribit'];
 const DERIBIT='https://www.deribit.com/api/v2';
 const canonicalCache=new Map();
 
@@ -243,7 +243,7 @@ async function getBenchmark(asset,{force=false}={}){
   return calculateBenchmark(points);
 }
 
-async function update({exchange='Bybit',asset='BTC',spot,targetDTE=30,options=null,forceBenchmark=false}={}){
+async function update({exchange='Deribit',asset='BTC',spot,targetDTE=30,options=null,forceBenchmark=false}={}){
   exchange=String(exchange); asset=String(asset).toUpperCase(); targetDTE=Number(targetDTE)||30; spot=Number(spot);
   if(!VALID_EXCHANGES.includes(exchange))throw new Error(`Exchange no soportado: ${exchange}`);
   if(!VALID_ASSETS.includes(asset))throw new Error(`Activo no soportado: ${asset}`);
@@ -310,18 +310,18 @@ async function update({exchange='Bybit',asset='BTC',spot,targetDTE=30,options=nu
 
   const state=load(STATE_KEY);
   state[k]=st; state[`${exchange}:${asset}`]=st;
-  if(exchange==='Bybit')state[asset]=st;
+  state[asset]=st;
   save(STATE_KEY,state);
   return st;
 }
 
-function get(asset,exchange='Bybit',targetDTE=null){
+function get(asset,exchange='Deribit',targetDTE=null){
   asset=String(asset||'BTC').toUpperCase();
   const st=load(STATE_KEY);
   if(targetDTE)return st[atmKey(exchange,asset,targetDTE)]||null;
   return st[`${exchange}:${asset}`]||st[asset]||null;
 }
-function getHistory(asset,exchange='Bybit',targetDTE=30){
+function getHistory(asset,exchange='Deribit',targetDTE=30){
   return load(ATM_STORAGE_KEY)[atmKey(exchange,String(asset||'BTC').toUpperCase(),targetDTE)]||[];
 }
 function clear(asset=null,exchange=null){

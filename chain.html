@@ -893,7 +893,7 @@ html,body{
 
   <div class="chain-toolbar">
     <select id="ex">
-      <option value="Bybit">Bybit</option>
+      <option value="Deribit">Deribit</option>
       <option value="Deribit">Deribit</option>
     </select>
 
@@ -927,7 +927,7 @@ html,body{
   <div class="summary">
     <div class="sum-card">
       <div class="sum-k">Mercado</div>
-      <div class="sum-v" id="s-market">BTC · Bybit</div>
+      <div class="sum-v" id="s-market">BTC · Deribit</div>
       <div class="sum-s" id="s-market-sub">--</div>
     </div>
     <div class="sum-card">
@@ -1081,7 +1081,7 @@ const $=id=>document.getElementById(id);
 const ex=$('ex'),act=$('act'),expirySelect=$('expiry-select'),windowSelect=$('window-select');
 const DAY=86400000;
 
-ex.value=ExchangeEngine.EXCHANGES.includes(COState.exchange)?COState.exchange:'Bybit';
+ex.value='Deribit';
 act.value=['BTC','ETH'].includes(COState.activo)?COState.activo:'BTC';
 
 let allOptions=[];
