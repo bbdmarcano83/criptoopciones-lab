@@ -19,7 +19,7 @@ function fmtPct(v,d=1){return v.toFixed(d)+'%'}
 
 // Estado global persistente entre páginas
 const COState={
-  get exchange(){const v=localStorage.getItem('co_exchange')||'Bybit';return ['Bybit','Deribit'].includes(v)?v:'Bybit'},
+  get exchange(){const v=localStorage.getItem('co_exchange')||'Deribit';return ['Bybit','Deribit'].includes(v)?v:'Deribit'},
   set exchange(v){localStorage.setItem('co_exchange',v)},
   get activo(){const v=localStorage.getItem('co_activo')||'BTC';return ['BTC','ETH'].includes(v)?v:'BTC'},
   set activo(v){localStorage.setItem('co_activo',v)},
