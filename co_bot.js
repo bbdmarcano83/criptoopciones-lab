@@ -89,10 +89,40 @@ const BotAPI = {
     const preview = await this.previewExecution(legs);
     if(!preview?.verified || !preview?.ticket)
       throw new Error('Deribit no aprobó el preflight del combo');
-    return botFetch('/ejecutar', {
+
+    const guard = preview.margin_guard || {};
+    if(guard.auto_resized){
+      const requested = Number(guard.requested_qty || 0);
+      const approved = Number(guard.approved_qty || 0);
+      const margin = Number(guard.estimated_initial_margin_with_buffer || 0);
+      const cap = Number(guard.margin_cap_usd || 0);
+      const pct = Number(guard.estimated_margin_pct_equity || 0) * 100;
+      const lines = [
+        'Deribit Margin Guard ajustó el tamaño',
+        '',
+        'Solicitado: ' + requested,
+        'Aprobado: ' + approved,
+        'Margen estimado + buffer: USD ' + margin.toFixed(2),
+        'Límite por estructura: USD ' + cap.toFixed(2),
+        'Margen / equity estimado: ' + pct.toFixed(1) + '%',
+        '',
+        '¿Ejecutar el combo con el tamaño reducido?'
+      ];
+      if(!confirm(lines.join('\n')))
+        return {ok:false,cancelled:true,preflight:preview};
+    }
+
+    const approvedLegs = (preview.legs || []).map(l=>({
+      symbol:l.symbol,
+      side:l.side,
+      qty:Number(l.qty),
+      reference_price:Number(l.price),
+      quote_ts:Date.now()/1000,
+    }));
+    const result = await botFetch('/ejecutar', {
       method: 'POST',
       body: JSON.stringify({
-        patas:legs,
+        patas:approvedLegs,
         dry_run:false,
         ticket:preview.ticket,
         asset,
@@ -101,6 +131,8 @@ const BotAPI = {
         sl_pct:slPct,
       }),
     });
+    result.preflight = preview;
+    return result;
   },
 };
 
@@ -230,6 +262,7 @@ async function ejecutarEstrategia(legs, asset, estrategia, tpPct=50, slPct=100){
       quote_ts:Date.now()/1000,
     }));
     const res = await BotAPI.ejecutar(asset, estrategia, patas, tpPct, slPct);
+    if(res?.cancelled) return;
     if(!res?.ok) throw new Error(res?.error||'Error ejecutando combo');
 
     alert(
