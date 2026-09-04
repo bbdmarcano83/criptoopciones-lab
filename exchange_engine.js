@@ -16,7 +16,7 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function cacheGet(k){const x=cache.get(k);return x&&Date.now()-x.ts<CACHE_TTL?x.data:null;}
 function cacheSet(k,data){cache.set(k,{ts:Date.now(),data});return data;}
 function assertAsset(a){a=String(a||'BTC').toUpperCase();if(!ASSETS.includes(a))throw new Error(`Activo no soportado: ${a}`);return a;}
-function assertExchange(e){e=String(e||'Bybit');if(!EXCHANGES.includes(e))throw new Error(`Exchange no soportado: ${e}`);return e;}
+function assertExchange(e){e=String(e||'Deribit');if(!EXCHANGES.includes(e))throw new Error(`Exchange no soportado: ${e}`);return e;}
 
 async function json(url){
   const r=await fetch(url,{cache:'no-store'});
