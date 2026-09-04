@@ -73,7 +73,7 @@ const BotAPI = {
   },
 
   /**
-   * Ejecutar órdenes en Bybit desde la app
+   * Ejecutar órdenes en el exchange seleccionado desde la app
    * legs: [{symbol, side:'Buy'|'Sell', qty}]
    * dryRun: true = simulación, false = real
    */
@@ -197,13 +197,13 @@ async function ejecutarEstrategia(legs, asset, estrategia, tpPct=50, slPct=100){
   const credNeto = legs.reduce((s,l)=>s+((l.accion==='sell'||l.side==='Sell')?l.prima:-l.prima)*l.qty, 0);
 
   if(!confirm(
-    `¿Ejecutar en Bybit?\n\n${resumen}\n\nCrédito neto: $${credNeto.toFixed(2)}\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Esto ejecutará órdenes REALES`
+    `¿Ejecutar en ${COState.exchange}?\n\n${resumen}\n\nCrédito neto: $${credNeto.toFixed(2)}\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Esto ejecutará órdenes REALES`
   )) return;
 
   try{
-    // 1. Ejecutar las órdenes en Bybit
+    // 1. Ejecutar las órdenes en el exchange seleccionado
     const patasEjecutar = legs.map(l=>({
-      symbol: l.contrato || `${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}-USDT`,
+      symbol: l.contrato || `${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}`,
       side:   l.accion==='buy'?'Buy':'Sell',
       qty:    l.qty,
     }));
@@ -222,7 +222,7 @@ async function ejecutarEstrategia(legs, asset, estrategia, tpPct=50, slPct=100){
     const resAdopt = await BotAPI.adoptar(asset, estrategia, patasAdoptar, tpPct, slPct);
 
     alert(
-      `✅ Ejecutado en Bybit!\n` +
+      `✅ Ejecutado en ${COState.exchange}!\n` +
       `Crédito neto: $${resAdopt.credito_neto?.toFixed(2)||credNeto.toFixed(2)}\n` +
       `Label: ${resAdopt.label}\n` +
       `El bot gestiona TP/SL desde ahora 🤖`
