@@ -73,14 +73,41 @@ const BotAPI = {
   },
 
   /**
-   * Ejecutar órdenes en Bybit desde la app
-   * legs: [{symbol, side:'Buy'|'Sell', qty}]
-   * dryRun: true = simulación, false = real
+   * Preview sin órdenes. Devuelve ticket efímero ligado exactamente a las patas.
    */
-  async ejecutar(legs, dryRun=false){
+  async previewExecution(legs){
+    return botFetch('/ejecutar/preview', {
+      method: 'POST',
+      body: JSON.stringify({patas:legs}),
+    });
+  },
+
+  /**
+   * Ejecución real: preview -> ticket -> transacción -> adopción backend.
+   * Nunca ejecuta patas distintas de las certificadas en el preview.
+   */
+  async ejecutar(legs, dryRun=false, meta={}){
+    if(dryRun){
+      return botFetch('/ejecutar', {
+        method: 'POST',
+        body: JSON.stringify({patas:legs, dry_run:true}),
+      });
+    }
+    const preview = await this.previewExecution(legs);
+    if(!preview?.ok || !preview?.ticket){
+      throw new Error(preview?.message || 'Preflight sin ticket ejecutable');
+    }
     return botFetch('/ejecutar', {
       method: 'POST',
-      body: JSON.stringify({patas:legs, dry_run:dryRun}),
+      body: JSON.stringify({
+        patas:legs,
+        dry_run:false,
+        ticket:preview.ticket,
+        asset:meta.asset || 'ETH',
+        estrategia:meta.estrategia || 'IC',
+        tp_pct:meta.tpPct ?? 50,
+        sl_pct:meta.slPct ?? 100,
+      }),
     });
   },
 };
@@ -197,33 +224,31 @@ async function ejecutarEstrategia(legs, asset, estrategia, tpPct=50, slPct=100){
   const credNeto = legs.reduce((s,l)=>s+((l.accion==='sell'||l.side==='Sell')?l.prima:-l.prima)*l.qty, 0);
 
   if(!confirm(
-    `¿Ejecutar en Bybit?\n\n${resumen}\n\nCrédito neto: $${credNeto.toFixed(2)}\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Esto ejecutará órdenes REALES`
+    `¿Ejecutar en ${COState.exchange}?\n\n${resumen}\n\nCrédito neto: $${credNeto.toFixed(2)}\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Esto ejecutará órdenes REALES`
   )) return;
 
   try{
-    // 1. Ejecutar las órdenes en Bybit
+    // Cada pata debe venir de la cadena real del exchange. Nunca inventar símbolos.
+    const missingContract = legs.find(l=>!l.contrato);
+    if(missingContract){
+      throw new Error('Pata sin instrument_name real del exchange; ejecución bloqueada');
+    }
     const patasEjecutar = legs.map(l=>({
-      symbol: l.contrato || `${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}-USDT`,
+      symbol: l.contrato,
       side:   l.accion==='buy'?'Buy':'Sell',
       qty:    l.qty,
     }));
 
-    const resEjec = await BotAPI.ejecutar(patasEjecutar, false);
+    const resEjec = await BotAPI.ejecutar(patasEjecutar, false, {
+      asset, estrategia, tpPct, slPct,
+    });
     if(!resEjec.ok) throw new Error(resEjec.error||'Error ejecutando');
-
-    // 2. Adoptar la posición para que el bot la gestione
-    const patasAdoptar = legs.map(l=>({
-      symbol: l.contrato || `${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}-USDT`,
-      side:   l.accion,
-      qty:    l.qty,
-      prima:  l.prima,
-    }));
-
-    const resAdopt = await BotAPI.adoptar(asset, estrategia, patasAdoptar, tpPct, slPct);
+    const resAdopt = resEjec.adoption;
+    if(!resAdopt?.ok) throw new Error('El backend ejecutó pero no confirmó adopción');
 
     alert(
-      `✅ Ejecutado en Bybit!\n` +
-      `Crédito neto: $${resAdopt.credito_neto?.toFixed(2)||credNeto.toFixed(2)}\n` +
+      `✅ Ejecutado en ${COState.exchange}!\n` +
+      `Crédito neto: ${resAdopt.credito_neto?.toFixed(2)||credNeto.toFixed(2)}\n` +
       `Label: ${resAdopt.label}\n` +
       `El bot gestiona TP/SL desde ahora 🤖`
     );
