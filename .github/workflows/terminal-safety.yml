@@ -40,6 +40,34 @@ jobs:
                       f"{name}: missing local script {src}"
                   )
           print("HTML_REFERENCES_OK")
+      - name: Enforce Deribit-only linear-USDC runtime
+        shell: python
+        run: |
+          from pathlib import Path
+
+          runtime = [
+              "exchange_engine.js", "iv_engine.js", "market_engine.js",
+              "co_shared.js", "co_bot.js", "index.html", "positions.html",
+              "chain.html", "iv.html", "ajuste.html", "diario.html", "manual.html",
+          ]
+          violations = []
+          for name in runtime:
+              text = Path(name).read_text(encoding="utf-8").lower()
+              for token in ("bybit", "/v5/", "api.bybit.com", "stream.bybit.com"):
+                  if token in text:
+                      violations.append(f"{name}:{token}")
+          assert not violations, violations
+
+          engine = Path("exchange_engine.js").read_text(encoding="utf-8")
+          assert "const EXCHANGES=['Deribit'];" in engine
+          assert "currency=USDC&kind=option" in engine
+          assert "_USDC-" in engine
+          assert "version:'3.0-deribit-only'" in engine
+
+          analyzer = Path("index.html").read_text(encoding="utf-8")
+          assert "DERIBIT_NATIVE_COMBO" in analyzer
+          assert "Fill-or-Kill" in analyzer
+          print("DERIBIT_ONLY_TERMINAL_OK")
       - name: Parse inline JavaScript
         run: |
           node <<'NODE'
