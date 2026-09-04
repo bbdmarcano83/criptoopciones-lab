@@ -766,7 +766,7 @@ body{
 <body>
 <div id="nav-placeholder"></div>
 <div class="toolbar">
-  <select id="ex"><option>Bybit</option><option>Deribit</option></select>
+  <select id="ex"><option>Deribit</option></select>
   <select id="act"><option>BTC</option><option>ETH</option></select>
   <span class="k">Tenor IV</span><select id="tenor"><option value="7">7D</option><option value="14">14D</option><option value="30" selected>30D</option><option value="60">60D</option></select>
   <button class="btn primary" id="refresh">⟳ Actualizar</button><span class="badge" id="status">Esperando</span>
@@ -783,7 +783,7 @@ body{
     <div class="panel"><h3>Estructura temporal ATM IV</h3><div id="term-chart" style="height:140px"></div></div>
     <div class="panel"><h3>Smile / Skew — vencimiento de referencia</h3><div id="skew-chart" style="height:140px"></div></div>
     <div class="panel"><h3>Market Regime</h3><div class="regime-grid" id="regime"></div><div class="score" id="sell-score">--</div><div style="text-align:center;font-size:8px;color:#879bb2">Entorno para venta selectiva de prima</div><div class="regime-strategy" id="strategy">--</div></div>
-    <div class="panel panel-bottom"><h3>Comparación de venues</h3><table class="venue-table"><thead><tr><th>Métrica</th><th>Bybit</th><th>Deribit</th></tr></thead><tbody id="venue-body"></tbody></table><div class="sub" id="venue-note"></div></div>
+    <div class="panel panel-bottom"><h3>Deribit · Snapshot institucional</h3><table class="venue-table"><thead><tr><th>Métrica</th><th>Valor</th></tr></thead><tbody id="venue-body"></tbody></table><div class="sub" id="venue-note">Fuente única: Deribit linear USDC + DVOL.</div></div>
     <div class="panel panel-bottom">
       <div class="prob-head"><h3>Distribución implícita risk-neutral · Smile/Skew</h3><span id="prob-quality-top" class="prob-quality">QUALITY --</span></div>
       <div id="prob-chart" style="height:135px"></div>
@@ -842,10 +842,10 @@ body{
 </div>
 <script>
 document.getElementById('shared-css').textContent=CO_CSS;document.getElementById('nav-placeholder').innerHTML=navHTML('iv.html');
-const ex=document.getElementById('ex'),act=document.getElementById('act'),tenor=document.getElementById('tenor');ex.value=ExchangeEngine.EXCHANGES.includes(COState.exchange)?COState.exchange:'Bybit';act.value=COState.activo;
+const ex=document.getElementById('ex'),act=document.getElementById('act'),tenor=document.getElementById('tenor');ex.value='Deribit';act.value=COState.activo;
 const DARK={paper_bgcolor:'transparent',plot_bgcolor:'transparent',font:{family:'Segoe UI,Arial,sans-serif',size:10,color:'#a9b8ca'},margin:{l:38,r:8,t:5,b:25},xaxis:{gridcolor:'#33415b',zerolinecolor:'#3d4c68',tickfont:{size:10,color:'#afbdd0'},titlefont:{size:10,color:'#c1cede'}},yaxis:{gridcolor:'#33415b',zerolinecolor:'#3d4c68',tickfont:{size:10,color:'#afbdd0'},titlefont:{size:10,color:'#c1cede'}}};
 const money=x=>'$'+Number(x||0).toLocaleString('es',{maximumFractionDigits:0});const fp=x=>Number.isFinite(Number(x))?Number(x).toFixed(1)+'%':'--';
-function row(label,a,b){return `<tr><td>${label}</td><td>${a}</td><td>${b}</td></tr>`}
+function row(label,a){return `<tr><td>${label}</td><td>${a}</td></tr>`}
 function setLoading(on,msg=''){document.getElementById('workspace').classList.toggle('loading',on);const s=document.getElementById('status');s.textContent=msg||(on?'Cargando…':'LIVE');s.className=on?'badge':'badge green';}
 
 function erf(x){
@@ -1270,9 +1270,17 @@ async function load(){
       if(ne&&Number.isFinite(eth)&&eth>0)ne.textContent='ETH '+money(eth);
     }catch(navErr){console.warn('Nav prices',navErr)}
 
-    const other=E==='Bybit'?'Deribit':'Bybit';const primary=await MarketEngine.analyze(E,A,T);renderAnalysis(primary);let secondary=null;try{secondary=await MarketEngine.analyze(other,A,T);}catch(e){console.warn(other,e)}
-    const by=E==='Bybit'?primary:secondary,de=E==='Deribit'?primary:secondary;document.getElementById('venue-body').innerHTML=row('Spot',by?money(by.spot.price):'--',de?money(de.spot.price):'--')+row(`ATM IV ${T}D`,by?.reference?fp(by.reference.iv):'--',de?.reference?fp(de.reference.iv):'--')+row('IVR 52W',by?.historyReady?fp(by.ivRank52w):'N/D',de?.historyReady?fp(de.ivRank52w):'N/D')+row('Liquidity',by?`${by.liquidity.score} · ${by.liquidity.label}`:'--',de?`${de.liquidity.score} · ${de.liquidity.label}`:'--')+row('Opportunity',by?`${by.opportunity.score}/100`:'--',de?`${de.opportunity.score}/100`:'--');
-    if(by&&de&&by.reference&&de.reference){const diff=de.reference.iv-by.reference.iv;document.getElementById('venue-note').textContent=`Deribit − Bybit: ${diff>=0?'+':''}${diff.toFixed(2)} puntos de volatilidad en el tenor seleccionado.`;}else document.getElementById('venue-note').textContent='Comparación parcial: uno de los venues no respondió.';setLoading(false,'LIVE · '+new Date().toLocaleTimeString('es'));
+    const primary=await MarketEngine.analyze('Deribit',A,T);
+    renderAnalysis(primary);
+    document.getElementById('venue-body').innerHTML=
+      row('Spot',money(primary.spot.price))+
+      row(`ATM IV ${T}D`,primary.reference?fp(primary.reference.iv):'--')+
+      row('IVR 52W',primary.historyReady?fp(primary.ivRank52w):'N/D')+
+      row('IV Percentile 52W',primary.historyReady?fp(primary.ivPercentile52w):'N/D')+
+      row('Liquidity',`${primary.liquidity.score} · ${primary.liquidity.label}`)+
+      row('Opportunity',`${primary.opportunity.score}/100`);
+    document.getElementById('venue-note').textContent='Deribit es la única fuente operativa; DVOL es el benchmark histórico de volatilidad.';
+    setLoading(false,'LIVE · '+new Date().toLocaleTimeString('es'));
   }catch(e){console.error(e);setLoading(false,'ERROR');document.getElementById('h-ref').textContent=e.message;}
 }
 async function navRefresh(){ExchangeEngine.clearCache();await load();}
