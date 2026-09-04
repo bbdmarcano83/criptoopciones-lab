@@ -631,7 +631,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;letter-spacing:.01em}
     <a href="manual.html" class="nav-link">📖 Manual</a>
   </div>
   <div class="nav-spacer"></div>
-  <span class="nav-badge" id="nav-ex">Bybit</span>
+  <span class="nav-badge" id="nav-ex">Deribit</span>
   <span class="nav-price" id="nav-price">$--</span>
   <span class="nav-ivr" id="nav-ivr">IVR --</span>
   <button class="nav-btn" onclick="fetchAll()">⟳</button>
@@ -663,7 +663,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;letter-spacing:.01em}
 <!-- MODAL EJECUTAR -->
 <div class="modal-overlay" id="exec-modal">
   <div class="exec-modal">
-    <h3>🚀 Ejecutar estrategia REAL en Bybit — Bot V5</h3>
+    <h3>🚀 Ejecutar COMBO NATIVO REAL en Deribit — Bot v8</h3>
     <div class="exec-legs-list" id="exec-legs-list"></div>
     <div class="exec-params">
       <div>
@@ -677,7 +677,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;letter-spacing:.01em}
     </div>
     <div class="exec-summary" id="exec-summary"></div>
     <div class="exec-btns">
-      <button class="btn-exec-real" id="exec-real-btn" disabled onclick="confirmarEjecucion(false)" title="Esperando preflight oficial de Bybit">🔒 VERIFICANDO BYBIT...</button>
+      <button class="btn-exec-real" id="exec-real-btn" disabled onclick="confirmarEjecucion(false)" title="Esperando preflight oficial de Deribit">🔒 VERIFICANDO DERIBIT...</button>
       <button class="btn-exec-dry" onclick="confirmarEjecucion(true)">🔍 Simular</button>
       <button class="btn-exec-cancel" onclick="closeExecModal()">✕</button>
     </div>
@@ -690,7 +690,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;letter-spacing:.01em}
 
   <div class="slabel">Exchange</div>
   <select id="exchange" onchange="onExchangeChange()">
-    <option>Bybit</option><option>Deribit</option><option>Manual</option>
+    <option>Deribit</option>
   </select>
 
   <div class="slabel">Activo</div>
@@ -855,7 +855,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;letter-spacing:.01em}
       </select>
       <input type="text" id="strat-name" placeholder="Nombre..." style="width:100px;height:24px;font-size:10px;background:#0b0e14;border:1px solid #253146;border-radius:3px;color:#e2e8f0;padding:0 6px">
       <button class="save-btn" onclick="saveStrategy()">💾 Guardar</button>
-      <button class="exec-structure-btn" id="exec-structure-btn" onclick="openExecModal()" style="display:none">🚀 EJECUTAR EN BYBIT</button>
+      <button class="exec-structure-btn" id="exec-structure-btn" onclick="openExecModal()" style="display:none">🚀 EJECUTAR COMBO DERIBIT</button>
     </div>
     <div class="legs-scroll">
     <table class="legs-table">
@@ -969,7 +969,7 @@ async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100,dryRu
   if(!legs?.length){alert('No hay patas armadas');return;}
   if(!dryRun){
     if(!executionPreview?.verified||!executionPreview?.ticket){
-      alert('Ejecución bloqueada: abre nuevamente el modal y completa el preflight oficial de Bybit.');
+      alert('Ejecución bloqueada: abre nuevamente el modal y completa el preflight oficial de Deribit.');
       return;
     }
     if(Date.now()>=executionPreviewExpiresAt){
@@ -987,13 +987,13 @@ async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100,dryRu
   }
   if(!BOT_CONFIG.url||!BOT_CONFIG.token){alert('Configura el bot primero (⚙️ Bot)');return;}
 
-  const ex=document.getElementById('exchange')?.value||'Bybit';
-  if(ex!=='Bybit'){
-    alert('Ejecución bloqueada: el Bot V5 está configurado para abrir operaciones reales en Bybit.');
+  const ex='Deribit';
+  if(ex!=='Deribit'){
+    alert('Ejecución bloqueada: el Bot v8 ejecuta exclusivamente combos nativos en Deribit.');
     return;
   }
 
-  const invalid=legs.filter(l=>!l.contrato||!Number(l.qty)||Number(l.qty)<=0);
+  const invalid=legs.filter(l=>!l.contrato||!String(l.contrato).startsWith(asset+'_USDC-')||!Number(l.qty)||Number(l.qty)<=0);
   if(invalid.length&&!dryRun){
     alert('Hay patas sin contrato real o con cantidad inválida. Cárgalas desde la Cadena profesional antes de ejecutar.');
     return;
@@ -1003,9 +1003,9 @@ async function ejecutarEstrategia(legs,asset,estrategia,tpPct=50,slPct=100,dryRu
   const cap=structureCapitalEstimate();
   const resumen=legs.map(l=>`${l.accion.toUpperCase()} ${l.tipo.toUpperCase()} $${l.strike} x ${l.qty} @ $${l.prima}`).join('\n');
   const capLine=cap.base==null?'N/D':`$${cap.base.toFixed(2)} (${cap.label})`;
-  if(!dryRun && !confirm(`¿Ejecutar en Bybit?\n\n${resumen}\n\nCrédito/Débito neto: $${credNeto.toFixed(2)}\nRiesgo definido: ${capLine}\nCuenta y alas BUY: VERIFICADAS\nPatas SELL: pre-check después de confirmar alas\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Órdenes REALES`))return;
+  if(!dryRun && !confirm(`¿Ejecutar COMBO NATIVO en Deribit?\n\n${resumen}\n\nCrédito/Débito neto: $${credNeto.toFixed(2)}\nRiesgo definido: ${capLine}\nCuenta y riesgo: VERIFICADOS\nEjecución: un solo combo Fill-or-Kill\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ COMBO REAL FILL-OR-KILL`))return;
   try{
-    const patasEjec=legs.map(l=>({symbol:l.contrato||`${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}`,side:l.accion==='buy'?'Buy':'Sell',qty:l.qty}));
+    const patasEjec=legs.map(l=>({symbol:l.contrato,side:l.accion==='buy'?'Buy':'Sell',qty:l.qty}));
     const resEjec=await BotAPI.ejecutar(patasEjec,dryRun,{
       ticket:executionPreview?.ticket,
       asset,estrategia,tpPct,slPct
@@ -1130,7 +1130,7 @@ function structureCapitalEstimate(){
       maxLoss:null,
       credit,
       marginVerified:false,
-      note:'Calendar/diagonal: el débito neto es el efectivo mínimo conocido. El buying power/margen real depende de Bybit y debe verificarse antes de ejecutar.'
+      note:'Calendar/diagonal: el débito neto es el efectivo mínimo conocido. El buying power/margen real depende de Deribit y debe verificarse antes de ejecutar.'
     };
   }
 
@@ -1143,7 +1143,7 @@ function structureCapitalEstimate(){
       maxLoss,
       credit,
       marginVerified:false,
-      note:'Estructura mismo expiry: se usa MAX LOSS teórico como referencia de capital en riesgo. El margen real de Bybit puede diferir.'
+      note:'Estructura mismo expiry: se usa MAX LOSS teórico como referencia de capital en riesgo. El margen real de Deribit puede diferir.'
     };
   }
 
@@ -1628,7 +1628,7 @@ function loadTpl(n){
 function updateExecBtn(){
   const hasBot=!!(BOT_CONFIG&&BOT_CONFIG.url&&BOT_CONFIG.token);
   const hasLegs=!!(legs&&legs.length>0);
-  const ex=document.getElementById('exchange')?.value||'Bybit';
+  const ex='Deribit';
 
   const navBtn=document.getElementById('btn-exec');
   const deskBtn=document.getElementById('exec-structure-btn');
@@ -1640,17 +1640,17 @@ function updateExecBtn(){
 
     if(!hasLegs)return;
 
-    if(ex!=='Bybit'){
+    if(ex!=='Deribit'){
       btn.classList.add('blocked');
-      btn.textContent=btn===navBtn?'⚠️ Ejecución solo Bybit':'⚠️ SOLO EJECUCIÓN BYBIT';
-      btn.title='El Bot V5 ejecuta esta operación real en Bybit.';
+      btn.textContent=btn===navBtn?'⚠️ Ejecución solo Deribit':'⚠️ SOLO EJECUCIÓN DERIBIT';
+      btn.title='El Bot v8 ejecuta esta estructura como combo nativo en Deribit.';
     }else if(!hasBot){
       btn.classList.add('needs-config');
       btn.textContent=btn===navBtn?'⚙️ Configurar Bot':'⚙️ CONFIGURAR BOT PARA EJECUTAR';
       btn.title='Configura URL y token del Bot V5 antes de enviar órdenes reales.';
     }else{
-      btn.textContent=btn===navBtn?'🚀 Ejecutar en Bot':'🚀 EJECUTAR EN BYBIT';
-      btn.title='Enviar estas patas al Bot V5 para ejecución real en Bybit.';
+      btn.textContent=btn===navBtn?'🚀 Ejecutar en Bot':'🚀 EJECUTAR COMBO DERIBIT';
+      btn.title='Enviar la estructura al Bot v8 para ejecución como combo nativo Deribit.';
     }
   });
 }
@@ -1921,7 +1921,7 @@ async function fetchIVR(){
     let spot=parseFloat(document.getElementById('spot').value)||0;
     if(!spot){ spot=await fetchPrice(); }
     const dte=parseFloat(document.getElementById('dte').value)||7;
-    const ex=document.getElementById('exchange').value==='Manual'?'Bybit':document.getElementById('exchange').value;
+    const ex='Deribit';
     const st=await IVEngine.update({exchange:ex,asset:act,spot,targetDTE:dte});
     const ivr=st.ivRank52w;
     const pct=st.ivPercentile52w;
@@ -2007,7 +2007,7 @@ async function testBotFromModal(){
   }catch(e){msg.textContent='❌ '+e.message;msg.style.color='#f43f5e';}
 }
 
-// ── Portfolio en sidebar ── usa /live para PnL real desde Bybit ───────────
+// ── Portfolio en sidebar ── usa /live para PnL real desde Deribit ───────────
 async function refreshPortfolio(){
   const mini=document.getElementById('portfolio-mini');
   const status=document.getElementById('bot-conn-status');
@@ -2055,9 +2055,9 @@ async function openExecModal(){
   if(stratSel&&inferred&&[...stratSel.options].some(o=>o.value===inferred))stratSel.value=inferred;
   if(!legs.length){alert('No hay patas armadas');return;}
 
-  const ex=document.getElementById('exchange')?.value||'Bybit';
-  if(ex!=='Bybit'){
-    alert('La ejecución real del Bot V5 está habilitada únicamente para Bybit.');
+  const ex='Deribit';
+  if(ex!=='Deribit'){
+    alert('La ejecución real está habilitada únicamente como combo nativo Deribit.');
     return;
   }
   if(!BOT_CONFIG.url||!BOT_CONFIG.token){
@@ -2071,7 +2071,7 @@ async function openExecModal(){
   if(executionPreviewTimer)clearTimeout(executionPreviewTimer);
   const realBtn=document.getElementById('exec-real-btn');
   realBtn.disabled=true;
-  realBtn.textContent='⏳ VERIFICANDO BYBIT...';
+  realBtn.textContent='⏳ VERIFICANDO DERIBIT...';
   realBtn.title='Cotizaciones, cuenta y alas protectoras en validación';
 
   document.getElementById('exec-legs-list').innerHTML=legs.map(l=>`
@@ -2086,7 +2086,7 @@ async function openExecModal(){
       </div>
     </div>`).join('');
 
-  document.getElementById('exec-summary').innerHTML='<div style="color:#f6ad42">Verificando cuenta y pre-check de las alas BUY…</div>';
+  document.getElementById('exec-summary').innerHTML='<div style="color:#f6ad42">Verificando cuenta, riesgo y Combo Book Deribit…</div>';
   document.getElementById('exec-modal').classList.add('show');
 
   const quoteTs=Date.now()/1000;
@@ -2099,25 +2099,25 @@ async function openExecModal(){
   }));
   try{
     const preview=await BotAPI.previewExecution(patasEjec);
-    if(!preview?.verified||!preview?.ticket)throw new Error('Bybit no aprobó cuenta, riesgo y alas protectoras');
+    if(!preview?.verified||!preview?.ticket)throw new Error('Deribit no aprobó cuenta, riesgo o estructura');
     executionPreview=preview;
     executionPreviewExpiresAt=Date.now()+Number(preview.ticket_ttl_seconds||20)*1000;
     const a=preview.account||{};
     const r=preview.risk||{};
-    const buyChecks=(preview.legs||[]).filter(l=>l.precheck_status==='VERIFIED_BUY');
-    const deferredSells=(preview.legs||[]).filter(l=>l.precheck_status==='DEFERRED_UNTIL_PROTECTED');
-    const buyImr=buyChecks.map(l=>Number(l.post_imr_e4||0));
-    const worstBuyImr=(buyImr.length?Math.max(...buyImr):0)/100;
+    const combo=preview.combo||{};
+    const marginChecks=(preview.legs||[]).filter(l=>l.precheck_status==='VERIFIED_MARGIN');
+    const comboBid=Number(combo.best_bid_price);
+    const comboAsk=Number(combo.best_ask_price);
     document.getElementById('exec-summary').innerHTML=`
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Cuenta Bybit</span><b style="color:#10b981">VERIFICADA</b></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Alas BUY · pre-check individual</span><b style="color:#10b981">APROBADAS ${buyChecks.length}/${buyChecks.length}</b></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Patas SELL</span><b style="color:#f6ad42">DIFERIDAS ${deferredSells.length}</b></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Margen inicial actual de cuenta</span><b>${fmt(Number(a.current_initial_margin||0))}</b></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Disponible real Bybit</span><b style="color:#10b981">${fmt(Number(a.available_balance||0))}</b></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">IMR máximo de alas BUY</span><b>${worstBuyImr.toFixed(2)}%</b></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Pérdida máxima de estructura</span><b style="color:#f6ad42">${fmt(Number(r.model_max_loss||0))}</b></div>
-      <div style="display:flex;justify-content:space-between"><span style="color:#64748b">Límite con buffer</span><b>${fmt(Number(preview.capital_required_with_buffer||0))}</b></div>
-      <div class="capital-note">Bybit no calcula margen conjunto. El bot compra y confirma las alas; después pre-chequea cada SELL contra el estado ya protegido.</div>`;
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Cuenta Deribit</span><b style="color:#10b981">VERIFICADA</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Modo de ejecución</span><b style="color:#38bdf8">DERIBIT_NATIVE_COMBO</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Combo Book</span><b>${combo.combo_id||'SE CREA/REUTILIZA AL EJECUTAR'}</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Bid / Ask neto combo</span><b>${Number.isFinite(comboBid)?comboBid.toFixed(2):'--'} / ${Number.isFinite(comboAsk)?comboAsk.toFixed(2):'--'}</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Chequeos margen</span><b style="color:#10b981">${marginChecks.length}/${(preview.legs||[]).length}</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Disponible real Deribit</span><b style="color:#10b981">${fmt(Number(a.available_balance||0))}</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Pérdida máxima</span><b style="color:#f6ad42">${fmt(Number(r.model_max_loss||0))}</b></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:#64748b">Capital con buffer</span><b>${fmt(Number(preview.capital_required_with_buffer||0))}</b></div>
+      <div class="capital-note">Una sola orden Combo Book Fill-or-Kill. Si el combo no puede llenarse completo, no se ejecuta y no se degrada a patas individuales.</div>`;
     realBtn.disabled=false;
     realBtn.textContent='🔐 EJECUTAR — CONTROLES OK';
     realBtn.title='Ticket de ejecución de un solo uso; vence en '+preview.ticket_ttl_seconds+'s';
@@ -2221,7 +2221,7 @@ function importChainLegs(){
 function onDTE(){const v=document.getElementById('dte').value;document.getElementById('dte-val').textContent=v+' días';if(typeof COState!=='undefined')COState.dte=+v;recalc();}
 function onIV(){const v=document.getElementById('iv').value;document.getElementById('iv-val').textContent=v+'%';recalc();}
 function onRango(){document.getElementById('rango-val').textContent='±'+document.getElementById('rango').value+'%';recalc();}
-function onExchangeChange(){const v=document.getElementById('exchange').value;document.getElementById('nav-ex').textContent=v;localStorage.setItem('co_exchange',v);if(typeof COState!=='undefined')COState.exchange=v;fetchAll();}
+function onExchangeChange(){const v='Deribit';document.getElementById('exchange').value=v;document.getElementById('nav-ex').textContent=v;localStorage.setItem('co_exchange',v);if(typeof COState!=='undefined')COState.exchange=v;fetchAll();}
 async function onAssetChange(){
   const act=document.getElementById('activo').value;
   document.getElementById('exec-activo-sel').value=act;
@@ -2241,8 +2241,8 @@ async function fetchAll(){await fetchPrice();await Promise.all([fetchIVR(),fetch
 
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('load',async()=>{
-  const rawEx=localStorage.getItem('co_exchange')||'Bybit';
-  const savedEx=['Bybit','Deribit','Manual'].includes(rawEx)?rawEx:'Bybit';
+  const rawEx='Deribit';
+  const savedEx='Deribit';
   const savedAct=localStorage.getItem('co_activo')||'BTC';
   document.getElementById('exchange').value=savedEx;
   document.getElementById('activo').value=savedAct;
