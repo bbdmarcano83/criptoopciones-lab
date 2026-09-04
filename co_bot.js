@@ -73,14 +73,33 @@ const BotAPI = {
   },
 
   /**
-   * Ejecutar órdenes en Bybit desde la app
-   * legs: [{symbol, side:'Buy'|'Sell', qty}]
-   * dryRun: true = simulación, false = real
+   * Preflight Deribit: valida cuenta, riesgo y prepara ticket de un solo uso.
    */
-  async ejecutar(legs, dryRun=false){
+  async previewExecution(legs){
+    return botFetch('/ejecutar/preview', {
+      method: 'POST',
+      body: JSON.stringify({patas:legs}),
+    });
+  },
+
+  /**
+   * Ejecutar un combo nativo Deribit y adoptarlo en una sola transacción.
+   */
+  async ejecutar(asset, estrategia, legs, tpPct=50, slPct=100){
+    const preview = await this.previewExecution(legs);
+    if(!preview?.verified || !preview?.ticket)
+      throw new Error('Deribit no aprobó el preflight del combo');
     return botFetch('/ejecutar', {
       method: 'POST',
-      body: JSON.stringify({patas:legs, dry_run:dryRun}),
+      body: JSON.stringify({
+        patas:legs,
+        dry_run:false,
+        ticket:preview.ticket,
+        asset,
+        estrategia,
+        tp_pct:tpPct,
+        sl_pct:slPct,
+      }),
     });
   },
 };
@@ -183,55 +202,45 @@ async function closePosFromApp(label){
  */
 async function ejecutarEstrategia(legs, asset, estrategia, tpPct=50, slPct=100){
   if(!legs?.length){ alert('No hay patas armadas'); return; }
-
-  // Validar configuración
   if(!BOT_CONFIG.url||!BOT_CONFIG.token){
     alert('Configura la URL y token del bot primero');
     return;
   }
+  const invalid = legs.find(l=>!l.contrato || !String(l.contrato).startsWith(asset+'_USDC-'));
+  if(invalid){
+    alert('Ejecución bloqueada: cada pata debe ser un contrato lineal USDC real de Deribit.');
+    return;
+  }
 
-  // Resumen para confirmar
   const resumen = legs.map(l=>
-    `${l.accion?.toUpperCase()||l.side} ${l.tipo?.toUpperCase()||''} $${l.strike||''} × ${l.qty} @ $${l.prima}`
+    `${l.accion?.toUpperCase()||l.side} ${l.contrato} × ${l.qty} @ $${l.prima}`
   ).join('\n');
   const credNeto = legs.reduce((s,l)=>s+((l.accion==='sell'||l.side==='Sell')?l.prima:-l.prima)*l.qty, 0);
 
   if(!confirm(
-    `¿Ejecutar en Bybit?\n\n${resumen}\n\nCrédito neto: $${credNeto.toFixed(2)}\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Esto ejecutará órdenes REALES`
+    `¿Ejecutar COMBO NATIVO en Deribit?\n\n${resumen}\n\nCrédito/Débito neto: $${credNeto.toFixed(2)}\nTP: ${tpPct}% | SL: ${slPct}%\n\n⚠️ Orden REAL Fill-or-Kill`
   )) return;
 
   try{
-    // 1. Ejecutar las órdenes en Bybit
-    const patasEjecutar = legs.map(l=>({
-      symbol: l.contrato || `${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}-USDT`,
-      side:   l.accion==='buy'?'Buy':'Sell',
-      qty:    l.qty,
+    const patas = legs.map(l=>({
+      symbol:l.contrato,
+      side:l.accion==='buy'?'Buy':'Sell',
+      qty:Number(l.qty),
+      reference_price:Number(l.prima)||undefined,
+      quote_ts:Date.now()/1000,
     }));
-
-    const resEjec = await BotAPI.ejecutar(patasEjecutar, false);
-    if(!resEjec.ok) throw new Error(resEjec.error||'Error ejecutando');
-
-    // 2. Adoptar la posición para que el bot la gestione
-    const patasAdoptar = legs.map(l=>({
-      symbol: l.contrato || `${asset}-${l.strike}-${l.tipo==='call'?'C':'P'}-USDT`,
-      side:   l.accion,
-      qty:    l.qty,
-      prima:  l.prima,
-    }));
-
-    const resAdopt = await BotAPI.adoptar(asset, estrategia, patasAdoptar, tpPct, slPct);
+    const res = await BotAPI.ejecutar(asset, estrategia, patas, tpPct, slPct);
+    if(!res?.ok) throw new Error(res?.error||'Error ejecutando combo');
 
     alert(
-      `✅ Ejecutado en Bybit!\n` +
-      `Crédito neto: $${resAdopt.credito_neto?.toFixed(2)||credNeto.toFixed(2)}\n` +
-      `Label: ${resAdopt.label}\n` +
-      `El bot gestiona TP/SL desde ahora 🤖`
+      `✅ Combo ejecutado en Deribit\n` +
+      `Combo: ${res.combo_id||'--'}\n` +
+      `Precio neto: $${Number(res.combo_price||0).toFixed(2)}\n` +
+      `Label: ${res.adoption?.label||'--'}\n` +
+      `El bot gestiona TP/SL y rolls desde ahora 🤖`
     );
-
-    // Refrescar portfolio
     if(document.getElementById('portfolio-widget'))
       renderPortfolio('portfolio-widget');
-
   }catch(e){
     alert('❌ Error: '+e.message);
   }
