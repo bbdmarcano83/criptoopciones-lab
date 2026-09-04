@@ -1319,7 +1319,7 @@ function renderSidebar(){
         <span><span class="badge ${stratClass}">${p.estrategia}</span> <span class="badge ${assetClass}">${p.asset}</span></span>
         <span class="pc-pnl ${p.pnl>=0?'g':'r'}">${fmtPnl(p.pnl)}</span>
       </div>
-      <div class="pc-sub">${p.expiry||'--'} · ${calcDTE(p.expiry)??'--'}d · ${Number(p.credito_entrada)<0?'Db':'Cr'} ${fmt(Math.abs(Number(p.credito_entrada)||0))}</div>
+      <div class="pc-sub">${p.expiry||'--'} · ${calcDTE(p.expiry)??'--'}d · ${Number(p.credito_entrada)<0?'Db':'Cr'} ${fmt(Math.abs(Number(p.credito_entrada)||0))} · ${p.execution_mode==='DERIBIT_NATIVE_COMBO'?'COMBO':'DERIBIT'}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px">
         <span class="pc-risk ${rr.cls}">${rr.label}</span>
         <span style="font-size:7px;color:#7388a2">${rr.shortDistanceText}</span>
@@ -1374,6 +1374,12 @@ function renderMainHeader(){
     <div class="mh-sep"></div>
     <div class="mh-group"><div class="mh-lbl">PnL actual</div>
       <div class="mh-val" style="color:${p.pnl>=0?'#10b981':'#f43f5e'}">${fmtPnl(p.pnl)} (${pct.toFixed(1)}%)</div></div>
+    <div class="mh-sep"></div>
+    <div class="mh-group"><div class="mh-lbl">Combo Deribit</div>
+      <div class="mh-val" style="font-size:9px;color:#38bdf8">${p.combo_id||'N/D'}</div></div>
+    <div class="mh-sep"></div>
+    <div class="mh-group"><div class="mh-lbl">Precio neto entrada</div>
+      <div class="mh-val">${Number.isFinite(Number(p.combo_price))?fmt(Number(p.combo_price)):'N/D'}</div></div>
     <div class="mh-sep"></div>
     <div class="mh-group"><div class="mh-lbl">Label</div>
       <div class="mh-val" style="font-size:10px;color:#64748b">${p.label}</div></div>
@@ -2610,7 +2616,7 @@ function renderStructureSummary(){
   const _sumPrem=_sumDebit?(calendarDebit(p)??Math.abs(Number(p.credito_entrada)||0)):Math.abs(Number(p.credito_entrada)||0);
   setText('ssum-premium-label',_sumDebit?'Débito entrada':'Crédito entrada');
   setText('ssum-credit',fmt(_sumPrem));
-  setText('ssum-close','Close exec '+val.execCloseText);
+  setText('ssum-close',p.combo_id?'Combo '+p.combo_id+' · close '+val.execCloseText:'Close exec '+val.execCloseText);
   const mp=Math.max(0,Number(model.maxProfit||0));
   const ml=model.unbounded?Infinity:Math.abs(Number(model.maxLoss||0));
   setText('ssum-mp',model.multiExpiry?fmt(mp)+' MODEL':fmt(mp));
