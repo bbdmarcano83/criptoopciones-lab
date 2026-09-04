@@ -1122,7 +1122,7 @@ function structureCapitalEstimate(){
   if(mixedExpiry){
     // Calendar/diagonal: front-expiry short option can consume margin independently.
     // Cash debit is known from the entered premiums, but actual buying-power impact
-    // must come from Bybit. Do not fake a finite "max loss" from one common-expiry payoff.
+    // must come from Deribit. Do not fake a finite "max loss" from one common-expiry payoff.
     return {
       mode:'MULTI_EXPIRY',
       label:'Débito mínimo / modelo',
