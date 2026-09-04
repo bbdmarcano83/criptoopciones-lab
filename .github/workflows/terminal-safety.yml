@@ -79,3 +79,25 @@ jobs:
           failed = [name for name, ok in checks.items() if not ok]
           assert not failed, failed
           print("ROLLED_DIAGONAL_VALUATION_OK")
+      - name: Guard Deribit USDC primary execution
+        shell: python
+        run: |
+          from pathlib import Path
+          exchange = Path("exchange_engine.js").read_text(encoding="utf-8")
+          shared = Path("co_shared.js").read_text(encoding="utf-8")
+          bot = Path("co_bot.js").read_text(encoding="utf-8")
+          checks = {
+              "Deribit default state": "localStorage.getItem('co_exchange')||'Deribit'" in shared,
+              "Deribit default engine": "String(e||'Deribit')" in exchange,
+              "USDC option discovery": "currency=USDC&kind=option&expired=false" in exchange,
+              "linear symbol prefix": "${asset}_USDC-" in exchange,
+              "USDC premium unit": "priceUnit:'USDC'" in exchange,
+              "no inverse USD conversion": "bid:bidRaw*under" not in exchange,
+              "ticketed preview": "async previewExecution(legs)" in bot and "preview.ticket" in bot,
+              "exact instrument required": "Pata sin instrument_name real del exchange" in bot,
+              "single backend adoption": "const resAdopt = resEjec.adoption" in bot,
+              "no USDT execution fallback": "-USDT" not in bot,
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          assert not failed, failed
+          print("DERIBIT_USDC_TERMINAL_OK")
