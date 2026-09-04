@@ -92,34 +92,40 @@ const Bybit={
 const Deribit={
   async spot(asset){
     asset=assertAsset(asset);const k=`Deribit:spot:${asset}`,c=cacheGet(k);if(c)return c;
-    const j=await json(`https://www.deribit.com/api/v2/public/get_index_price?index_name=${asset.toLowerCase()}_usd`);
+    const j=await json(`https://www.deribit.com/api/v2/public/get_index_price?index_name=${asset.toLowerCase()}_usdc`);
     const price=n(j.result?.index_price);if(!price)throw new Error(`Deribit sin índice ${asset}`);
     return cacheSet(k,{exchange:'Deribit',asset,price,change24h:null,ts:Date.now()});
   },
   async instruments(asset){
     asset=assertAsset(asset);const k=`Deribit:inst:${asset}`,c=cacheGet(k);if(c)return c;
-    const j=await json(`https://www.deribit.com/api/v2/public/get_instruments?currency=${asset}&kind=option&expired=false`);
-    return cacheSet(k,(j.result||[]).filter(x=>n(x.expiration_timestamp)>Date.now()));
+    const j=await json(`https://www.deribit.com/api/v2/public/get_instruments?currency=USDC&kind=option&expired=false`);
+    const prefix=`${asset}_USDC-`;
+    return cacheSet(k,(j.result||[]).filter(x=>
+      n(x.expiration_timestamp)>Date.now() &&
+      String(x.instrument_name||'').startsWith(prefix) &&
+      String(x.counter_currency||'USDC').toUpperCase()==='USDC'
+    ));
   },
   async options(asset){
     asset=assertAsset(asset);const k=`Deribit:opts:${asset}`,c=cacheGet(k);if(c)return c;
     const [spot,instJ,sumJ]=await Promise.all([
       this.spot(asset),
       this.instruments(asset),
-      json(`https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${asset}&kind=option`)
+      json(`https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=USDC&kind=option`)
     ]);
     const meta=new Map(instJ.map(x=>[x.instrument_name,x]));
-    const out=(sumJ.result||[]).map(o=>{
+    const prefix=`${asset}_USDC-`;
+    const out=(sumJ.result||[]).filter(o=>String(o.instrument_name||'').startsWith(prefix)).map(o=>{
       const m=meta.get(o.instrument_name);if(!m)return null;
       const p=parseDeribitSymbol(o.instrument_name),expiryTs=n(m.expiration_timestamp);
       if(!p.type||!Number.isFinite(p.strike)||expiryTs<=Date.now())return null;
-      // Deribit inverse options quote premium in base coin. Normalize a USD view for cross-venue analysis.
+      // Linear Deribit BTC_USDC/ETH_USDC options quote premium directly in USDC.
       const bidRaw=n(o.bid_price),askRaw=n(o.ask_price),markRaw=n(o.mark_price),under=n(o.underlying_price)||spot.price;
       const T=Math.max(1e-8,(expiryTs-Date.now())/31557600000), iv=n(o.mark_iv);
       const g=bsGreeks(under,p.strike,T,iv/100,p.type,n(o.interest_rate)/100);
       const row={exchange:'Deribit',asset,symbol:o.instrument_name,expiry:p.expiry,expiryTs,strike:p.strike,type:p.type,tipo:p.type,
-        underlying:under,bid:bidRaw*under,ask:askRaw*under,mark:markRaw*under,last:n(o.last)*under,
-        bidRaw,askRaw,markRaw,priceUnit:asset,iv,bidIv:0,askIv:0,delta:g.delta,gamma:g.gamma,theta:g.theta,vega:g.vega,
+        underlying:under,bid:bidRaw,ask:askRaw,mark:markRaw,last:n(o.last),
+        bidRaw,askRaw,markRaw,priceUnit:'USDC',iv,bidIv:0,askIv:0,delta:g.delta,gamma:g.gamma,theta:g.theta,vega:g.vega,
         oi:n(o.open_interest),volume:n(o.volume),raw:o};
       Object.assign(row,liquidity(row));return row;
     }).filter(Boolean);
